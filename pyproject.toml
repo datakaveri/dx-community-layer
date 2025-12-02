@@ -1,0 +1,37 @@
+[project]
+name = "tgdex-monorepo"
+version = "0.1.0"
+description = "TGDex-MonoRepo is a FastAPI App which contains all the TGDex services."
+authors = [
+    {name = "muzaffar-sirpi",email = "129746616+muzaffar-sirpi@users.noreply.github.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard] (>=0.119.0,<0.120.0)",
+    "sqlalchemy (>=2.0.44,<3.0.0)",
+    "coloredlogs (>=15.0.1,<16.0.0)",
+    "pydantic-settings (>=2.11.0,<3.0.0)",
+    "psycopg2-binary (>=2.9.11,<3.0.0)",
+    "pytz (>=2025.2,<2026.0)",
+    "requests (>=2.32.5,<3.0.0)",
+    "python-jose (>=3.5.0,<4.0.0)",
+    "boto3 (>=1.40.53,<2.0.0)",
+    "psycopg2 (>=2.9.11,<3.0.0)",
+    "redis (>=7.0.1,<8.0.0)",
+    "asyncpg (>=0.30.0,<0.31.0)"
+]
+
+
+[tool.poetry]
+packages = [{include = "src"}]
+
+
+[tool.poetry.scripts]
+server = "src.run:server"
+local = "src.run:local"
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

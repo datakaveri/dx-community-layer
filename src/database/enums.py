@@ -1,0 +1,29 @@
+import enum
+
+
+class DiscussionsTypeEnum(enum.Enum):
+    PUBLIC = "PUBLIC"
+    GENERAL = "GENERAL"
+    GETTING_STARTED = "GETTING_STARTED"
+    PRODUCT_FEEDBACK = "PRODUCT_FEEDBACK"
+    PRODUCT_ANNOUNCEMENTS = "PRODUCT_ANNOUNCEMENTS"
+
+
+class DiscussionsCategoryEnum(enum.Enum):
+    DATA_BANKS = "DATA_BANKS"
+    AI_MODELS = "AI_MODELS"
+    USECASES = "USECASES"
+    CHALLENGES = "CHALLENGES"
+    OTHERS = "OTHERS"
+
+
+class DiscussionsStatusEnum(enum.Enum):
+    PENDING = "PENDING"
+    CHANGES_REQUIRED = "CHANGES_REQUIRED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class ReactionsVoteEnum(enum.Enum):
+    UP = "UP"
+    DOWN = "DOWN"
