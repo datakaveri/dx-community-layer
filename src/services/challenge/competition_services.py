@@ -1,0 +1,628 @@
+from datetime import datetime, timezone
+from typing import Any, List
+from uuid import UUID
+
+from fastapi import status
+import pytz
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from ...services.challenge.submission_services import get_s3_file_metadata
+from ...configs.s3_config import s3_client
+from ...configs.env_config import env_config
+from ...middlewares.logging import logger
+from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
+from ...schemas.challenge.competition_requests import CreateCompetitionParams, UpdateCompetitionParams
+from ...schemas.default_schemas import AuthorizationData
+from ...database.challenge.models import (
+    Competition,
+    CompetitionTimeline,
+    CompetitionPrizePool,
+    CompetitionEvaluation,
+    CompetitionDataset,
+)
+from ...database.challenge.enums import CompetitionStatusEnum, PrizeTypeEnum
+from sqlalchemy import select, update
+from ...database.challenge.enums import CompetitionStatusEnum
+from ...schemas.custom_responses import CustomJSONResponse
+from ...database.challenge.models import Competition
+from ...database.challenge.models import CompetitionTimeline
+
+async def create_competition_handler(
+    req_params: CreateCompetitionParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    try:
+        # Ensure we are starting from a clean transaction (in case a prior dep failed)
+        try:
+            await db_session.rollback()
+        except Exception:
+            pass
+
+        # Validate basic temporal invariants (only if not draft and dates are provided)
+        if not req_params.is_drafted and req_params.submission_starts_at and req_params.submission_ends_at:
+            if req_params.submission_ends_at <= req_params.submission_starts_at:
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Bad Request",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "submission_end must be after submission_start",
+                    },
+                )
+            if req_params.evaluation_ends_at and req_params.evaluation_ends_at <= req_params.submission_ends_at:
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Bad Request",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "evaluation_end must be after submission_end",
+                    },
+                )
+
+        # Derive status based on draft/publish schedule
+        status_value = CompetitionStatusEnum.DRAFT
+        published_at = None
+        scheduled_publish_at = None
+        now = datetime.now(timezone.utc)
+        if not req_params.is_drafted:
+            if req_params.publish_schedule:
+                status_value = CompetitionStatusEnum.SCHEDULED
+                scheduled_publish_at = req_params.publish_schedule
+            else:
+                status_value = CompetitionStatusEnum.PUBLISHED
+                published_at = now
+
+        # Create Competition
+        competition = Competition(
+            title=req_params.title,
+            subtitle=req_params.subtitle,
+            overview=req_params.overview,
+            detailed_description=req_params.description,
+            status=status_value,
+            created_by=authorized_user["user_id"],
+            published_at=published_at,
+            scheduled_publish_at=scheduled_publish_at,
+            image_url=req_params.comp_image_url,
+            constraints=req_params.constraints,
+            other_resources=req_params.other_resources,
+        )
+        db_session.add(competition)
+        await db_session.flush()  # assign id
+
+        if req_params.rules_and_guidelines:
+            file_name = req_params.rules_and_guidelines.split("/")[-1]
+            metadata = get_s3_file_metadata(req_params.rules_and_guidelines)
+
+            if "error" in metadata:
+                logger.error(
+                    f"{authorized_user['email']} - Error fetching metadata for {req_params.rules_and_guidelines}: {metadata['error']}"
+                )
+                await db_session.rollback()
+                return CustomBackendError(
+                    message="Discussion creation failed",
+                    details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
+                )
+
+            # build permanent key and copy object to permanent location
+            permanent_s3_key = (
+                f"public/{authorized_user['user_id']}/{competition.id}/rules_and_guidelines/{file_name}"
+            )
+
+            try:
+                s3_client.copy_object(
+                    Bucket=env_config.AWS_S3_BUCKET,
+                    CopySource=f"{env_config.AWS_S3_BUCKET}/{req_params.rules_and_guidelines}",
+                    Key=permanent_s3_key,
+                )
+            except Exception as s3_exc:
+                logger.exception(
+                    f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                )
+                await db_session.rollback()
+                return CustomBackendError(
+                    message="Discussion creation failed",
+                    details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
+                )
+            
+            competition.rules_and_guidelines = permanent_s3_key
+
+        # Timeline (only create if dates are provided)
+        if req_params.submission_starts_at is not None or req_params.submission_ends_at is not None:
+            timeline = CompetitionTimeline(
+                competition_id=competition.id,
+                submission_starts_at=req_params.submission_starts_at,
+                submission_ends_at=req_params.submission_ends_at,
+                evaluation_ends_at=req_params.evaluation_ends_at,
+            )
+            db_session.add(timeline)
+
+        # Prize Pool (only create if prize info is provided)
+        if req_params.prize_type is not None or req_params.total_pool_amount is not None:
+            # Validate and normalize currency
+            currency = req_params.currency.strip().upper() if req_params.currency else "INR"
+            if len(currency) > 3:
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    message="Validation Error",
+                    error={
+                        "code": "VALIDATION_ERROR",
+                        "details": f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)"
+                    },
+                )
+            if len(currency) == 0:
+                currency = "INR"  # Default to INR if empty
+            
+            prize_pool = CompetitionPrizePool(
+                competition_id=competition.id,
+                prize_type=req_params.prize_type or PrizeTypeEnum.CASH,  # Default if draft
+                total_pool_amount=req_params.total_pool_amount or 0.0,  # Default if draft
+                currency=currency,
+                prize_description=req_params.prize_pool_description,
+            )
+            db_session.add(prize_pool)
+
+        # Evaluation (always create, can be empty)
+        evaluation = CompetitionEvaluation(
+            competition_id=competition.id,
+            evaluation_criteria=req_params.evaluation_criteria_definition,
+            submission_criteria=req_params.submission_file_definition,
+        )
+        db_session.add(evaluation)
+
+        # Dataset and resources (always create, can be empty)
+        competition_dataset = CompetitionDataset(
+            competition_id=competition.id,
+            description=req_params.dataset_description,
+            datasets=req_params.data_models,
+            ai_models=req_params.ai_models,
+        )
+        db_session.add(competition_dataset)
+        await db_session.flush()
+
+        if req_params.additional_assets:
+            attachment_objs: List[dict[str, Any]] = []
+
+            for asset in req_params.additional_assets:
+                s3_key = asset["object_key"]
+                file_name = s3_key.split("/")[-1]
+                metadata = get_s3_file_metadata(s3_key)
+
+                if "error" in metadata:
+                    logger.error(
+                        f"{authorized_user['email']} - Error fetching metadata for {s3_key}: {metadata['error']}"
+                    )
+                    await db_session.rollback()
+                    return CustomBackendError(
+                        message="Discussion creation failed",
+                        details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
+                    )
+
+                # build permanent key and copy object to permanent location
+                permanent_s3_key = (
+                    f"private/{authorized_user['user_id']}/{competition.id}/datasets/additional_assets/{file_name}"
+                )
+
+                try:
+                    s3_client.copy_object(
+                        Bucket=env_config.AWS_S3_BUCKET,
+                        CopySource=f"{env_config.AWS_S3_BUCKET}/{s3_key}",
+                        Key=permanent_s3_key,
+                    )
+                except Exception as s3_exc:
+                    logger.exception(
+                        f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                    )
+                    await db_session.rollback()
+                    return CustomBackendError(
+                        message="Discussion creation failed",
+                        details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
+                    )
+
+                attachment_objs.append(
+                    {
+                        "file_name": file_name,
+                        "metadata": metadata,
+                        "s3_key": permanent_s3_key,
+                        "description": asset["description"],
+                    }
+                )
+        
+            if attachment_objs:
+                competition_dataset.additional_assets = attachment_objs
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_201_CREATED,
+            message="Resource created successfully",
+            data={
+                "competition_id": str(competition.id),
+                "status": competition.status.value,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Create competition failed: {e}", exc_info=True)
+        await db_session.rollback()
+        return CustomBackendError(message="Failed to create competition", details=str(e))
+
+
+async def update_competition_handler(
+    competition_id: UUID,
+    req_params: UpdateCompetitionParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    try:
+        # Ensure we are starting from a clean transaction
+        try:
+            await db_session.rollback()
+        except Exception:
+            pass
+
+        # Fetch the competition
+        stmt = select(Competition).where(Competition.id == competition_id)
+        result = await db_session.execute(stmt)
+        competition = result.scalar_one_or_none()
+
+        if not competition:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Resource not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "Competition not found.",
+                },
+            )
+
+        # Check if user is the creator
+        if competition.created_by != authorized_user["user_id"]:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_403_FORBIDDEN,
+                message="Forbidden access",
+                error={
+                    "code": "FORBIDDEN",
+                    "details": "You are not authorized to update this competition.",
+                },
+            )
+
+        # Only allow updates to drafts or scheduled competitions
+        if competition.status not in [CompetitionStatusEnum.DRAFT, CompetitionStatusEnum.SCHEDULED]:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Bad Request",
+                error={
+                    "code": "BAD_REQUEST",
+                    "details": "Only draft or scheduled competitions can be updated.",
+                },
+            )
+
+        # Update competition fields if provided
+        if req_params.title is not None:
+            competition.title = req_params.title
+        if req_params.subtitle is not None:
+            competition.subtitle = req_params.subtitle
+        if req_params.overview is not None:
+            competition.overview = req_params.overview
+        if req_params.description is not None:
+            competition.detailed_description = req_params.description
+        if req_params.comp_image_url is not None:
+            competition.image_url = req_params.comp_image_url
+        if req_params.constraints is not None:
+            competition.constraints = req_params.constraints
+        if req_params.rules_and_guidelines is not None:
+            competition.rules_and_guidelines = req_params.rules_and_guidelines
+
+        # Handle status change (draft to publish)
+        now = datetime.now(timezone.utc)
+        if req_params.is_drafted is not None:
+            if not req_params.is_drafted:
+                # Publishing the competition
+                if req_params.publish_schedule:
+                    competition.status = CompetitionStatusEnum.SCHEDULED
+                    competition.scheduled_publish_at = req_params.publish_schedule
+                    competition.published_at = None
+                else:
+                    competition.status = CompetitionStatusEnum.PUBLISHED
+                    competition.published_at = now
+                    competition.scheduled_publish_at = None
+            else:
+                # Keeping as draft
+                competition.status = CompetitionStatusEnum.DRAFT
+                competition.published_at = None
+                competition.scheduled_publish_at = None
+
+        competition.updated_at = now
+        await db_session.flush()
+
+        # Update or create Timeline
+        timeline_stmt = select(CompetitionTimeline).where(
+            CompetitionTimeline.competition_id == competition_id
+        )
+        timeline_result = await db_session.execute(timeline_stmt)
+        timeline = timeline_result.scalar_one_or_none()
+
+        if req_params.submission_starts_at is not None or req_params.submission_ends_at is not None:
+            if timeline:
+                if req_params.submission_starts_at is not None:
+                    timeline.submission_starts_at = req_params.submission_starts_at
+                if req_params.submission_ends_at is not None:
+                    timeline.submission_ends_at = req_params.submission_ends_at
+                if req_params.evaluation_ends_at is not None:
+                    timeline.evaluation_ends_at = req_params.evaluation_ends_at
+            else:
+                timeline = CompetitionTimeline(
+                    competition_id=competition.id,
+                    submission_starts_at=req_params.submission_starts_at,
+                    submission_ends_at=req_params.submission_ends_at,
+                    evaluation_ends_at=req_params.evaluation_ends_at,
+                )
+                db_session.add(timeline)
+
+        # Validate temporal invariants if dates are being updated
+        if timeline and timeline.submission_starts_at and timeline.submission_ends_at:
+            if timeline.submission_ends_at <= timeline.submission_starts_at:
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Bad Request",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "submission_end must be after submission_start",
+                    },
+                )
+            if timeline.evaluation_ends_at and timeline.evaluation_ends_at <= timeline.submission_ends_at:
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Bad Request",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "evaluation_end must be after submission_end",
+                    },
+                )
+
+        # Update or create Prize Pool
+        prize_pool_stmt = select(CompetitionPrizePool).where(
+            CompetitionPrizePool.competition_id == competition_id
+        )
+        prize_pool_result = await db_session.execute(prize_pool_stmt)
+        prize_pool = prize_pool_result.scalar_one_or_none()
+
+        if (
+            req_params.prize_type is not None
+            or req_params.total_pool_amount is not None
+            or req_params.currency is not None
+            or req_params.prize_pool_description is not None
+        ):
+            currency = req_params.currency.strip().upper() if req_params.currency else (prize_pool.currency if prize_pool else "INR")
+            if len(currency) > 3:
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    message="Validation Error",
+                    error={
+                        "code": "VALIDATION_ERROR",
+                        "details": f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)"
+                    },
+                )
+            if len(currency) == 0:
+                currency = "INR"
+
+            if prize_pool:
+                if req_params.prize_type is not None:
+                    prize_pool.prize_type = req_params.prize_type
+                if req_params.total_pool_amount is not None:
+                    prize_pool.total_pool_amount = req_params.total_pool_amount
+                if req_params.currency is not None:
+                    prize_pool.currency = currency
+                if req_params.prize_pool_description is not None:
+                    prize_pool.prize_description = req_params.prize_pool_description
+            else:
+                prize_pool = CompetitionPrizePool(
+                    competition_id=competition.id,
+                    prize_type=req_params.prize_type or PrizeTypeEnum.CASH,
+                    total_pool_amount=req_params.total_pool_amount or 0.0,
+                    currency=currency,
+                    prize_description=req_params.prize_pool_description,
+                )
+                db_session.add(prize_pool)
+
+        # Update or create Evaluation
+        evaluation_stmt = select(CompetitionEvaluation).where(
+            CompetitionEvaluation.competition_id == competition_id
+        )
+        evaluation_result = await db_session.execute(evaluation_stmt)
+        evaluation = evaluation_result.scalar_one_or_none()
+
+        if req_params.evaluation_criteria_definition is not None or req_params.submission_file_definition is not None:
+            if evaluation:
+                if req_params.evaluation_criteria_definition is not None:
+                    evaluation.evaluation_criteria = req_params.evaluation_criteria_definition
+                if req_params.submission_file_definition is not None:
+                    evaluation.submission_criteria = req_params.submission_file_definition
+            else:
+                evaluation = CompetitionEvaluation(
+                    competition_id=competition.id,
+                    evaluation_criteria=req_params.evaluation_criteria_definition,
+                    submission_criteria=req_params.submission_file_definition,
+                )
+                db_session.add(evaluation)
+
+        # Update or create Dataset
+        dataset_stmt = select(CompetitionDataset).where(
+            CompetitionDataset.competition_id == competition_id
+        )
+        dataset_result = await db_session.execute(dataset_stmt)
+        competition_dataset = dataset_result.scalar_one_or_none()
+
+        if (
+            req_params.dataset_description is not None
+            or req_params.data_models is not None
+            or req_params.ai_models is not None
+            or req_params.other_resources is not None
+            or req_params.additional_assets is not None
+        ):
+            if competition_dataset:
+                if req_params.dataset_description is not None:
+                    competition_dataset.description = req_params.dataset_description
+                if req_params.data_models is not None:
+                    competition_dataset.datasets = req_params.data_models
+                if req_params.ai_models is not None:
+                    competition_dataset.ai_models = req_params.ai_models
+                if req_params.other_resources is not None or req_params.additional_assets is not None:
+                    competition_dataset.additional_assets = (
+                        {"other_resources": req_params.other_resources, "assets": req_params.additional_assets}
+                        if (req_params.other_resources or req_params.additional_assets)
+                        else None
+                    )
+            else:
+                competition_dataset = CompetitionDataset(
+                    competition_id=competition.id,
+                    description=req_params.dataset_description,
+                    datasets=req_params.data_models,
+                    ai_models=req_params.ai_models,
+                    additional_assets=(
+                        {"other_resources": req_params.other_resources, "assets": req_params.additional_assets}
+                        if (req_params.other_resources or req_params.additional_assets)
+                        else None
+                    ),
+                )
+                db_session.add(competition_dataset)
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Resource updated successfully",
+            data={
+                "competition_id": str(competition.id),
+                "status": competition.status.value,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Update competition failed: {e}", exc_info=True)
+        await db_session.rollback()
+        return CustomBackendError(message="Failed to update competition", details=str(e))
+
+
+async def delete_competition_handler(
+    competition_id: UUID,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    try:
+        try:
+            await db_session.rollback()
+        except Exception:
+            pass
+
+        stmt = select(Competition).where(Competition.id == competition_id)
+        result = await db_session.execute(stmt)
+        competition = result.scalar_one_or_none()
+
+        if not competition:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Resource not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "Competition not found.",
+                },
+            )
+
+        if competition.created_by != authorized_user["user_id"]:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_403_FORBIDDEN,
+                message="Forbidden access",
+                error={
+                    "code": "FORBIDDEN",
+                    "details": "You are not authorized to delete this competition.",
+                },
+            )
+
+        if competition.status == CompetitionStatusEnum.PUBLISHED:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Bad Request",
+                error={
+                    "code": "BAD_REQUEST",
+                    "details": "Published competitions cannot be deleted.",
+                },
+            )
+
+        await db_session.delete(competition)
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Resource deleted successfully",
+            data={
+                "competition_id": str(competition_id),
+            },
+        )
+    except Exception as e:
+        logger.error(f"Delete competition failed: {e}", exc_info=True)
+        await db_session.rollback()
+        return CustomBackendError(message="Failed to delete competition", details=str(e))
+
+
+async def announce_result_service(competition_id: UUID, db: AsyncSession):
+
+    query = select(CompetitionTimeline).where(
+        CompetitionTimeline.competition_id == competition_id
+    )
+    result = await db.execute(query)
+    timeline = result.scalar_one_or_none()
+
+    if not timeline:
+        return CustomJSONResponse(
+            success=False,
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Competition timeline not found.",
+        )
+
+    # Fix: timezone-aware datetime
+    now = datetime.now(timezone.utc)
+
+    if not timeline.submission_ends_at:
+        return CustomJSONResponse(
+            success=False,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Submission end date not set.",
+        )
+
+    if timeline.submission_ends_at > now:
+        return CustomJSONResponse(
+            success=False,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Submission period has not ended yet.",
+        )
+
+    update_stmt = (
+        update(Competition)
+        .where(Competition.id == competition_id)
+        .values(status=CompetitionStatusEnum.COMPLETED, updated_at=datetime.now(pytz.timezone("Asia/Kolkata")))
+    )
+
+    await db.execute(update_stmt)
+    await db.commit()
+
+    return CustomJSONResponse(
+        success=True,
+        status_code=status.HTTP_200_OK,
+        message="Competition marked as COMPLETED."
+    )

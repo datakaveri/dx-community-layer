@@ -32,7 +32,7 @@ docs_tags_metadata = [
         ),
     },
     {
-        "name": "Chanllenge APIs",
+        "name": "Challenge APIs",
         "description": (
             "The Challenge APIs handle all operations related to the challenges. "
             "These routes provide functionality for managing the challenges and its contents in TGDex ecosystem."
