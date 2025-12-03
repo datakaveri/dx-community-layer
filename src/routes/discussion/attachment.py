@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_discussion_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...schemas.default_schemas import AuthorizationData
 from ...middlewares.authorization import http_bearer_header
@@ -62,7 +62,7 @@ async def generate_presigned_url(
 async def delete_attachment(
     req_params: DeleteAttachmentParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
         Deletes attachments from S3 based on the provided object key and type.
@@ -92,7 +92,7 @@ async def delete_attachment(
 async def generate_download_url(
     req_params: GenerateDownloadUrlParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Generates a presigned URL for downloading attachments from S3.

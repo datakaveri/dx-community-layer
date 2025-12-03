@@ -4,7 +4,7 @@ from fastapi import APIRouter, Path, Depends, Body
 
 from ...docs import public_desc
 from ...middlewares.logging import logger
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_discussion_db_session
 from ...schemas.default_schemas import AuthorizationData
 from ...schemas.custom_responses import CustomJSONResponse
 from ...schemas.discussion.comment_requests import (
@@ -45,7 +45,7 @@ router = APIRouter()
 async def retrieve_discussion_comments(
     req_params: RetrieveDiscussionCommentsParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves all comments for a discussion by its ID.
@@ -74,7 +74,7 @@ async def retrieve_discussion_comments(
 async def retrieve_comment_replies(
     req_params: RetrieveCommentRepliesParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves all replies for a comment by its ID.
@@ -103,7 +103,7 @@ async def retrieve_comment_replies(
 async def create_discussion_comment(
     req_params: CreateCommentParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Adds a comment to a discussion by its ID.
@@ -132,7 +132,7 @@ async def create_discussion_comment(
 async def create_comment_reply(
     req_params: CreateCommentReplyParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Adds a reply to a comment by its ID.
@@ -161,7 +161,7 @@ async def create_comment_reply(
 async def add_comment_vote(
     comment_id: uuid.UUID = Path(..., description="ID of the comment to upvote"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     logger.info("Add Comment Vote API is being called")
     return await add_comment_vote_handler(
@@ -178,7 +178,7 @@ async def add_comment_vote(
 async def delete_comment_vote(
     comment_id: uuid.UUID = Path(..., description="ID of the comment to remove upvote"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     logger.info("Delete Comment Vote API is being called")
     return await delete_comment_vote_handler(
@@ -196,7 +196,7 @@ async def delete_comment_vote(
 async def add_update_comment_reaction(
     req_params: AddUpdateCommentReactionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     return await add_update_comment_reaction_handler(
         comment_id=req_params.comment_id,
@@ -214,7 +214,7 @@ async def add_update_comment_reaction(
 async def delete_comment_reaction(
     comment_id: uuid.UUID = Path(..., description="ID of the comment"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     return await delete_comment_reaction_handler(
         comment_id=comment_id,
@@ -231,7 +231,7 @@ async def delete_comment_reaction(
 async def delete_comment(
     comment_id: uuid.UUID = Path(..., description="ID of the comment to delete"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     logger.info("Delete Comment API is being called")
     return await delete_comment_handler(

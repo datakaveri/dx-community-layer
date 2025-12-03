@@ -22,14 +22,16 @@ discussion_engine = create_async_engine(
 )
 
 DiscussionAsyncSessionLocal = sessionmaker(
-    discussion_engine, class_=AsyncSession, expire_on_commit=False
+    discussion_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
 )
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_discussion_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency that provides an async DB session for the DISCUSSION service."""
     async with DiscussionAsyncSessionLocal() as session:
         yield session
-
 
 discussion_db_session = DiscussionAsyncSessionLocal()
 
@@ -48,14 +50,18 @@ challenge_engine = create_async_engine(
     pool_recycle=1800,  # Recycle conns every 30 mins
 )
 
-ChanllengeAsyncSessionLocal = sessionmaker(
-    challenge_engine, class_=AsyncSession, expire_on_commit=False
+ChallengeAsyncSessionLocal = sessionmaker(
+    challenge_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
 )
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    async with ChanllengeAsyncSessionLocal() as session:
+async def get_challenge_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency that provides an async DB session for the CHALLENGE service."""
+    async with ChallengeAsyncSessionLocal() as session:
         yield session
 
 
-challenge_db_session = ChanllengeAsyncSessionLocal()
+challenge_db_session = ChallengeAsyncSessionLocal()
+

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Body, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...middlewares.authorization import http_bearer_header
 from ...schemas.default_schemas import AuthorizationData, UserRole
@@ -51,7 +51,7 @@ router = APIRouter(prefix="/admin")
 )
 async def admin_retrieve_challenges(
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     status_filter: CompetitionStatusEnum | None = Query(
@@ -122,7 +122,7 @@ async def admin_retrieve_challenges(
 async def admin_create_challenge(
     req_params: CreateCompetitionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Creates a new competition (challenge) from the admin panel.
@@ -171,7 +171,7 @@ async def admin_create_challenge(
 async def admin_retrieve_challenge_dataset(
     competition_id: UUID = Path(..., description="ID of the competition to retrieve dataset for"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves dataset information for a specific competition.
@@ -220,7 +220,7 @@ async def admin_list_competition_submissions(
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Lists submissions for a given competition for admin.
@@ -256,7 +256,7 @@ async def admin_list_competition_submissions(
 async def admin_retrieve_challenge_by_id(
     competition_id: UUID = Path(..., description="ID of the competition to retrieve"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves a single competition with full admin-level details.
@@ -306,7 +306,7 @@ async def admin_update_challenge(
     competition_id: UUID = Path(..., description="ID of the competition to update"),
     req_params: UpdateCompetitionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Updates an existing competition (draft/scheduled) from the admin panel.
@@ -354,7 +354,7 @@ async def admin_update_challenge(
 async def admin_delete_challenge(
     competition_id: UUID = Path(..., description="ID of the competition to delete"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Deletes a draft or scheduled competition.
@@ -406,7 +406,7 @@ async def admin_disqualify_submission(
         default=None, description="Attachment for disqualification"
     ),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Disqualifies a specific submission for a given competition.
@@ -472,7 +472,7 @@ async def admin_disqualify_submission(
 async def announce_competition_result(
     competition_id: UUID = Query(..., description="Competition ID"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Announces the result for a competition.
@@ -514,7 +514,7 @@ async def announce_competition_result(
 async def admin_publish_submission(
     req_params: PublishSubmissionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Publishes a submission (marks as visible/accepted).
@@ -565,7 +565,7 @@ async def admin_publish_submission(
 async def admin_edit_submission_evaluation(
     req_params: AdminEditSubmissionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Edits evaluation details of a submission (score, comments, disqualification).

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...docs import public_desc
 from ...middlewares.logging import logger
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_discussion_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...services.discussion.search_services import (
     search_authors_handler,
@@ -31,7 +31,7 @@ router = APIRouter(prefix="/search")
 async def search_discussions(
     req_params: SearchDiscussionsParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves discussions based on the provided search query.
@@ -59,7 +59,7 @@ async def search_discussions(
 async def search_tags(
     req_params: SearchParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves tags based on the provided search query.
@@ -87,7 +87,7 @@ async def search_tags(
 async def search_authors(
     req_params: SearchParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves authors based on the provided search query.
