@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse
 
 from ..middlewares.logging import logger
 from ..configs.s3_config import s3_client
-from ..configs.db_config import db_session
+from ..configs.db_config import discussion_db_session
 from ..configs.env_config import env_config
 from ..schemas.custom_responses import CustomJSONResponse
 from ..schemas.default_schemas import HOME_RESPONSE_MODEL
@@ -69,7 +69,7 @@ async def healthz() -> CustomJSONResponse:
 
     # Check PostgreSQL DB
     try:
-        db_session.execute(text("SELECT 1"))
+        discussion_db_session.execute(text("SELECT 1"))
         status_report["PostgreSQL DB"] = True
     except Exception as e:
         logger.error(f"PostgreSQL DB check failed: {e}")
