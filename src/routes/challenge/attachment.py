@@ -23,7 +23,7 @@ from ...services.challenge.attachment_services import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-router = APIRouter(prefix="/attachment", tags=["Attachment APIs"])
+router = APIRouter(prefix="/attachment")
 
 
 @router.post(

@@ -54,7 +54,7 @@ from ...services.challenge.submission_services import (
 )
 
 
-router = APIRouter(prefix="/users", tags=["User Challenge APIs"])
+router = APIRouter(prefix="/users")
 
 
 @router.get(

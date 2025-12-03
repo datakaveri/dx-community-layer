@@ -36,7 +36,7 @@ from ...services.challenge.admin_services import (
     admin_retrieve_challenge_by_id_handler,
 )
 
-router = APIRouter(prefix="/admin", tags=["Admin APIs"])
+router = APIRouter(prefix="/admin")
 
 
 # -------------------------------------------------------------------
