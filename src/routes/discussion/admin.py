@@ -14,7 +14,7 @@ from ...schemas.discussion.admin_responses import (
     ADMIN_REVIEW_DISCUSSION_RESPONSE_MODEL,
 )
 from ...middlewares.logging import logger
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_discussion_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...middlewares.authorization import http_bearer_header
 from ...schemas.default_schemas import AuthorizationData, UserRole
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/admin")
 async def admin_retrieve_discussions(
     req_params: AdminRetrieveDiscussionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves discussions for the admin panel based on the provided filters and choice.
@@ -75,7 +75,7 @@ async def admin_retrieve_discussions(
 async def admin_review_discussion(
     req_params: AdminReviewDiscussionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Reviews a discussion based on the provided discussion ID.

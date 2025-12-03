@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Path, Query
 from ...docs import public_desc
 from ...middlewares.logging import logger
 from ...configs.env_config import env_config
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_discussion_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...schemas.discussion.discussion_requests import (
     AddUpdateDiscussionReactionParams,
@@ -77,7 +77,7 @@ async def retrieve_discussion_by_id(
         ..., description="ID of the discussion to retrieve"
     ),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves a discussion by its ID.
@@ -114,7 +114,7 @@ async def retrieve_discussion_by_id(
 async def retrieve_discussions(
     req_params: RetrieveDiscussionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves discussions based on the provided choice and filters.
@@ -146,7 +146,7 @@ async def retrieve_discussions(
 async def create_discussion(
     req_params: CreateDiscussionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Creates a new discussion for the authenticated user.
@@ -183,7 +183,7 @@ async def create_discussion(
 async def update_discussion(
     req_params: UpdateDiscussionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Updates a discussion with the provided details(title, content, tags).
@@ -213,7 +213,7 @@ async def update_discussion(
 async def discussion_actions(
     req_params: DiscussionActionsParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Performs actions on a discussion such as bookmark, unbookmark, pin & unpin.
@@ -242,7 +242,7 @@ async def discussion_actions(
 async def add_update_discussion_reaction(
     req_params: AddUpdateDiscussionReactionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Adds or updates a reaction to a discussion.
@@ -275,7 +275,7 @@ async def add_update_discussion_reaction(
 async def delete_discussion_reaction(
     discussion_id: uuid.UUID = Path(..., description="ID of the discussion to delete"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Deletes a discussion and stores its details in DeletedDiscussion table.
@@ -307,7 +307,7 @@ async def delete_discussion_reaction(
 async def add_discussion_vote(
     discussion_id: uuid.UUID = Path(..., description="ID of the discussion to vote on"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Adds or updates a vote to a discussion.
@@ -340,7 +340,7 @@ async def add_discussion_vote(
 async def delete_discussion_vote(
     discussion_id: uuid.UUID = Path(..., description="ID of the discussion to delete"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Deletes a discussion and stores its details in DeletedDiscussion table.
@@ -373,7 +373,7 @@ async def delete_discussion_vote(
 async def delete_discussion(
     discussion_id: uuid.UUID = Path(..., description="ID of the discussion to delete"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Deletes a discussion and stores its details in DeletedDiscussion table.
@@ -407,7 +407,7 @@ async def delete_discussion(
 )
 async def get_popular_tags(
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves the top 5 most frequently used tags across all approved discussions.
@@ -438,7 +438,7 @@ async def get_popular_tags(
 )
 async def get_recent_authors(
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: Session = Depends(get_db_session),
+    db_session: Session = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
     Retrieves up to three recent unique discussion authors.
@@ -455,7 +455,7 @@ async def get_recent_authors(
 )
 async def recent_bookmarked_discussions(
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     return await recent_bookmarked_discussions_handler(
         authorized_user=authorized_user, db_session=db_session

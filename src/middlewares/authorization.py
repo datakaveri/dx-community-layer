@@ -16,6 +16,7 @@ from ..database.discussion.models import User
 from ..middlewares.logging import logger
 from ..configs.env_config import env_config
 from ..configs.db_config import get_db_session
+from ..configs.db_config import get_db_session_challenge
 from ..configs.redis_config import redis_client
 from ..schemas.custom_responses import CustomHttpException
 from ..schemas.default_schemas import AuthorizationData, UserRole
@@ -232,7 +233,7 @@ class HttpBearerHeader(HTTPBearer):
         Authorization: Annotated[
             Optional[str], Header(description="Bearer token")
         ] = None,
-        session: AsyncSession = Depends(get_db_session),
+        session: AsyncSession = Depends(get_db_session, get_db_session_challenge),
     ) -> AuthorizationData:
         if (not Authorization) and self.public:
             return AuthorizationData(

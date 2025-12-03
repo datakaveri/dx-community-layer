@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 
 from ...middlewares.logging import logger
 from ...middlewares.authorization import http_bearer_header
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...schemas.default_schemas import AuthorizationData
 from ...schemas.challenge.attachment_responses import (
@@ -50,7 +50,7 @@ async def generate_presigned_url(
 async def delete_attachment(
     req_params: DeleteAttachmentParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("Delete Attachment API is being called")
     return await delete_attachment_handler(
@@ -66,7 +66,7 @@ async def delete_attachment(
 async def generate_download_url(
     req_params: GenerateDownloadUrlParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("Generate Download URL API is being called")
     return await generate_download_url_handler(

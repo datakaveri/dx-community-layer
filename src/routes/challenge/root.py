@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Path
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_challenge_db_session
 from ...middlewares.logging import logger
 from ...schemas.custom_responses import CustomJSONResponse
 
@@ -31,7 +31,7 @@ router.include_router(users_router)
 )
 async def get_competition_leaderboard(
     competition_id: UUID = Path(..., description="ID of the competition"),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
 
     """

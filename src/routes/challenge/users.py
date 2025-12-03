@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...schemas.challenge.competition_requests import CompetitionsSortBy
 
-from ...configs.db_config import get_db_session
+from ...configs.db_config import get_challenge_db_session
 from ...database.challenge.enums import CompetitionStatusEnum
 from ...database.challenge.models import (
     Competition,
@@ -79,7 +79,7 @@ async def users_list_challenges(
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
     Returns a lightweight list of all *published* competitions for end users.
@@ -251,7 +251,7 @@ async def users_list_challenges(
 )
 async def users_get_challenge_by_id(
     competition_id: UUID = Path(..., description="ID of the competition to retrieve"),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
 ) -> CustomJSONResponse:
     logger.info("User Get Challenge By ID API is being called")
@@ -465,7 +465,7 @@ async def users_get_challenge_by_id(
 async def users_join_competition(
     competition_id: UUID = Path(..., description="ID of the competition to join"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User Join Competition API is being called")
     return await user_join_competition_handler(
@@ -483,7 +483,7 @@ async def users_join_competition(
 async def users_bookmark_competition(
     competition_id: UUID = Path(..., description="ID of the competition to bookmark"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User Bookmark Competition API is being called")
     return await bookmark_competition_handler(
@@ -501,7 +501,7 @@ async def users_bookmark_competition(
 async def users_unbookmark_competition(
     competition_id: UUID = Path(..., description="ID of the competition to unbookmark"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User Unbookmark Competition API is being called")
     return await unbookmark_competition_handler(
@@ -525,7 +525,7 @@ async def users_get_bookmarked_competitions(
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User Get Bookmarked Competitions API is being called")
     return await get_bookmarked_competitions_handler(
@@ -546,7 +546,7 @@ async def users_create_submission(
     competition_id: UUID = Path(..., description="ID of the competition"),
     payload: CreateSubmissionRequest = Body(...),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User Create Submission API is being called")
     return await create_user_submission_handler(
@@ -566,7 +566,7 @@ async def users_list_all_submissions(
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User List Submissions API is being called")
     return await get_user_submissions_handler(
@@ -587,7 +587,7 @@ async def users_list_competition_submissions(
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User List Competition Submissions API is being called")
     return await get_user_submissions_handler(
@@ -606,7 +606,7 @@ async def users_list_competition_submissions(
 async def users_update_submission(
     req_params: UpdateSubmissionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User Update Submission API is being called")
     return await update_user_submission_handler(
@@ -623,7 +623,7 @@ async def users_update_submission(
 async def users_download_submission(
     req_params: DownloadSubmissionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User Download Submission API is being called")
     return await download_user_submission_handler(
@@ -639,7 +639,7 @@ async def users_download_submission(
 )
 async def users_get_submission_interests(
     authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_db_session),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     logger.info("User Get Submission Interests API is being called")
     return await get_submission_interests_handler(
