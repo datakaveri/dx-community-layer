@@ -87,7 +87,7 @@ jobs:
             echo "=== Starting new container ==="
             docker run -d \
               --name ${{ secrets.CONTAINER_NAME }} \
-              -p 8091:8000 \
+              -p 8091:5000 \
               --env-file /root/tgdex-monorepo-microservices/.env \
               --restart always \
               ${{ secrets.DOCKER_IMAGE_NAME }}:dev
