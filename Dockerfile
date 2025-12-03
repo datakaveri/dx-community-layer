@@ -14,7 +14,7 @@ COPY --chown=${USER} pyproject.toml poetry.lock README.md ./
 COPY --chown=${USER} src/ src/
 RUN uv pip install --python=$VIRTUALENV/bin/python .
 
-FROM python:3.13.8-alpine3.22 AS runtime
+FROM python:3.14.1-alpine3.22 AS runtime
 ENV USER=devops
 RUN apk add --no-cache \
   libpq \
