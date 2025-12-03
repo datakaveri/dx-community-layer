@@ -77,7 +77,7 @@ async def healthz() -> CustomJSONResponse:
 
     # Check AWS S3
     try:
-        s3_client.head_bucket(Bucket=env_config.AWS_S3_BUCKET)
+        s3_client.head_bucket(Bucket=env_config.DISCUSSION_AWS_S3_BUCKET)
         status_report["AWS S3"] = True
     except Exception as e:
         logger.error(f"AWS S3 check failed: {e}")

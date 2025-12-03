@@ -24,34 +24,20 @@ docs_tags_metadata = [
             "are essential for overall functionality, monitoring, and accessibility."
         ),
     },
-    # {
-    #     "name": "Search API",
-    #     "description": (
-    #         "The Search API handle all operations related to the search functionality. "
-    #         "These routes provide functionality for searching discussions, tags, and authors."
-    #     ),
-    # },
     {
         "name": "Discussion APIs",
         "description": (
             "The Discussion APIs handle all operations related to the discussions. "
-            "These routes provide functionality for managing the discussions forum and its contents in TGDex ecosystem."
+            "These routes provide functionality for managing the discussion forums and its contents in TGDex ecosystem."
         ),
     },
-    # {
-    #     "name": "Attachment APIs",
-    #     "description": (
-    #         "The Attachment APIs handle all operations related to the attachments. "
-    #         "These routes provide functionality for creating, retrieving, updating, and deleting attachments."
-    #     ),
-    # },
-    # {
-    #     "name": "Admin APIs",
-    #     "description": (
-    #         "The Admin APIs handle all operations related to the admin panel. "
-    #         "These routes provide functionality for retrieving discussions for the admin panel."
-    #     ),
-    # },
+    {
+        "name": "Chanllenge APIs",
+        "description": (
+            "The Challenge APIs handle all operations related to the challenges. "
+            "These routes provide functionality for managing the challenges and its contents in TGDex ecosystem."
+        ),
+    },
 ]
 
 

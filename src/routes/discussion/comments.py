@@ -7,7 +7,7 @@ from ...middlewares.logging import logger
 from ...configs.db_config import get_db_session
 from ...schemas.default_schemas import AuthorizationData
 from ...schemas.custom_responses import CustomJSONResponse
-from ...schemas.comment_requests import (
+from ...schemas.discussion.comment_requests import (
     CreateCommentParams,
     CreateCommentReplyParams,
     RetrieveCommentRepliesParams,
@@ -15,7 +15,7 @@ from ...schemas.comment_requests import (
     AddUpdateCommentReactionParams,
 )
 from ...middlewares.authorization import http_bearer_header, http_bearer_header_public
-from ...services.comment_services import (
+from ...services.discussion.comment_services import (
     create_comment_reply_handler,
     retrieve_comment_replies_handler,
     retrieve_discussion_comments_handler,
@@ -26,7 +26,7 @@ from ...services.comment_services import (
     delete_comment_reaction_handler,
     delete_comment_handler,
 )
-from ...schemas.comment_responses import (
+from ...schemas.discussion.comment_responses import (
     ADD_UPDATE_COMMENT_REACTION_RESPONSE_MODEL,
     DELETE_COMMENT_REACTION_RESPONSE_MODEL,
     DELETE_COMMENT_RESPONSE_MODEL,

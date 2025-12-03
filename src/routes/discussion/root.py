@@ -8,7 +8,7 @@ from ...middlewares.logging import logger
 from ...configs.env_config import env_config
 from ...configs.db_config import get_db_session
 from ...schemas.custom_responses import CustomJSONResponse
-from ...schemas.discussion_requests import (
+from ...schemas.discussion.discussion_requests import (
     AddUpdateDiscussionReactionParams,
     CreateDiscussionParams,
     DiscussionActionsParams,
@@ -17,7 +17,7 @@ from ...schemas.discussion_requests import (
 )
 from ...schemas.default_schemas import AuthorizationData
 from ...middlewares.authorization import http_bearer_header, http_bearer_header_public
-from ...services.discussion_services import (
+from ...services.discussion.discussion_services import (
     add_discussion_vote_handler,
     add_update_discussion_reaction_handler,
     create_discussion_handler,
@@ -32,7 +32,7 @@ from ...services.discussion_services import (
     retrieve_discussions_handler,
     get_popular_tags_handler,
 )
-from ...schemas.discussion_responses import (
+from ...schemas.discussion.discussion_responses import (
     ADD_DISCUSSION_VOTE_RESPONSE_MODEL,
     ADD_UPDATE_DISCUSSION_REACTION_RESPONSE_MODEL,
     CREATE_DISCUSSION_RESPONSE_MODEL,

@@ -7,17 +7,17 @@ from ...configs.db_config import get_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...schemas.default_schemas import AuthorizationData
 from ...middlewares.authorization import http_bearer_header
-from ...schemas.attachment_requests import (
+from ...schemas.discussion.attachment_requests import (
     DeleteAttachmentParams,
     GenerateDownloadUrlParams,
     GeneratePresignedURLParams,
 )
-from ...services.attachment_services import (
+from ...services.discussion.attachment_services import (
     generate_download_url_handler,
     generate_presigned_url_handler,
     delete_attachment_handler,
 )
-from ...schemas.attachment_responses import (
+from ...schemas.discussion.attachment_responses import (
     GENERATE_DOWNLOAD_URL_RESPONSE_MODEL,
     GENERATE_PRESIGNED_URL_RESPONSE_MODEL,
     DELETE_ATTACHMENTS_RESPONSE_MODEL,

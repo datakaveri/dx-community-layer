@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import Any, List, Literal, Optional, Union
 
-from .default_schemas import (
+from ..default_schemas import (
     BackendErrorResponse,
     BadRequestErrorResponse,
     SuccessfulResponse,
@@ -77,6 +77,7 @@ RETRIEVE_COMMENTS_RESPONSE_MODEL = {
 
 
 # Reaction response models
+
 
 class AddUpdateCommentReactionSuccessfulResponse(SuccessfulResponse):
     message: Literal["Comment reaction added/updated successfully"]

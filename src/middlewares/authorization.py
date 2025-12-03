@@ -12,7 +12,7 @@ from fastapi.security.utils import get_authorization_scheme_param
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from ..database.models import User
+from ..database.discussion.models import User
 from ..middlewares.logging import logger
 from ..configs.env_config import env_config
 from ..configs.db_config import get_db_session
@@ -217,7 +217,9 @@ class HttpBearerHeader(HTTPBearer):
             # Cache under both keys (provided id and effective id) for 1 hour
             payload = json.dumps({"name": name, "email": email})
             await self.redis_client.set(f"user:{effective_user_id}", payload, ex=3600)
-            await self.redis_client.set(idmap_key, json.dumps(str(effective_user_id)), ex=3600)
+            await self.redis_client.set(
+                idmap_key, json.dumps(str(effective_user_id)), ex=3600
+            )
 
             return uuid.UUID(str(effective_user_id))
         except Exception as e:

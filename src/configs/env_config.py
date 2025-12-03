@@ -18,15 +18,15 @@ class EnvConfig(BaseSettings):
     API_VERSION: str = current_version
     INSTANCE: str
     BASE_URL: str = "http://127.0.0.1:5000"
-    DATABASE_URL: str
-    DB_SCHEMA: str
+    DISCUSSION_DATABASE_URL: str
+    DISCUSSION_DB_SCHEMA: str
     KEYCLOAK_URL: str
     KEYCLOAK_REALM: str
     KEYCLOAK_AUDIENCE: str
     KEYCLOAK_ISSUER: str
-    AWS_S3_BUCKET: str
-    AWS_ACCESS_KEY_ID: str
-    AWS_SECRET_ACCESS_KEY: str
+    DISCUSSION_AWS_S3_BUCKET: str
+    DISCUSSION_AWS_ACCESS_KEY_ID: str
+    DISCUSSION_AWS_SECRET_ACCESS_KEY: str
     AWS_DEFAULT_REGION: str
     REDIS_URL: str
     ACTIVATED_SERVICES: list[str]

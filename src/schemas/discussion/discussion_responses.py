@@ -4,12 +4,12 @@ from typing import List, Literal, Optional, Union, Any, Dict
 from typing import Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel
 
-from ..database.enums import (
+from ...database.discussion.enums import (
     DiscussionsTypeEnum,
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
 )
-from .default_schemas import (
+from ..default_schemas import (
     BackendErrorResponse,
     CreatedResponse,
     BadRequestErrorResponse,

@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...schemas.admin_requests import (
+from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
 )
-from ...services.admin_services import (
+from ...services.discussion.admin_services import (
     admin_retrieve_discussions_handler,
     admin_review_discussion_handler,
 )
-from ...schemas.admin_responses import (
+from ...schemas.discussion.admin_responses import (
     ADMIN_RETRIEVE_DISCUSSIONS_RESPONSE_MODEL,
     ADMIN_REVIEW_DISCUSSION_RESPONSE_MODEL,
 )

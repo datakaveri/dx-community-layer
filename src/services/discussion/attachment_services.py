@@ -5,19 +5,19 @@ from sqlalchemy.orm import selectinload
 from botocore.exceptions import ClientError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..middlewares.logging import logger
-from ..configs.s3_config import s3_client
-from ..configs.env_config import env_config
-from ..database.models import CommentAttachment, DiscussionAttachment
-from ..schemas.attachment_requests import (
+from ...middlewares.logging import logger
+from ...configs.s3_config import s3_client
+from ...configs.env_config import env_config
+from ...database.discussion.models import CommentAttachment, DiscussionAttachment
+from ...schemas.discussion.attachment_requests import (
     DeleteAttachmentParams,
     GenerateDownloadUrlParams,
     GeneratePresignedURLParams,
     UploadType,
 )
 
-from ..schemas.default_schemas import AuthorizationData
-from ..schemas.custom_responses import CustomJSONResponse, CustomBackendError
+from ...schemas.default_schemas import AuthorizationData
+from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 
 
 async def generate_presigned_url_handler(
@@ -45,14 +45,14 @@ async def generate_presigned_url_handler(
         presigned_url = s3_client.generate_presigned_url(
             "put_object",
             Params={
-                "Bucket": env_config.AWS_S3_BUCKET,
+                "Bucket": env_config.DISCUSSION_AWS_S3_BUCKET,
                 "Key": object_key,
                 "ContentType": "application/octet-stream",
             },
             ExpiresIn=300,
         )
 
-        public_url = f"https://{env_config.AWS_S3_BUCKET}.s3.amazonaws.com/{object_key}"
+        public_url = f"https://{env_config.DISCUSSION_AWS_S3_BUCKET}.s3.amazonaws.com/{object_key}"
 
         logger.info(
             f"{authorized_user['email']} - Presigned URL generated successfully for file: {req_params.file_name} and type of upload: {req_params.type_of_upload}"
@@ -199,7 +199,7 @@ async def delete_attachment_handler(
         # Delete from S3
         try:
             s3_client.delete_object(
-                Bucket=env_config.AWS_S3_BUCKET,
+                Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
                 Key=req_params.object_key,
             )
         except ClientError as e:
@@ -308,7 +308,7 @@ async def generate_download_url_handler(
             file_name = comment_attachment.attachment_metadata["file_name"]
 
         if not s3_client.head_object(
-            Bucket=env_config.AWS_S3_BUCKET,
+            Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
             Key=s3_key,
         ):
             logger.error(f"{authorized_user['email']} - Attachment not found in S3")
@@ -326,7 +326,7 @@ async def generate_download_url_handler(
         download_url = s3_client.generate_presigned_url(
             "get_object",
             Params={
-                "Bucket": env_config.AWS_S3_BUCKET,
+                "Bucket": env_config.DISCUSSION_AWS_S3_BUCKET,
                 "Key": s3_key,
             },
             ExpiresIn=300,

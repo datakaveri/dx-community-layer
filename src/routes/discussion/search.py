@@ -5,19 +5,19 @@ from ...docs import public_desc
 from ...middlewares.logging import logger
 from ...configs.db_config import get_db_session
 from ...schemas.custom_responses import CustomJSONResponse
-from ...services.search_services import (
+from ...services.discussion.search_services import (
     search_authors_handler,
     search_discussions_handler,
     search_tags_handler,
 )
-from ...schemas.search_responses import (
+from ...schemas.discussion.search_responses import (
     SEARCH_AUTHORS_RESPONSE_MODEL,
     SEARCH_DISCUSSIONS_RESPONSE_MODEL,
     SEARCH_TAGS_RESPONSE_MODEL,
 )
 from ...schemas.default_schemas import AuthorizationData
 from ...middlewares.authorization import http_bearer_header_public
-from ...schemas.search_requests import SearchDiscussionsParams, SearchParams
+from ...schemas.discussion.search_requests import SearchDiscussionsParams, SearchParams
 
 
 router = APIRouter(prefix="/search")

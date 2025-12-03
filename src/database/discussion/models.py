@@ -17,7 +17,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from ..configs.env_config import env_config
+from ...configs.env_config import env_config
 from .enums import (
     DiscussionsTypeEnum,
     DiscussionsCategoryEnum,
@@ -28,7 +28,7 @@ from .enums import (
 
 class Base(DeclarativeBase):
     __abstract__ = True
-    metadata = MetaData(schema=env_config.DB_SCHEMA)
+    metadata = MetaData(schema=env_config.DISCUSSION_DB_SCHEMA)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(id={getattr(self, 'id', None)})>"
@@ -133,7 +133,7 @@ class Discussion(Base):
         Enum(
             DiscussionsTypeEnum,
             name="discussions_type_enum",
-            schema=env_config.DB_SCHEMA,
+            schema=env_config.DISCUSSION_DB_SCHEMA,
         ),
         default=DiscussionsTypeEnum.PUBLIC,
         nullable=False,
@@ -142,7 +142,7 @@ class Discussion(Base):
         Enum(
             DiscussionsCategoryEnum,
             name="discussions_category_enum",
-            schema=env_config.DB_SCHEMA,
+            schema=env_config.DISCUSSION_DB_SCHEMA,
         ),
         default=DiscussionsCategoryEnum.OTHERS,
         nullable=False,
@@ -154,7 +154,7 @@ class Discussion(Base):
         Enum(
             DiscussionsStatusEnum,
             name="discussions_status_enum",
-            schema=env_config.DB_SCHEMA,
+            schema=env_config.DISCUSSION_DB_SCHEMA,
         ),
         default=DiscussionsStatusEnum.PENDING,
         nullable=False,
@@ -510,7 +510,7 @@ class DiscussionReview(Base):
         Enum(
             DiscussionsStatusEnum,
             name="discussions_status_enum",
-            schema=env_config.DB_SCHEMA,
+            schema=env_config.DISCUSSION_DB_SCHEMA,
         ),
         default=DiscussionsStatusEnum.PENDING,
         nullable=False,

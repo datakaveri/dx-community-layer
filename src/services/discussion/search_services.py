@@ -4,14 +4,16 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..middlewares.logging import logger
-from ..schemas.default_schemas import AuthorizationData
-from ..schemas.discussion_responses import TagSchema, UserSchema
-from ..database.models import Discussion, DiscussionTag, Tag, User
-from ..schemas.discussion_requests import RetrieveDiscussionChoices
-from ..schemas.search_requests import SearchDiscussionsParams, SearchParams
-from ..schemas.custom_responses import CustomJSONResponse, CustomBackendError
-from ..schemas.search_responses import SearchDiscussionSuccessfulResponseDiscussion
+from ...middlewares.logging import logger
+from ...schemas.default_schemas import AuthorizationData
+from ...schemas.discussion.discussion_responses import TagSchema, UserSchema
+from ...database.discussion.models import Discussion, DiscussionTag, Tag, User
+from ...schemas.discussion.discussion_requests import RetrieveDiscussionChoices
+from ...schemas.discussion.search_requests import SearchDiscussionsParams, SearchParams
+from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
+from ...schemas.discussion.search_responses import (
+    SearchDiscussionSuccessfulResponseDiscussion,
+)
 
 
 def format_tsquery(query: str) -> str:
@@ -91,7 +93,9 @@ async def search_discussions_handler(
         # Apply filters
         # -----------------------
         if req_params.filters.sub_category_id:
-            stmt = stmt.filter(Discussion.sub_category_id == req_params.filters.sub_category_id)
+            stmt = stmt.filter(
+                Discussion.sub_category_id == req_params.filters.sub_category_id
+            )
 
         # -----------------------
         # Total count

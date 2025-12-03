@@ -6,18 +6,18 @@ from sqlalchemy import func, select, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..middlewares.logging import logger
-from ..schemas.comment_requests import (
+from ...middlewares.logging import logger
+from ...schemas.discussion.comment_requests import (
     CreateCommentParams,
     CreateCommentReplyParams,
     RetrieveCommentRepliesParams,
     RetrieveDiscussionCommentsParams,
 )
-from ..configs.s3_config import s3_client
-from ..configs.env_config import env_config
-from ..schemas.comment_responses import CommentSchema
-from ..schemas.default_schemas import AuthorizationData, UserRole
-from ..database.models import (
+from ...configs.s3_config import s3_client
+from ...configs.env_config import env_config
+from ...schemas.discussion.comment_responses import CommentSchema
+from ...schemas.default_schemas import AuthorizationData, UserRole
+from ...database.discussion.models import (
     Comment,
     CommentAttachment,
     CommentReaction,
@@ -25,8 +25,8 @@ from ..database.models import (
     DeletedComment,
     Discussion,
 )
-from ..services.discussion_services import get_s3_file_metadata
-from ..schemas.custom_responses import CustomJSONResponse, CustomBackendError
+from .discussion_services import get_s3_file_metadata
+from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 
 
 async def retrieve_discussion_comments_handler(
@@ -356,8 +356,8 @@ async def create_discussion_comment_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.AWS_S3_BUCKET,
-                        CopySource=f"{env_config.AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
+                        CopySource=f"{env_config.DISCUSSION_AWS_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -475,8 +475,8 @@ async def create_comment_reply_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.AWS_S3_BUCKET,
-                        CopySource=f"{env_config.AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
+                        CopySource=f"{env_config.DISCUSSION_AWS_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -846,11 +846,14 @@ async def delete_comment_handler(
 
         # Attempt to clean up any uploaded attachments associated with the comment
         attachment_keys = [
-            attachment.s3_key for attachment in getattr(comment, "comment_attachments", [])
+            attachment.s3_key
+            for attachment in getattr(comment, "comment_attachments", [])
         ]
         for key in attachment_keys:
             try:
-                s3_client.delete_object(Bucket=env_config.AWS_S3_BUCKET, Key=key)
+                s3_client.delete_object(
+                    Bucket=env_config.DISCUSSION_AWS_S3_BUCKET, Key=key
+                )
             except Exception as s3_exc:
                 logger.warning(
                     f"{authorized_user['email']} - Failed to delete attachment {key}: {s3_exc}"

@@ -10,7 +10,9 @@ from .env_config import env_config
 # ------------------------------------------------------------------------------
 
 engine = create_async_engine(
-    env_config.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
+    env_config.DISCUSSION_DATABASE_URL.replace(
+        "postgresql://", "postgresql+asyncpg://"
+    ),
     echo=False,
     pool_pre_ping=True,
     pool_size=20,  # Core connections always available

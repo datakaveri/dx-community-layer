@@ -7,17 +7,18 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..middlewares.logging import logger
-from ..services.search_services import format_tsquery
-from ..schemas.default_schemas import AuthorizationData
-from ..database.models import Discussion, DiscussionReview, DiscussionTag
-from ..schemas.admin_requests import (
+from ...middlewares.logging import logger
+from .search_services import format_tsquery
+from ...schemas.default_schemas import AuthorizationData
+from ...database.discussion.models import Discussion, DiscussionReview, DiscussionTag
+from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
-    TimeRangeFilter,
 )
-from ..schemas.custom_responses import CustomJSONResponse, CustomBackendError
-from ..schemas.admin_responses import AdminRetrieveDiscussionsResponseDiscussion
+from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
+from ...schemas.discussion.admin_responses import (
+    AdminRetrieveDiscussionsResponseDiscussion,
+)
 
 
 async def admin_retrieve_discussions_handler(

@@ -6,7 +6,7 @@ from fastapi import Body, Path, Query
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, ValidationError
 
-from ..database.enums import (
+from ...database.discussion.enums import (
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
     DiscussionsTypeEnum,

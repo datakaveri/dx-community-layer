@@ -2,14 +2,14 @@ import uuid
 from pydantic import BaseModel
 from typing import Literal, Optional, Union
 
-from .default_schemas import (
+from ..default_schemas import (
     BackendErrorResponse,
     BadRequestErrorResponse,
     SuccessfulResponse,
     UnauthorizedErrorResponse,
     ValidationErrorResponse,
 )
-from ..schemas.attachment_requests import UploadType
+from .attachment_requests import UploadType
 
 
 class GeneratePresignedUrlSuccessfulData(BaseModel):

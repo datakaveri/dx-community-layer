@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Literal, Union
 
-from .default_schemas import (
+from ..default_schemas import (
     BackendErrorResponse,
     BadRequestErrorResponse,
     SuccessfulResponse,
@@ -12,7 +12,7 @@ from .default_schemas import (
     ForbiddenErrorResponse,
     ValidationErrorResponse,
 )
-from ..database.enums import (
+from ...database.discussion.enums import (
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
     DiscussionsTypeEnum,

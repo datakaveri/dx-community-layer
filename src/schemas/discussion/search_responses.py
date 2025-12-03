@@ -3,14 +3,14 @@ from typing import List, Literal, Union
 import uuid
 from pydantic import BaseModel
 
-from .default_schemas import (
+from ..default_schemas import (
     BackendErrorResponse,
     BadRequestErrorResponse,
     SuccessfulResponse,
     UnauthorizedErrorResponse,
     ValidationErrorResponse,
 )
-from ..database.enums import (
+from ...database.discussion.enums import (
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
     DiscussionsTypeEnum,

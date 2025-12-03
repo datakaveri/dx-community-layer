@@ -8,8 +8,8 @@ from fastapi import Body, Path, Query
 from pydantic import BaseModel, Field, ValidationError
 from fastapi.exceptions import RequestValidationError
 
-from ..schemas.discussion_requests import RetrieveDiscussionsFilters
-from ..database.enums import DiscussionsStatusEnum, DiscussionsTypeEnum
+from .discussion_requests import RetrieveDiscussionsFilters
+from ...database.discussion.enums import DiscussionsStatusEnum, DiscussionsTypeEnum
 
 
 class TimeRangeFilter(BaseModel):
