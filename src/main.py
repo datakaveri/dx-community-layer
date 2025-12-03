@@ -14,6 +14,7 @@ from .docs import (
 )
 from .routes.utility import router as utility_router
 from .routes.discussion.root import router as discussion_router
+from .routes.challenge.root import router as challenge_router
 from .schemas.custom_responses import CustomHttpException, CustomJSONResponse
 
 
@@ -65,6 +66,7 @@ app.add_middleware(
 # Routes
 SERVICES = {
     "DISCUSSION": discussion_router,
+    "CHALLENGE": challenge_router,
 }
 app.include_router(router=utility_router)
 

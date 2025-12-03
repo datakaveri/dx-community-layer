@@ -252,6 +252,41 @@ class CompetitionParticipant(Base):
     )
 
 
+class BookmarkedCompetition(Base):
+    __tablename__ = "bookmarked_competitions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    competition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            f"{env_config.CHALLENGE_DB_SCHEMA}.competitions.id", ondelete="CASCADE"
+        ),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{env_config.CHALLENGE_DB_SCHEMA}.users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
+    )
+    updated_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True))
+
+    competition: Mapped["Competition"] = relationship(back_populates="participants")
+    user: Mapped["User"] = relationship(back_populates="participants")
+
+    __table_args__ = (
+        Index("idx_bookmarked_competitions_competition_id", "competition_id"),
+        Index("idx_bookmarked_competitions_user_id", "user_id"),
+    )
+
+
 class CompetitionEvaluation(Base):
     __tablename__ = "competition_evaluations"
 
