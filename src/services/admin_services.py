@@ -14,7 +14,7 @@ from ..database.models import Discussion, DiscussionReview, DiscussionTag
 from ..schemas.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
-    TimeRangeEnum,
+    TimeRangeFilter,
 )
 from ..schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ..schemas.admin_responses import AdminRetrieveDiscussionsResponseDiscussion

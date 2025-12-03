@@ -1,7 +1,10 @@
 import coloredlogs, logging
 
+from ..configs.env_config import env_config
+
+
 logging.basicConfig()
-logger = logging.getLogger(name="TGDex Discussion")
+logger = logging.getLogger(name=env_config.PROJECT_NAME)
 logger.propagate = False  # Prevent logs from propagating to parent logger
 
 # Configure colored logs

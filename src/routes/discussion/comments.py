@@ -34,7 +34,7 @@ from ...schemas.comment_responses import (
 )
 
 
-router = APIRouter(tags=["Comment APIs"])
+router = APIRouter()
 
 
 @router.get(

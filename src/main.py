@@ -28,7 +28,7 @@ origins = [
     "http://localhost:5003",
     "http://localhost:4007",
     "http://localhost:4200",
-    "https://staging.catalogue.tgdex.iudx.io"
+    "https://staging.catalogue.tgdex.iudx.io",
 ]
 
 
@@ -63,9 +63,14 @@ app.add_middleware(
 )
 
 # Routes
+SERVICES = {
+    "DISCUSSION": discussion_router,
+}
 app.include_router(router=utility_router)
-app.include_router(router=discussion_router)
 
+for service, router in SERVICES.items():
+    if service in env_config.ACTIVATED_SERVICES:
+        app.include_router(router=router)
 
 
 # Custom validation error handler

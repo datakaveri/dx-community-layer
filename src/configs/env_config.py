@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Get the current version of the project from the package metadata
 try:
-    current_version = importlib.metadata.version("TGDex-Discussion")
+    current_version = importlib.metadata.version("TGDex-Monorepo")
 except Exception:
     current_version = "0.0.0"
 
@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 class EnvConfig(BaseSettings):
-    PROJECT_NAME: str = "TGDex-Discussion"
+    PROJECT_NAME: str = "TGDex-Monorepo"
     API_VERSION: str = current_version
     INSTANCE: str
     BASE_URL: str = "http://127.0.0.1:5000"
@@ -29,6 +29,7 @@ class EnvConfig(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str
     AWS_DEFAULT_REGION: str
     REDIS_URL: str
+    ACTIVATED_SERVICES: list[str]
 
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", env_file_encoding="utf-8"

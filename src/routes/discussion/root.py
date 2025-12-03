@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Path, Query
 
 from ...docs import public_desc
 from ...middlewares.logging import logger
+from ...configs.env_config import env_config
 from ...configs.db_config import get_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...schemas.discussion_requests import (

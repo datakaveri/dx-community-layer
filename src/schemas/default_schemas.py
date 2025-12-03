@@ -3,6 +3,8 @@ import uuid
 from pydantic import BaseModel
 from typing import List, Literal, TypedDict, Union
 
+from ..configs.env_config import env_config
+
 
 class UserRole(enum.Enum):
     CONSUMER = "consumer"
@@ -20,7 +22,7 @@ class AuthorizationData(TypedDict):
 class SuccessfulResponse(BaseModel):
     success: bool = True
     status_code: int = 200
-    message: Literal["This is initial route of TGDex-Discussion APIs!"]
+    message: Literal[f"This is initial route of {env_config.PROJECT_NAME} APIs!"]
     data: None
     error: None
     meta: None

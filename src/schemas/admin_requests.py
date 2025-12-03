@@ -12,7 +12,7 @@ from ..schemas.discussion_requests import RetrieveDiscussionsFilters
 from ..database.enums import DiscussionsStatusEnum, DiscussionsTypeEnum
 
 
-class TimeRangeEnum(BaseModel):
+class TimeRangeFilter(BaseModel):
     start_date: str = Field(
         ...,
         description="Start date of the time range to filter by",
@@ -24,7 +24,7 @@ class TimeRangeEnum(BaseModel):
 
 
 class AdminRetrieveDiscussionsFilters(RetrieveDiscussionsFilters):
-    time_range: Optional[TimeRangeEnum] = Field(
+    time_range: Optional[TimeRangeFilter] = Field(
         default=None, description="Time range to filter by"
     )
 

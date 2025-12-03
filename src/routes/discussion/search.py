@@ -20,7 +20,7 @@ from ...middlewares.authorization import http_bearer_header_public
 from ...schemas.search_requests import SearchDiscussionsParams, SearchParams
 
 
-router = APIRouter(prefix="/search", tags=["Search API"])
+router = APIRouter(prefix="/search")
 
 
 @router.get(

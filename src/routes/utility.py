@@ -41,7 +41,7 @@ async def default(request: Request) -> CustomJSONResponse:
     return CustomJSONResponse(
         success=True,
         status_code=status.HTTP_200_OK,
-        message="This is initial route of TGDex-Discussion APIs!",
+        message=f"This is initial route of {env_config.PROJECT_NAME} APIs!",
     )
 
 
