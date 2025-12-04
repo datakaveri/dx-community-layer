@@ -39,11 +39,11 @@ class UserSubmissionsSchema(BaseModel):
     description: str
     user: UserSchema
     competition: UserSubmissionCompetitionSchema
-    attachments: Optional[List[dict[str, Any]]]
+    attachments: Optional[List]
     is_disqualified: bool
     score: Optional[float]
     evaluation_comment: Optional[str]
-    evaluation_attachments: Optional[List[dict[str, Any]]]
+    evaluation_attachments: Optional[List]
     created_at: datetime
     updated_at: datetime
 
