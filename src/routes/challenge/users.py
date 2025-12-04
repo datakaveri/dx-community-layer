@@ -1,4 +1,5 @@
 from uuid import UUID
+import pytz
 from sqlalchemy import select, func
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -205,15 +206,23 @@ async def users_list_challenges(
     stmt = stmt.offset(offset).limit(limit)
 
     rows = (await db_session.execute(stmt)).all()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(pytz.timezone("Asia/Kolkata"))
+
+    def get_days_left(timestamp: datetime) -> int:
+        now = datetime.now(pytz.UTC)
+
+        # Difference
+        diff = (timestamp - now).days
+
+        # If past or today → return 0
+        return max(diff, 0)
 
     competitions = []
     for r in rows:
         days_left = None
         if r.submission_ends_at:
             # Calculate remaining days; clamp at 0 if already ended
-            delta = r.submission_ends_at.date() - now.date()
-            days_left = max(delta.days, 0)
+            days_left = get_days_left(r.submission_ends_at)
 
         competitions.append(
             {

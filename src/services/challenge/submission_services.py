@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...middlewares.logging import logger
 from ...configs.s3_config import s3_client
 from ...configs.env_config import env_config
+from ...services.discussion.search_services import format_tsquery
 from ...schemas.default_schemas import AuthorizationData, UserRole
 from ...schemas.challenge.submission_responses import UserSubmissionsSchema
 from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
@@ -84,6 +85,18 @@ async def retrieve_user_submissions_handler(
                 stmt = stmt.where(Competition.status == CompetitionStatusEnum.COMPLETED)
 
         # -----------------------
+        # Search Query
+        # -----------------------
+        if req_params.query:
+            formatted_query = format_tsquery(req_params.query)
+            ts_query = func.to_tsquery("english", formatted_query)
+
+            stmt = stmt.where(
+                (Competition.title_vector.op("@@")(ts_query))
+                | (CompetitionSubmission.title_vector.op("@@")(ts_query))
+            )
+
+        # -----------------------
         # Total count
         # -----------------------
         count_stmt = stmt.with_only_columns(func.count(CompetitionSubmission.id))
@@ -152,8 +165,8 @@ async def retrieve_user_submissions_handler(
         # Serialize
         # -----------------------
         serialized_submissions = [
-            UserSubmissionsSchema.model_validate(submissions).model_dump()
-            for submissions in submissions
+            UserSubmissionsSchema.model_validate(submission).model_dump()
+            for submission in submissions
         ]
 
         return CustomJSONResponse(

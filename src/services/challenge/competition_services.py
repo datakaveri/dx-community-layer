@@ -1,21 +1,32 @@
 from datetime import datetime, timezone
+import math
 from typing import Any, List
 from uuid import UUID
 
 from fastapi import status
 import pytz
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
+from ...schemas.challenge.competition_responses import ParticipatedCompetitionsSchema
+from ...schemas.challenge.submission_requests import SortOrder
+from ..discussion.search_services import format_tsquery
 from ...services.challenge.submission_services import get_s3_file_metadata
 from ...configs.s3_config import s3_client
 from ...configs.env_config import env_config
 from ...middlewares.logging import logger
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
-from ...schemas.challenge.competition_requests import CreateCompetitionParams, UpdateCompetitionParams
+from ...schemas.challenge.competition_requests import (
+    CreateCompetitionParams,
+    RetrieveParticipatedCompetitionsParams,
+    RetrieveParticipatedCompetitionsSortByEnum,
+    UpdateCompetitionParams,
+)
 from ...schemas.default_schemas import AuthorizationData
 from ...database.challenge.models import (
     Competition,
+    CompetitionParticipant,
     CompetitionTimeline,
     CompetitionPrizePool,
     CompetitionEvaluation,
@@ -27,6 +38,151 @@ from ...database.challenge.enums import CompetitionStatusEnum
 from ...schemas.custom_responses import CustomJSONResponse
 from ...database.challenge.models import Competition
 from ...database.challenge.models import CompetitionTimeline
+
+
+async def retrieve_participated_competitions_handler(
+    req_params: RetrieveParticipatedCompetitionsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves competitions that the user has participated in.
+
+    Args:
+        req_params (RetrieveParticipatedCompetitionsParams): The request body containing the sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+
+    try:
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = (
+            select(Competition)
+            .join(
+                CompetitionParticipant,
+                CompetitionParticipant.competition_id == Competition.id,
+            )
+            .join(
+                CompetitionTimeline,
+                CompetitionTimeline.competition_id == Competition.id,
+            )
+            .join(
+                CompetitionPrizePool,
+                CompetitionPrizePool.competition_id == Competition.id,
+            )
+            .where(
+                CompetitionParticipant.user_id == authorized_user["user_id"],
+            )
+        )
+
+        # -----------------------
+        # Search Query
+        # -----------------------
+        if req_params.query:
+            formatted_query = format_tsquery(req_params.query)
+            ts_query = func.to_tsquery("english", formatted_query)
+
+            stmt = stmt.where((Competition.title_vector.op("@@")(ts_query)))
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(Competition.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if req_params.sort_by == RetrieveParticipatedCompetitionsSortByEnum.TITLE:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(Competition.title.asc())
+            else:
+                stmt = stmt.order_by(Competition.title.desc())
+
+        elif (
+            req_params.sort_by
+            == RetrieveParticipatedCompetitionsSortByEnum.TOTAL_POOL_AMOUNT
+        ):
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionPrizePool.total_pool_amount.asc())
+            else:
+                stmt = stmt.order_by(CompetitionPrizePool.total_pool_amount.desc())
+
+        elif (
+            req_params.sort_by
+            == RetrieveParticipatedCompetitionsSortByEnum.SUBMISSION_STARTS_AT
+        ):
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionTimeline.submission_starts_at.asc())
+            else:
+                stmt = stmt.order_by(CompetitionTimeline.submission_starts_at.desc())
+
+        elif (
+            req_params.sort_by
+            == RetrieveParticipatedCompetitionsSortByEnum.SUBMISSION_ENDS_AT
+        ):
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionTimeline.submission_ends_at.asc())
+            else:
+                stmt = stmt.order_by(CompetitionTimeline.submission_ends_at.desc())
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(Competition.participants),
+            selectinload(Competition.prize_pools),
+            selectinload(Competition.timelines),
+        )
+        result = await db_session.execute(stmt)
+        competitions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_competitions = [
+            ParticipatedCompetitionsSchema.model_validate(competition).model_dump()
+            for competition in competitions
+        ]
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Participated competitions retrieved successfully",
+            data={
+                "competitions": serialized_competitions,
+            },
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+            },
+        )
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Participated competitions retrieval failed",
+            details="An error occurred while retrieving the participated competitions. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
 
 async def create_competition_handler(
     req_params: CreateCompetitionParams,
@@ -41,7 +197,11 @@ async def create_competition_handler(
             pass
 
         # Validate basic temporal invariants (only if not draft and dates are provided)
-        if not req_params.is_drafted and req_params.submission_starts_at and req_params.submission_ends_at:
+        if (
+            not req_params.is_drafted
+            and req_params.submission_starts_at
+            and req_params.submission_ends_at
+        ):
             if req_params.submission_ends_at <= req_params.submission_starts_at:
                 return CustomJSONResponse(
                     success=False,
@@ -52,7 +212,10 @@ async def create_competition_handler(
                         "details": "submission_end must be after submission_start",
                     },
                 )
-            if req_params.evaluation_ends_at and req_params.evaluation_ends_at <= req_params.submission_ends_at:
+            if (
+                req_params.evaluation_ends_at
+                and req_params.evaluation_ends_at <= req_params.submission_ends_at
+            ):
                 return CustomJSONResponse(
                     success=False,
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -108,9 +271,7 @@ async def create_competition_handler(
                 )
 
             # build permanent key and copy object to permanent location
-            permanent_s3_key = (
-                f"public/{authorized_user['user_id']}/{competition.id}/rules_and_guidelines/{file_name}"
-            )
+            permanent_s3_key = f"public/{authorized_user['user_id']}/{competition.id}/rules_and_guidelines/{file_name}"
 
             try:
                 s3_client.copy_object(
@@ -127,11 +288,14 @@ async def create_competition_handler(
                     message="Discussion creation failed",
                     details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
                 )
-            
+
             competition.rules_and_guidelines = permanent_s3_key
 
         # Timeline (only create if dates are provided)
-        if req_params.submission_starts_at is not None or req_params.submission_ends_at is not None:
+        if (
+            req_params.submission_starts_at is not None
+            or req_params.submission_ends_at is not None
+        ):
             timeline = CompetitionTimeline(
                 competition_id=competition.id,
                 submission_starts_at=req_params.submission_starts_at,
@@ -141,9 +305,14 @@ async def create_competition_handler(
             db_session.add(timeline)
 
         # Prize Pool (only create if prize info is provided)
-        if req_params.prize_type is not None or req_params.total_pool_amount is not None:
+        if (
+            req_params.prize_type is not None
+            or req_params.total_pool_amount is not None
+        ):
             # Validate and normalize currency
-            currency = req_params.currency.strip().upper() if req_params.currency else "INR"
+            currency = (
+                req_params.currency.strip().upper() if req_params.currency else "INR"
+            )
             if len(currency) > 3:
                 return CustomJSONResponse(
                     success=False,
@@ -151,16 +320,18 @@ async def create_competition_handler(
                     message="Validation Error",
                     error={
                         "code": "VALIDATION_ERROR",
-                        "details": f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)"
+                        "details": f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)",
                     },
                 )
             if len(currency) == 0:
                 currency = "INR"  # Default to INR if empty
-            
+
             prize_pool = CompetitionPrizePool(
                 competition_id=competition.id,
-                prize_type=req_params.prize_type or PrizeTypeEnum.CASH,  # Default if draft
-                total_pool_amount=req_params.total_pool_amount or 0.0,  # Default if draft
+                prize_type=req_params.prize_type
+                or PrizeTypeEnum.CASH,  # Default if draft
+                total_pool_amount=req_params.total_pool_amount
+                or 0.0,  # Default if draft
                 currency=currency,
                 prize_description=req_params.prize_pool_description,
             )
@@ -203,9 +374,7 @@ async def create_competition_handler(
                     )
 
                 # build permanent key and copy object to permanent location
-                permanent_s3_key = (
-                    f"private/{authorized_user['user_id']}/{competition.id}/datasets/additional_assets/{file_name}"
-                )
+                permanent_s3_key = f"private/{authorized_user['user_id']}/{competition.id}/datasets/additional_assets/{file_name}"
 
                 try:
                     s3_client.copy_object(
@@ -231,7 +400,7 @@ async def create_competition_handler(
                         "description": asset["description"],
                     }
                 )
-        
+
             if attachment_objs:
                 competition_dataset.additional_assets = attachment_objs
 
@@ -249,7 +418,9 @@ async def create_competition_handler(
     except Exception as e:
         logger.error(f"Create competition failed: {e}", exc_info=True)
         await db_session.rollback()
-        return CustomBackendError(message="Failed to create competition", details=str(e))
+        return CustomBackendError(
+            message="Failed to create competition", details=str(e)
+        )
 
 
 async def update_competition_handler(
@@ -294,7 +465,10 @@ async def update_competition_handler(
             )
 
         # Only allow updates to drafts or scheduled competitions
-        if competition.status not in [CompetitionStatusEnum.DRAFT, CompetitionStatusEnum.SCHEDULED]:
+        if competition.status not in [
+            CompetitionStatusEnum.DRAFT,
+            CompetitionStatusEnum.SCHEDULED,
+        ]:
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -350,7 +524,10 @@ async def update_competition_handler(
         timeline_result = await db_session.execute(timeline_stmt)
         timeline = timeline_result.scalar_one_or_none()
 
-        if req_params.submission_starts_at is not None or req_params.submission_ends_at is not None:
+        if (
+            req_params.submission_starts_at is not None
+            or req_params.submission_ends_at is not None
+        ):
             if timeline:
                 if req_params.submission_starts_at is not None:
                     timeline.submission_starts_at = req_params.submission_starts_at
@@ -379,7 +556,10 @@ async def update_competition_handler(
                         "details": "submission_end must be after submission_start",
                     },
                 )
-            if timeline.evaluation_ends_at and timeline.evaluation_ends_at <= timeline.submission_ends_at:
+            if (
+                timeline.evaluation_ends_at
+                and timeline.evaluation_ends_at <= timeline.submission_ends_at
+            ):
                 return CustomJSONResponse(
                     success=False,
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -403,7 +583,11 @@ async def update_competition_handler(
             or req_params.currency is not None
             or req_params.prize_pool_description is not None
         ):
-            currency = req_params.currency.strip().upper() if req_params.currency else (prize_pool.currency if prize_pool else "INR")
+            currency = (
+                req_params.currency.strip().upper()
+                if req_params.currency
+                else (prize_pool.currency if prize_pool else "INR")
+            )
             if len(currency) > 3:
                 return CustomJSONResponse(
                     success=False,
@@ -411,7 +595,7 @@ async def update_competition_handler(
                     message="Validation Error",
                     error={
                         "code": "VALIDATION_ERROR",
-                        "details": f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)"
+                        "details": f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)",
                     },
                 )
             if len(currency) == 0:
@@ -443,12 +627,19 @@ async def update_competition_handler(
         evaluation_result = await db_session.execute(evaluation_stmt)
         evaluation = evaluation_result.scalar_one_or_none()
 
-        if req_params.evaluation_criteria_definition is not None or req_params.submission_file_definition is not None:
+        if (
+            req_params.evaluation_criteria_definition is not None
+            or req_params.submission_file_definition is not None
+        ):
             if evaluation:
                 if req_params.evaluation_criteria_definition is not None:
-                    evaluation.evaluation_criteria = req_params.evaluation_criteria_definition
+                    evaluation.evaluation_criteria = (
+                        req_params.evaluation_criteria_definition
+                    )
                 if req_params.submission_file_definition is not None:
-                    evaluation.submission_criteria = req_params.submission_file_definition
+                    evaluation.submission_criteria = (
+                        req_params.submission_file_definition
+                    )
             else:
                 evaluation = CompetitionEvaluation(
                     competition_id=competition.id,
@@ -478,9 +669,15 @@ async def update_competition_handler(
                     competition_dataset.datasets = req_params.data_models
                 if req_params.ai_models is not None:
                     competition_dataset.ai_models = req_params.ai_models
-                if req_params.other_resources is not None or req_params.additional_assets is not None:
+                if (
+                    req_params.other_resources is not None
+                    or req_params.additional_assets is not None
+                ):
                     competition_dataset.additional_assets = (
-                        {"other_resources": req_params.other_resources, "assets": req_params.additional_assets}
+                        {
+                            "other_resources": req_params.other_resources,
+                            "assets": req_params.additional_assets,
+                        }
                         if (req_params.other_resources or req_params.additional_assets)
                         else None
                     )
@@ -491,7 +688,10 @@ async def update_competition_handler(
                     datasets=req_params.data_models,
                     ai_models=req_params.ai_models,
                     additional_assets=(
-                        {"other_resources": req_params.other_resources, "assets": req_params.additional_assets}
+                        {
+                            "other_resources": req_params.other_resources,
+                            "assets": req_params.additional_assets,
+                        }
                         if (req_params.other_resources or req_params.additional_assets)
                         else None
                     ),
@@ -512,7 +712,9 @@ async def update_competition_handler(
     except Exception as e:
         logger.error(f"Update competition failed: {e}", exc_info=True)
         await db_session.rollback()
-        return CustomBackendError(message="Failed to update competition", details=str(e))
+        return CustomBackendError(
+            message="Failed to update competition", details=str(e)
+        )
 
 
 async def delete_competition_handler(
@@ -577,7 +779,9 @@ async def delete_competition_handler(
     except Exception as e:
         logger.error(f"Delete competition failed: {e}", exc_info=True)
         await db_session.rollback()
-        return CustomBackendError(message="Failed to delete competition", details=str(e))
+        return CustomBackendError(
+            message="Failed to delete competition", details=str(e)
+        )
 
 
 async def announce_result_service(competition_id: UUID, db: AsyncSession):
@@ -615,7 +819,10 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
     update_stmt = (
         update(Competition)
         .where(Competition.id == competition_id)
-        .values(status=CompetitionStatusEnum.COMPLETED, updated_at=datetime.now(pytz.timezone("Asia/Kolkata")))
+        .values(
+            status=CompetitionStatusEnum.COMPLETED,
+            updated_at=datetime.now(pytz.timezone("Asia/Kolkata")),
+        )
     )
 
     await db.execute(update_stmt)
@@ -624,5 +831,5 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
     return CustomJSONResponse(
         success=True,
         status_code=status.HTTP_200_OK,
-        message="Competition marked as COMPLETED."
+        message="Competition marked as COMPLETED.",
     )

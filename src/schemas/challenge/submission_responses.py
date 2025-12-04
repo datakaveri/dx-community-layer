@@ -16,7 +16,7 @@ from ..default_schemas import (
 from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 
 
-class UserSubmissionCompetitionTimelinesSchema(BaseModel):
+class CompetitionTimelinesSchema(BaseModel):
     id: uuid.UUID
     submission_starts_at: datetime
     submission_ends_at: datetime
@@ -28,7 +28,7 @@ class UserSubmissionCompetitionTimelinesSchema(BaseModel):
 class UserSubmissionCompetitionSchema(BaseModel):
     id: uuid.UUID
     title: str
-    timelines: UserSubmissionCompetitionTimelinesSchema
+    timelines: CompetitionTimelinesSchema
 
     model_config = {"from_attributes": True}
 

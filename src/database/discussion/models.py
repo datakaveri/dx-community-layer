@@ -22,7 +22,6 @@ from .enums import (
     DiscussionsTypeEnum,
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
-    ReactionsVoteEnum,
 )
 
 

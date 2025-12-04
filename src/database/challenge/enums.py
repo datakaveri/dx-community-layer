@@ -12,4 +12,4 @@ class CompetitionStatusEnum(enum.Enum):
 
 class PrizeTypeEnum(enum.Enum):
     CASH = "CASH"
-    NON_CASH = "NON_CASH"
+    NO_CASH = "NO_CASH"

@@ -2,9 +2,40 @@ import enum
 from typing import Any, List, Dict, Optional
 from datetime import datetime
 
-from fastapi import Body, HTTPException, status
+from fastapi import Body, HTTPException, Query, status
+
+from .submission_requests import SortOrder
 
 from ...database.challenge.enums import PrizeTypeEnum
+
+
+class RetrieveParticipatedCompetitionsSortByEnum(str, enum.Enum):
+    TITLE = "title"
+    TOTAL_POOL_AMOUNT = "total_pool_amount"
+    SUBMISSION_STARTS_AT = "submission_starts_at"
+    SUBMISSION_ENDS_AT = "submission_ends_at"
+
+
+class RetrieveParticipatedCompetitionsParams:
+    def __init__(
+        self,
+        query: Optional[str] = Query(default=None, description="Query to search for"),
+        page: int = Query(1, gt=0, description="The page number for pagination"),
+        limit: int = Query(10, gt=0, description="The number of competitions per page"),
+        sort_by: Optional[RetrieveParticipatedCompetitionsSortByEnum] = Query(
+            default=None,
+            description="The field to sort by",
+        ),
+        sort_order: Optional[SortOrder] = Query(
+            default=None,
+            description="The order to sort by",
+        ),
+    ):
+        self.query = query
+        self.page = page
+        self.limit = limit
+        self.sort_by = sort_by
+        self.sort_order = sort_order
 
 
 class CreateCompetitionParams:
@@ -80,48 +111,48 @@ class CreateCompetitionParams:
             if not description:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="description is required when is_drafted is false"
+                    detail="description is required when is_drafted is false",
                 )
             if prize_type is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="prize_type is required when is_drafted is false"
+                    detail="prize_type is required when is_drafted is false",
                 )
             if total_pool_amount is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="total_pool_amount is required when is_drafted is false"
+                    detail="total_pool_amount is required when is_drafted is false",
                 )
             if not currency:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="currency is required when is_drafted is false"
+                    detail="currency is required when is_drafted is false",
                 )
             if submission_starts_at is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="submission_starts_at is required when is_drafted is false"
+                    detail="submission_starts_at is required when is_drafted is false",
                 )
             if submission_ends_at is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="submission_ends_at is required when is_drafted is false"
+                    detail="submission_ends_at is required when is_drafted is false",
                 )
-        
+
         # Validate and normalize currency
         if currency:
             currency = currency.strip().upper()
             if len(currency) > 3:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)"
+                    detail=f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)",
                 )
             if len(currency) == 0:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Currency code cannot be empty"
+                    detail="Currency code cannot be empty",
                 )
-        
+
         self.title = title
         self.subtitle = subtitle
         self.overview = overview
@@ -163,8 +194,12 @@ class UpdateCompetitionParams:
         ),
         constraints: Optional[str] = Body(None, description="Constraints"),
         prize_type: Optional[PrizeTypeEnum] = Body(None, description="Prize type"),
-        total_pool_amount: Optional[float] = Body(None, description="Total prize pool amount"),
-        currency: Optional[str] = Body(None, description="Currency code (e.g. INR, USD)"),
+        total_pool_amount: Optional[float] = Body(
+            None, description="Total prize pool amount"
+        ),
+        currency: Optional[str] = Body(
+            None, description="Currency code (e.g. INR, USD)"
+        ),
         prize_pool_description: Optional[str] = Body(
             None, description="Prize pool description"
         ),
@@ -183,8 +218,12 @@ class UpdateCompetitionParams:
         submission_file_definition: Optional[str] = Body(
             None, description="Submission file definition"
         ),
-        other_resources: Optional[str] = Body(None, description="Other resources (string)"),
-        dataset_description: Optional[str] = Body(None, description="Dataset description"),
+        other_resources: Optional[str] = Body(
+            None, description="Other resources (string)"
+        ),
+        dataset_description: Optional[str] = Body(
+            None, description="Dataset description"
+        ),
         data_models: Optional[List[Dict[str, Any]]] = Body(
             default=None, description="List of data models {name, id}"
         ),
@@ -198,7 +237,8 @@ class UpdateCompetitionParams:
             None, description="Rules and guidelines (S3 key)"
         ),
         is_drafted: Optional[bool] = Body(
-            None, description="Whether the competition is a draft. Set to false to publish."
+            None,
+            description="Whether the competition is a draft. Set to false to publish.",
         ),
         publish_schedule: Optional[datetime] = Body(
             default=None,
@@ -211,14 +251,14 @@ class UpdateCompetitionParams:
             if len(currency) > 3:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)"
+                    detail=f"Currency code must be at most 3 characters. Received: '{currency}' ({len(currency)} characters)",
                 )
             if len(currency) == 0:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Currency code cannot be empty"
+                    detail="Currency code cannot be empty",
                 )
-        
+
         self.title = title
         self.subtitle = subtitle
         self.overview = overview

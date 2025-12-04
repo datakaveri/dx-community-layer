@@ -31,6 +31,7 @@ class RetrieveUserSubmissionsParams:
         choice: RetrieveUserSubmissionsChoice = Path(
             ..., description="Type of the submission to retrieve"
         ),
+        query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
         limit: int = Query(10, gt=0, description="The number of submissions per page"),
         sort_by: Optional[RetrieveUserSubmissionsSortByEnum] = Query(
@@ -43,6 +44,7 @@ class RetrieveUserSubmissionsParams:
         ),
     ):
         self.choice = choice
+        self.query = query
         self.page = page
         self.limit = limit
         self.sort_by = sort_by

@@ -22,8 +22,3 @@ class DiscussionsStatusEnum(enum.Enum):
     CHANGES_REQUIRED = "CHANGES_REQUIRED"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
-
-
-class ReactionsVoteEnum(enum.Enum):
-    UP = "UP"
-    DOWN = "DOWN"

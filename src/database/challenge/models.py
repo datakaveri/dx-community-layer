@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy import (
     JSON,
+    Computed,
     ForeignKey,
     Index,
     String,
@@ -13,6 +14,8 @@ from sqlalchemy import (
 from typing import Any, Optional, List
 from sqlalchemy.schema import MetaData
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ...configs.env_config import env_config
@@ -58,12 +61,15 @@ class Competition(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     title: Mapped[str] = mapped_column(String(300), nullable=False)
+    subtitle: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    overview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     detailed_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[CompetitionStatusEnum] = mapped_column(
-        Enum(
+        PGEnum(
             CompetitionStatusEnum,
             name="competition_status_enum",
             schema=env_config.CHALLENGE_DB_SCHEMA,
+            create_type=False,
         ),
         nullable=False,
         default=CompetitionStatusEnum.DRAFT,
@@ -84,6 +90,15 @@ class Competition(Base):
     image_url: Mapped[Optional[str]] = mapped_column(String(300))
     constraints: Mapped[Optional[str]] = mapped_column(Text)
     rules_and_guidelines: Mapped[Optional[str]] = mapped_column(String(300))
+    other_resources: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Full-text search
+    title_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', COALESCE(title, ''))", persisted=True),
+        nullable=True,
+        index=True,
+    )
 
     # Relationships
     creator: Mapped["User"] = relationship("User", back_populates="competitions")
@@ -93,7 +108,7 @@ class Competition(Base):
     submissions: Mapped[List["CompetitionSubmission"]] = relationship(
         back_populates="competition", cascade="all, delete-orphan"
     )
-    prize_pools: Mapped[List["CompetitionPrizePool"]] = relationship(
+    prize_pools: Mapped["CompetitionPrizePool"] = relationship(
         back_populates="competition", cascade="all, delete-orphan"
     )
     participants: Mapped[List["CompetitionParticipant"]] = relationship(
@@ -183,6 +198,14 @@ class CompetitionSubmission(Base):
     )
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
+    )
+
+    # Full-text search
+    title_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', COALESCE(title, ''))", persisted=True),
+        nullable=True,
+        index=True,
     )
 
     competition: Mapped["Competition"] = relationship(
