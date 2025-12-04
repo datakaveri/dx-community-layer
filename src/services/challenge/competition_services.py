@@ -992,5 +992,5 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
     return CustomJSONResponse(
         success=True,
         status_code=status.HTTP_200_OK,
-        message="Competition marked as COMPLETED.",
+        message="Result has been announced successfully",
     )
