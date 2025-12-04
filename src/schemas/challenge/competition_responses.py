@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Literal, Optional, Union
 import uuid
 from pydantic import BaseModel
@@ -12,6 +13,62 @@ from ..default_schemas import (
     ForbiddenErrorResponse,
     BadRequestErrorResponse,
 )
+
+
+class RetrieveCompetitionsLeaderboardsCompetition(BaseModel):
+    id: uuid.UUID
+    title: str
+
+    model_config = {"from_attributes": True}
+
+
+class RetrieveCompetitionsLeaderboardsSubmissions(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: str
+    user: UserSchema
+    competition: RetrieveCompetitionsLeaderboardsCompetition
+    score: Optional[float]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RetrieveCompetitionsLeaderboardData(BaseModel):
+    submissions: List[RetrieveCompetitionsLeaderboardsSubmissions]
+
+
+class RetrieveCompetitionsLeaderboardSuccessResponse(SuccessfulResponse):
+    message: Literal["Competition leaderboard retrieved successfully"]
+    data: RetrieveCompetitionsLeaderboardData
+    meta: PaginatedResponseMeta
+
+
+class RetrieveCompetitionsLeaderboardBackendError(BaseModel):
+    code: Literal["INTERNAL_SERVER_ERROR"]
+    details: Union[
+        Literal[
+            "Failed to authorize user. Please contact developers if the issue persists."
+        ],
+        Literal[
+            "An error occurred while retrieving the competition leaderboard. Please contact developers if the issue persists."
+        ],
+    ]
+
+
+class RetrieveCompetitionsLeaderboardBackendErrorResponse(BackendErrorResponse):
+    message: Literal["Competition leaderboard retrieval failed"]
+    error: RetrieveCompetitionsLeaderboardBackendError
+
+
+RETRIEVE_COMPETITION_LEADERBOARD_RESPONSE_MODEL = {
+    200: {"model": RetrieveCompetitionsLeaderboardSuccessResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    403: {"model": ForbiddenErrorResponse},
+    500: {"model": RetrieveCompetitionsLeaderboardBackendErrorResponse},
+}
 
 
 class CompetitionPrizePoolSchema(BaseModel):

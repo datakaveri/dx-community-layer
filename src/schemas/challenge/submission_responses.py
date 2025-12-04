@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel
 from typing import Any, List, Literal, Optional, Union
 
@@ -18,9 +18,9 @@ from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 
 class CompetitionTimelinesSchema(BaseModel):
     id: uuid.UUID
-    submission_starts_at: datetime
-    submission_ends_at: datetime
-    evaluation_ends_at: Optional[datetime]
+    submission_starts_at: date
+    submission_ends_at: date
+    evaluation_ends_at: Optional[date]
 
     model_config = {"from_attributes": True}
 

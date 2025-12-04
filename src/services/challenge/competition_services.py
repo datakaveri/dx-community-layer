@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from ...schemas.challenge.competition_responses import ParticipatedCompetitionsSchema
+from ...schemas.challenge.competition_responses import (
+    ParticipatedCompetitionsSchema,
+    RetrieveCompetitionsLeaderboardsSubmissions,
+)
 from ...schemas.challenge.submission_requests import SortOrder
 from ..discussion.search_services import format_tsquery
 from ...services.challenge.submission_services import get_s3_file_metadata
@@ -19,6 +22,8 @@ from ...middlewares.logging import logger
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.challenge.competition_requests import (
     CreateCompetitionParams,
+    RetrieveCompetitionLeaderboardParams,
+    RetrieveCompetitionLeaderboardSortByEnum,
     RetrieveParticipatedCompetitionsParams,
     RetrieveParticipatedCompetitionsSortByEnum,
     UpdateCompetitionParams,
@@ -27,10 +32,12 @@ from ...schemas.default_schemas import AuthorizationData
 from ...database.challenge.models import (
     Competition,
     CompetitionParticipant,
+    CompetitionSubmission,
     CompetitionTimeline,
     CompetitionPrizePool,
     CompetitionEvaluation,
     CompetitionDataset,
+    User,
 )
 from ...database.challenge.enums import CompetitionStatusEnum, PrizeTypeEnum
 from sqlalchemy import select, update
@@ -38,6 +45,161 @@ from ...database.challenge.enums import CompetitionStatusEnum
 from ...schemas.custom_responses import CustomJSONResponse
 from ...database.challenge.models import Competition
 from ...database.challenge.models import CompetitionTimeline
+
+
+async def retrieve_competition_leaderboard_handler(
+    req_params: RetrieveCompetitionLeaderboardParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves the leaderboard for a specific competition.
+
+    Args:
+        req_params (RetrieveCompetitionLeaderboardParams): The request body containing the sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved leaderboard and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+
+    try:
+        competition = await db_session.execute(
+            select(Competition.id).where(Competition.id == req_params.competition_id)
+        )
+        competition = competition.scalars().first()
+
+        if not competition:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Competition not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "message": "The competition does not exist. Please contact developers if the issue persists.",
+                },
+            )
+
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = (
+            select(CompetitionSubmission)
+            .join(User, User.id == CompetitionSubmission.user_id)
+            .join(Competition, Competition.id == CompetitionSubmission.competition_id)
+            .where(
+                CompetitionSubmission.competition_id == req_params.competition_id,
+                CompetitionSubmission.is_disqualified.is_(False),
+            )
+        )
+
+        # -----------------------
+        # Search Query
+        # -----------------------
+        if req_params.query:
+            formatted_query = format_tsquery(req_params.query)
+            ts_query = func.to_tsquery("english", formatted_query)
+
+            stmt = stmt.where(
+                (Competition.title_vector.op("@@")(ts_query))
+                | (CompetitionSubmission.title_vector.op("@@")(ts_query))
+            )
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(CompetitionSubmission.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if (
+            req_params.sort_by
+            == RetrieveCompetitionLeaderboardSortByEnum.PARTICIPANT_NAME
+        ):
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(User.name.asc())
+            else:
+                stmt = stmt.order_by(User.name.desc())
+
+        elif (
+            req_params.sort_by
+            == RetrieveCompetitionLeaderboardSortByEnum.SUBMISSION_TITLE
+        ):
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.title.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.title.desc())
+
+        elif req_params.sort_by == RetrieveCompetitionLeaderboardSortByEnum.SCORE:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.score.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.score.desc())
+
+        elif (
+            req_params.sort_by == RetrieveCompetitionLeaderboardSortByEnum.SUBMITTED_AT
+        ):
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.created_at.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.created_at.desc())
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(CompetitionSubmission.user),
+            selectinload(CompetitionSubmission.competition),
+        )
+        result = await db_session.execute(stmt)
+        submissions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_submissions = [
+            RetrieveCompetitionsLeaderboardsSubmissions.model_validate(
+                submission
+            ).model_dump()
+            for submission in submissions
+        ]
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Competition leaderboard retrieved successfully",
+            data={
+                "submissions": serialized_submissions,
+            },
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Competition leaderboard retrieval failed",
+            details="An error occurred while retrieving the competition leaderboard. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
 
 
 async def retrieve_participated_competitions_handler(
@@ -785,7 +947,6 @@ async def delete_competition_handler(
 
 
 async def announce_result_service(competition_id: UUID, db: AsyncSession):
-
     query = select(CompetitionTimeline).where(
         CompetitionTimeline.competition_id == competition_id
     )

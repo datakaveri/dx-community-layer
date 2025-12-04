@@ -1,22 +1,22 @@
-from uuid import UUID
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...docs import public_desc
 from ...middlewares.logging import logger
 from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
-from ...middlewares.authorization import http_bearer_header
+from ...middlewares.authorization import http_bearer_header, http_bearer_header_public
 from ...schemas.challenge.competition_requests import (
+    RetrieveCompetitionLeaderboardParams,
     RetrieveParticipatedCompetitionsParams,
 )
 from ...schemas.challenge.competition_responses import (
+    RETRIEVE_COMPETITION_LEADERBOARD_RESPONSE_MODEL,
     RETRIEVE_PARTICIPATED_COMPETITIONS_RESPONSE_MODEL,
 )
 from ...services.challenge.competition_services import (
+    retrieve_competition_leaderboard_handler,
     retrieve_participated_competitions_handler,
-)
-from ...services.challenge.challenge_services import (
-    get_competition_leaderboard_handler,
 )
 
 # Import child routers
@@ -37,30 +37,36 @@ router.include_router(users_router)
 
 @router.get(
     path="/{competition_id}/leaderboard",
-    description=(
-        "Returns submissions for a competition with user data, "
-        "sorted by score (leaderboard style)."
+    description=public_desc(
+        (
+            "Retrieves the leaderboard for a specific competition. Supports pagination, "
+            "sorting and filtering (by query)."
+        )
     ),
+    responses=RETRIEVE_COMPETITION_LEADERBOARD_RESPONSE_MODEL,
 )
-async def get_competition_leaderboard(
-    competition_id: UUID = Path(..., description="ID of the competition"),
+async def retrieve_competition_leaderboard(
+    req_params: RetrieveCompetitionLeaderboardParams = Depends(),
+    authorized_user: dict = Depends(http_bearer_header_public),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Public endpoint that retrieves the leaderboard for a competition.
+    Retrieves the leaderboard for a specific competition.
 
     Args:
-        competition_id: ID of the competition.
-        db_session: DB session instance.
+        req_params (RetrieveCompetitionLeaderboard): The request body containing the sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: Leaderboard list with ranks.
+        CustomJSONResponse: A JSON response with the retrieved leaderboard and relevant metadata.
     """
 
-    logger.info("Public Competition Leaderboard API is being called")
+    logger.info("Retrieve Competition Leaderboard API is being called")
 
-    return await get_competition_leaderboard_handler(
-        competition_id=competition_id,
+    return await retrieve_competition_leaderboard_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
         db_session=db_session,
     )
 
