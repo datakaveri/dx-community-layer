@@ -362,8 +362,8 @@ async def create_user_submission_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.AWS_S3_BUCKET,
-                        CopySource=f"{env_config.AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                        CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -722,7 +722,7 @@ async def disqualify_submission_service(
 def get_s3_file_metadata(object_key: str) -> dict:
     try:
         response = s3_client.head_object(
-            Bucket=env_config.AWS_S3_BUCKET, Key=object_key
+            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET, Key=object_key
         )
 
         metadata = {
@@ -787,8 +787,8 @@ async def publish_submission_service(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.AWS_S3_BUCKET,
-                        CopySource=f"{env_config.AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                        CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -876,7 +876,7 @@ async def admin_edit_submission_evaluation_service(
                     permanent_s3_key = source_s3_key
                     try:
                         s3_client.delete_object(
-                            Bucket=env_config.AWS_S3_BUCKET,
+                            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
                             Key=permanent_s3_key,
                         )
                     except Exception as s3_exc:
@@ -917,8 +917,8 @@ async def admin_edit_submission_evaluation_service(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.AWS_S3_BUCKET,
-                        CopySource=f"{env_config.AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                        CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -1013,7 +1013,7 @@ async def update_user_submission_handler(
                     permanent_s3_key = source_s3_key
                     try:
                         s3_client.delete_object(
-                            Bucket=env_config.AWS_S3_BUCKET,
+                            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
                             Key=permanent_s3_key,
                         )
                     except Exception as s3_exc:
@@ -1054,8 +1054,8 @@ async def update_user_submission_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.AWS_S3_BUCKET,
-                        CopySource=f"{env_config.AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                        CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -1134,7 +1134,7 @@ async def download_user_submission_handler(
             download_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={
-                    "Bucket": env_config.AWS_S3_BUCKET,
+                    "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
                     "Key": attachment["s3_key"],
                 },
                 ExpiresIn=300,

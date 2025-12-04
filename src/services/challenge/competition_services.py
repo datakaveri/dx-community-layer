@@ -437,8 +437,8 @@ async def create_competition_handler(
 
             try:
                 s3_client.copy_object(
-                    Bucket=env_config.AWS_S3_BUCKET,
-                    CopySource=f"{env_config.AWS_S3_BUCKET}/{req_params.rules_and_guidelines}",
+                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.rules_and_guidelines}",
                     Key=permanent_s3_key,
                 )
             except Exception as s3_exc:
@@ -540,8 +540,8 @@ async def create_competition_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.AWS_S3_BUCKET,
-                        CopySource=f"{env_config.AWS_S3_BUCKET}/{s3_key}",
+                        Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                        CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
