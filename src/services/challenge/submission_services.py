@@ -60,17 +60,17 @@ async def retrieve_user_submissions_handler(
         # -----------------------
         # Base selectable
         # -----------------------
-        stmt = select(CompetitionSubmission).where(
-            CompetitionSubmission.user_id == authorized_user["user_id"]
+        stmt = (
+            select(CompetitionSubmission)
+            .join(Competition, Competition.id == CompetitionSubmission.competition_id)
+            .join(
+                CompetitionTimeline,
+                CompetitionTimeline.competition_id == Competition.id,
+            )
+            .where(CompetitionSubmission.user_id == authorized_user["user_id"])
         )
-        stmt = stmt.join(
-            Competition, Competition.id == CompetitionSubmission.competition_id
-        )
-        stmt = stmt.join(
-            CompetitionTimeline,
-            CompetitionTimeline.competition_id == Competition.id,
-            isouter=True,
-        )
+
+        print(authorized_user["user_id"])
 
         # -----------------------
         # Apply choice filters
@@ -172,7 +172,7 @@ async def retrieve_user_submissions_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Discussions retrieved successfully",
+            message="User submissions retrieved successfully",
             data={
                 "submissions": serialized_submissions,
             },

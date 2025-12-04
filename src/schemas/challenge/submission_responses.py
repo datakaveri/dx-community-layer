@@ -55,7 +55,7 @@ class RetrieveUserSubmissionsData(BaseModel):
 
 
 class RetrieveUserSubmissionsSuccessResponse(SuccessfulResponse):
-    message: Literal["Discussions retrieved successfully"]
+    message: Literal["User submissions retrieved successfully"]
     data: RetrieveUserSubmissionsData
     meta: PaginatedResponseMeta
 
