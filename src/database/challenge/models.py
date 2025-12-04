@@ -316,7 +316,6 @@ class BookmarkedCompetition(Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
-    updated_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True))
 
     competition: Mapped["Competition"] = relationship(
         back_populates="bookmarked_competitions"
