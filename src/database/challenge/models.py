@@ -199,6 +199,9 @@ class CompetitionSubmission(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
+    evaluation_attachments: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
 
     # Full-text search
     title_vector: Mapped[str] = mapped_column(

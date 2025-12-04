@@ -18,9 +18,9 @@ from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 
 class CompetitionTimelinesSchema(BaseModel):
     id: uuid.UUID
-    submission_starts_at: date
-    submission_ends_at: date
-    evaluation_ends_at: Optional[date]
+    submission_starts_at: datetime
+    submission_ends_at: datetime
+    evaluation_ends_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
 
@@ -39,9 +39,11 @@ class UserSubmissionsSchema(BaseModel):
     description: str
     user: UserSchema
     competition: UserSubmissionCompetitionSchema
+    attachments: Optional[List[dict[str, Any]]]
     is_disqualified: bool
     score: Optional[float]
     evaluation_comment: Optional[str]
+    evaluation_attachments: Optional[List[dict[str, Any]]]
     created_at: datetime
     updated_at: datetime
 
