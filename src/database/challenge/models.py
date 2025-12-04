@@ -244,7 +244,12 @@ class CompetitionPrizePool(Base):
         index=True,
     )
     prize_type: Mapped[PrizeTypeEnum] = mapped_column(
-        Enum(PrizeTypeEnum, name="prize_type_enum"),
+        PGEnum(
+            PrizeTypeEnum,
+            name="prize_type_enum",
+            schema=env_config.CHALLENGE_DB_SCHEMA,
+            create_type=False,
+        ),
         default=PrizeTypeEnum.CASH,
         nullable=False,
     )

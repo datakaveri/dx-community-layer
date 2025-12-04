@@ -37,14 +37,14 @@ async def generate_presigned_url_handler(
         presigned_url = s3_client.generate_presigned_url(
             "put_object",
             Params={
-                "Bucket": env_config.AWS_S3_BUCKET,
+                "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
                 "Key": object_key,
                 "ContentType": req_params.content_type,
             },
             ExpiresIn=300,
         )
 
-        public_url = f"https://{env_config.AWS_S3_BUCKET}.s3.amazonaws.com/{object_key}"
+        public_url = f"https://{env_config.CHALLENGE_AWS_S3_BUCKET}.s3.amazonaws.com/{object_key}"
 
         return CustomJSONResponse(
             success=True,
@@ -54,14 +54,18 @@ async def generate_presigned_url_handler(
                 "file_name": req_params.file_name,
                 "presigned_url": presigned_url,
                 "public_url": (
-                    public_url if req_params.type_of_upload == UploadType.CONTENT else None
+                    public_url
+                    if req_params.type_of_upload == UploadType.CONTENT
+                    else None
                 ),
             },
             meta={
                 "batch_id": req_params.batch_id,
-                "type_of_upload": req_params.type_of_upload.value
-                if hasattr(req_params.type_of_upload, "value")
-                else str(req_params.type_of_upload),
+                "type_of_upload": (
+                    req_params.type_of_upload.value
+                    if hasattr(req_params.type_of_upload, "value")
+                    else str(req_params.type_of_upload)
+                ),
                 "object_key": object_key,
             },
         )
@@ -71,9 +75,11 @@ async def generate_presigned_url_handler(
             details=str(e),
             meta={
                 "batch_id": req_params.batch_id,
-                "type_of_upload": req_params.type_of_upload
-                if isinstance(req_params.type_of_upload, str)
-                else getattr(req_params.type_of_upload, "value", None),
+                "type_of_upload": (
+                    req_params.type_of_upload
+                    if isinstance(req_params.type_of_upload, str)
+                    else getattr(req_params.type_of_upload, "value", None)
+                ),
             },
         )
 
@@ -129,7 +135,9 @@ async def delete_attachment_handler(
         #         )
 
         # Delete from S3
-        s3_client.delete_object(Bucket=env_config.AWS_S3_BUCKET, Key=req_params.object_key)
+        s3_client.delete_object(
+            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET, Key=req_params.object_key
+        )
 
         # Delete DB rows for persisted records - skipped due to missing models
 
@@ -154,7 +162,7 @@ async def generate_download_url_handler(
         # Use id as object_key (user passes the full S3 object key)
         # URL decode in case it was encoded
         object_key = unquote(req_params.id)
-        
+
         # Verify ownership: user id segment in S3 key must match token user id
         try:
             key_parts = object_key.split("/")
@@ -179,7 +187,7 @@ async def generate_download_url_handler(
                     "details": f"Invalid object_key format: {str(e)}",
                 },
             )
-        
+
         # Check if user owns this attachment
         if attachment_user_id != authorized_user["user_id"]:
             return CustomJSONResponse(
@@ -191,17 +199,17 @@ async def generate_download_url_handler(
                     "details": "You are not authorized to access this attachment.",
                 },
             )
-        
+
         # Generate presigned URL for downloading (skip existence check - let S3 handle it)
         download_url = s3_client.generate_presigned_url(
             "get_object",
             Params={
-                "Bucket": env_config.AWS_S3_BUCKET,
+                "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
                 "Key": object_key,
             },
             ExpiresIn=300,
         )
-        
+
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
@@ -215,4 +223,3 @@ async def generate_download_url_handler(
             message="Failed to generate download URL",
             details=str(e),
         )
-
