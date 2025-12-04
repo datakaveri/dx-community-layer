@@ -1,22 +1,28 @@
-from datetime import datetime, timezone
-from typing import Any, List
-from uuid import UUID
-
-from fastapi import status
+import math
 import pytz
+from uuid import UUID
+from fastapi import status
+from typing import Any, List
 from sqlalchemy import func, select
+from datetime import datetime, timezone
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
-from ...configs.env_config import env_config
 from ...configs.s3_config import s3_client
-from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
+from ...configs.env_config import env_config
 from ...schemas.default_schemas import AuthorizationData, UserRole
+from ...schemas.challenge.submission_responses import UserSubmissionsSchema
+from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
 from ...schemas.challenge.submission_requests import (
     CreateSubmissionRequest,
     DownloadSubmissionParams,
     DownloadSubmissionType,
     PublishSubmissionParams,
+    RetrieveUserSubmissionsChoice,
+    RetrieveUserSubmissionsParams,
+    RetrieveUserSubmissionsSortByEnum,
+    SortOrder,
     UpdateSubmissionParams,
     AdminEditSubmissionParams,
 )
@@ -29,6 +35,150 @@ from ...database.challenge.models import (
     User,
 )
 from ...database.challenge.enums import CompetitionStatusEnum
+
+
+async def retrieve_user_submissions_handler(
+    req_params: RetrieveUserSubmissionsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves submissions for a user across competitions based on their choice.
+
+    Args:
+        req_params (RetrieveUserSubmissionsParams): The request body containing the choice and sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved submission interests and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+
+    try:
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = select(CompetitionSubmission).where(
+            CompetitionSubmission.user_id == authorized_user["user_id"]
+        )
+        stmt = stmt.join(
+            Competition, Competition.id == CompetitionSubmission.competition_id
+        )
+        stmt = stmt.join(
+            CompetitionTimeline,
+            CompetitionTimeline.competition_id == Competition.id,
+            isouter=True,
+        )
+
+        # -----------------------
+        # Apply choice filters
+        # -----------------------
+        if req_params.choice != RetrieveUserSubmissionsChoice.SUBMITTED:
+            if req_params.choice == RetrieveUserSubmissionsChoice.EVALUATION:
+                stmt = stmt.where(
+                    Competition.status == CompetitionStatusEnum.EVALUATION
+                )
+
+            elif req_params.choice == RetrieveUserSubmissionsChoice.COMPLETED:
+                stmt = stmt.where(Competition.status == CompetitionStatusEnum.COMPLETED)
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(CompetitionSubmission.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if req_params.sort_by == RetrieveUserSubmissionsSortByEnum.COMPETITION_TITLE:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(Competition.title.asc())
+            else:
+                stmt = stmt.order_by(Competition.title.desc())
+
+        elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.TITLE:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.title.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.title.desc())
+
+        elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.DESCRIPTION:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.description.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.description.desc())
+
+        elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.CREATED_AT:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.created_at.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.created_at.desc())
+
+        elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.UPDATED_AT:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.updated_at.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.updated_at.desc())
+
+        elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.EVALUATION_ENDS_AT:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionTimeline.evaluation_ends_at.asc())
+            else:
+                stmt = stmt.order_by(CompetitionTimeline.evaluation_ends_at.desc())
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(CompetitionSubmission.user),
+            selectinload(CompetitionSubmission.competition).selectinload(
+                CompetitionSubmission.competition.property.mapper.class_.timelines
+            ),
+        )
+        result = await db_session.execute(stmt)
+        submissions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_submissions = [
+            UserSubmissionsSchema.model_validate(submissions).model_dump()
+            for submissions in submissions
+        ]
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Discussions retrieved successfully",
+            data={
+                "submissions": serialized_submissions,
+            },
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+            },
+        )
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="User submissions retrieval failed",
+            details="An error occurred while retrieving the submissions. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
 
 
 async def _get_submission_window(db_session: AsyncSession, competition_id: UUID):
@@ -1006,7 +1156,7 @@ async def get_submission_interests_handler(
                 CompetitionPrizePool.total_pool_amount,
                 CompetitionPrizePool.currency,
                 CompetitionTimeline.submission_starts_at,
-                CompetitionTimeline.submission_ends_at
+                CompetitionTimeline.submission_ends_at,
             )
             .join(
                 CompetitionPrizePool,

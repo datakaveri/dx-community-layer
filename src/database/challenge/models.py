@@ -46,6 +46,9 @@ class User(Base):
     participants: Mapped[List["CompetitionParticipant"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    bookmarked_competitions: Mapped[List["BookmarkedCompetition"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Competition(Base):
@@ -57,7 +60,11 @@ class Competition(Base):
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     detailed_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[CompetitionStatusEnum] = mapped_column(
-        Enum(CompetitionStatusEnum, name="competition_status_enum"),
+        Enum(
+            CompetitionStatusEnum,
+            name="competition_status_enum",
+            schema=env_config.CHALLENGE_DB_SCHEMA,
+        ),
         nullable=False,
         default=CompetitionStatusEnum.DRAFT,
     )
@@ -80,7 +87,7 @@ class Competition(Base):
 
     # Relationships
     creator: Mapped["User"] = relationship("User", back_populates="competitions")
-    timelines: Mapped[List["CompetitionTimeline"]] = relationship(
+    timelines: Mapped["CompetitionTimeline"] = relationship(
         back_populates="competition", cascade="all, delete-orphan"
     )
     submissions: Mapped[List["CompetitionSubmission"]] = relationship(
@@ -96,6 +103,9 @@ class Competition(Base):
         back_populates="competition", cascade="all, delete-orphan"
     )
     datasets: Mapped[List["CompetitionDataset"]] = relationship(
+        back_populates="competition", cascade="all, delete-orphan"
+    )
+    bookmarked_competitions: Mapped[List["BookmarkedCompetition"]] = relationship(
         back_populates="competition", cascade="all, delete-orphan"
     )
 
@@ -175,8 +185,12 @@ class CompetitionSubmission(Base):
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
 
-    competition: Mapped["Competition"] = relationship(back_populates="submissions")
-    user: Mapped["User"] = relationship(back_populates="submissions")
+    competition: Mapped["Competition"] = relationship(
+        back_populates="submissions", foreign_keys=[competition_id]
+    )
+    user: Mapped["User"] = relationship(
+        back_populates="submissions", foreign_keys=[user_id]
+    )
 
     __table_args__ = (
         Index(
@@ -278,8 +292,10 @@ class BookmarkedCompetition(Base):
     )
     updated_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True))
 
-    competition: Mapped["Competition"] = relationship(back_populates="participants")
-    user: Mapped["User"] = relationship(back_populates="participants")
+    competition: Mapped["Competition"] = relationship(
+        back_populates="bookmarked_competitions"
+    )
+    user: Mapped["User"] = relationship(back_populates="bookmarked_competitions")
 
     __table_args__ = (
         Index("idx_bookmarked_competitions_competition_id", "competition_id"),

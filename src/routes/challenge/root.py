@@ -10,14 +10,16 @@ from ...services.challenge.challenge_services import (
     get_competition_leaderboard_handler,
 )
 from .admin import router as admin_router
-from .attachment import router as attachment_router
 from .users import router as users_router
+from .attachment import router as attachment_router
+from .submission import router as submission_router
 
 # Main Challenge router namespace
 router = APIRouter(prefix="/challenge", tags=["Challenge APIs"])
 
 # Attach child routers
 router.include_router(admin_router)
+router.include_router(submission_router)
 router.include_router(attachment_router)
 router.include_router(users_router)
 
@@ -33,7 +35,6 @@ async def get_competition_leaderboard(
     competition_id: UUID = Path(..., description="ID of the competition"),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
-
     """
     Public endpoint that retrieves the leaderboard for a competition.
 

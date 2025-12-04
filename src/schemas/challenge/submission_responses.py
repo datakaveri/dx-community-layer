@@ -1,14 +1,87 @@
-from typing import Any, List, Literal, Optional
-
+import uuid
+from datetime import datetime
 from pydantic import BaseModel
+from typing import Any, List, Literal, Optional, Union
 
 from ..default_schemas import (
+    BadRequestErrorResponse,
+    SuccessfulResponse,
     UnauthorizedErrorResponse,
     ForbiddenErrorResponse,
     NotFoundErrorResponse,
     ConflictErrorResponse,
     BackendErrorResponse,
+    ValidationErrorResponse,
 )
+from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
+
+
+class UserSubmissionCompetitionTimelinesSchema(BaseModel):
+    id: uuid.UUID
+    submission_starts_at: datetime
+    submission_ends_at: datetime
+    evaluation_ends_at: Optional[datetime]
+
+    model_config = {"from_attributes": True}
+
+
+class UserSubmissionCompetitionSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    timelines: UserSubmissionCompetitionTimelinesSchema
+
+    model_config = {"from_attributes": True}
+
+
+class UserSubmissionsSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: str
+    user: UserSchema
+    competition: UserSubmissionCompetitionSchema
+    is_disqualified: bool
+    score: Optional[float]
+    evaluation_comment: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RetrieveUserSubmissionsData(BaseModel):
+    submissions: List[UserSubmissionsSchema]
+
+
+class RetrieveUserSubmissionsSuccessResponse(SuccessfulResponse):
+    message: Literal["Discussions retrieved successfully"]
+    data: RetrieveUserSubmissionsData
+    meta: PaginatedResponseMeta
+
+
+class RetrieveUserSubmissionsBackendError(BaseModel):
+    code: Literal["INTERNAL_SERVER_ERROR"]
+    details: Union[
+        Literal[
+            "Failed to authorize user. Please contact developers if the issue persists."
+        ],
+        Literal[
+            "An error occurred while retrieving the submissions. Please contact developers if the issue persists."
+        ],
+    ]
+
+
+class RetrieveUserSubmissionsBackendErrorResponse(BackendErrorResponse):
+    message: Literal["User submissions retrieval failed"]
+    error: RetrieveUserSubmissionsBackendError
+
+
+RETRIEVE_USER_SUBMISSIONS_RESPONSE_MODEL = {
+    200: {"model": RetrieveUserSubmissionsSuccessResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    422: {"model": ValidationErrorResponse},
+    500: {"model": RetrieveUserSubmissionsBackendErrorResponse},
+}
 
 
 class SubmissionAttachment(BaseModel):
@@ -82,6 +155,7 @@ LIST_SUBMISSIONS_RESPONSE_MODEL = {
     404: {"model": NotFoundErrorResponse},
     500: {"model": BackendErrorResponse},
 }
+
 
 class DisqualifySubmissionResponse(BaseModel):
     submission_id: str

@@ -1,14 +1,13 @@
-from datetime import datetime, timezone
 from uuid import UUID
-
-from fastapi import APIRouter, Depends, Path, Query, status, Body
 from sqlalchemy import select, func
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, Path, Query, status, Body
 
-from ...schemas.challenge.competition_requests import CompetitionsSortBy
 
 from ...configs.db_config import get_challenge_db_session
 from ...database.challenge.enums import CompetitionStatusEnum
+from ...schemas.challenge.competition_requests import CompetitionsSortBy
 from ...database.challenge.models import (
     Competition,
     CompetitionSubmission,
@@ -24,15 +23,19 @@ from ...middlewares.authorization import (
     http_bearer_header,
     http_bearer_header_public,
 )
-from ...schemas.custom_responses import CustomJSONResponse
 from ...schemas.default_schemas import AuthorizationData
+from ...schemas.custom_responses import CustomJSONResponse
 from ...schemas.challenge.participant_responses import JOIN_COMPETITION_RESPONSE_MODEL
 from ...schemas.challenge.bookmark_responses import (
     BOOKMARK_COMPETITION_RESPONSE_MODEL,
     UNBOOKMARK_COMPETITION_RESPONSE_MODEL,
     BOOKMARKED_COMPETITIONS_RESPONSE_MODEL,
 )
-from ...schemas.challenge.submission_requests import CreateSubmissionRequest, DownloadSubmissionParams, UpdateSubmissionParams
+from ...schemas.challenge.submission_requests import (
+    CreateSubmissionRequest,
+    DownloadSubmissionParams,
+    UpdateSubmissionParams,
+)
 from ...schemas.challenge.submission_responses import (
     CREATE_SUBMISSION_RESPONSE_MODEL,
     LIST_SUBMISSIONS_RESPONSE_MODEL,
@@ -75,7 +78,9 @@ async def users_list_challenges(
         alias="sort_by",
         description="Sort by field (defaults to NEWEST if not provided)",
     ),
-    joined: bool = Query(False, alias="joined", description="Filter by joined competitions"),
+    joined: bool = Query(
+        False, alias="joined", description="Filter by joined competitions"
+    ),
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
@@ -130,7 +135,7 @@ async def users_list_challenges(
             ),
             func.coalesce(submission_count_sq.c.submission_count, 0).label(
                 "submission_count"
-            )
+            ),
         )
         .join(
             CompetitionTimeline,
@@ -160,7 +165,7 @@ async def users_list_challenges(
             CompetitionParticipant,
             CompetitionParticipant.competition_id == Competition.id,
             isouter=True,
-        )    
+        )
         stmt = stmt.where(CompetitionParticipant.user_id == authorized_user["user_id"])
 
     # Apply status filter; default to PUBLISHED if not provided
@@ -174,15 +179,15 @@ async def users_list_challenges(
     if status_filter is not None:
         count_stmt = count_stmt.where(Competition.status == status_filter)
     else:
-        count_stmt = count_stmt.where(Competition.status == CompetitionStatusEnum.PUBLISHED)
-    
+        count_stmt = count_stmt.where(
+            Competition.status == CompetitionStatusEnum.PUBLISHED
+        )
+
     total_competitions = (await db_session.execute(count_stmt)).scalar_one()
-    
+
     # Calculate pagination
     total_pages = (
-        (total_competitions + limit - 1) // limit
-        if total_competitions > 0
-        else 0
+        (total_competitions + limit - 1) // limit if total_competitions > 0 else 0
     )
 
     # Apply ordering

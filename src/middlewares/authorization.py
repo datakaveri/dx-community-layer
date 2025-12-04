@@ -1,23 +1,21 @@
 import uuid
 import json
-from typing import Annotated, Optional
-from datetime import datetime, timezone
-
 import httpx
 from jose import jwt
-from jose.exceptions import JWTError, ExpiredSignatureError, JWTClaimsError, JWSError
-from fastapi import Depends, Header, status
-from fastapi.security import HTTPBearer
-from fastapi.security.utils import get_authorization_scheme_param
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from typing import Annotated, Optional
+from datetime import datetime, timezone
+from fastapi.security import HTTPBearer
+from fastapi import Depends, Header, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.security.utils import get_authorization_scheme_param
+from jose.exceptions import JWTError, ExpiredSignatureError, JWTClaimsError, JWSError
 
-from ..database.discussion.models import User
 from ..middlewares.logging import logger
 from ..configs.env_config import env_config
-from ..configs.db_config import get_db_session
-from ..configs.db_config import get_db_session_challenge
+from ..database.discussion.models import User
 from ..configs.redis_config import redis_client
+from ..configs.db_config import get_discussion_db_session
 from ..schemas.custom_responses import CustomHttpException
 from ..schemas.default_schemas import AuthorizationData, UserRole
 
@@ -233,7 +231,7 @@ class HttpBearerHeader(HTTPBearer):
         Authorization: Annotated[
             Optional[str], Header(description="Bearer token")
         ] = None,
-        session: AsyncSession = Depends(get_db_session, get_db_session_challenge),
+        session: AsyncSession = Depends(get_discussion_db_session),
     ) -> AuthorizationData:
         if (not Authorization) and self.public:
             return AuthorizationData(
