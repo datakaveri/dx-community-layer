@@ -41,12 +41,12 @@ class AdminRetrieveCompetitionsParams:
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
         limit: int = Query(10, gt=0, description="The number of competitions per page"),
-        sort_by: AdminRetreiveCompetitionsSortBy = Query(
-            default=AdminRetreiveCompetitionsSortBy.PUBLISHED_AT,
+        sort_by: Optional[AdminRetreiveCompetitionsSortBy] = Query(
+            default=None,
             description="The field to sort by",
         ),
         sort_order: Optional[SortOrder] = Query(
-            default=SortOrder.DESC,
+            default=None,
             description="The order to sort by",
         ),
     ):

@@ -38,9 +38,9 @@ from ...services.challenge.submission_services import (
     disqualify_submission_service,
 )
 from ...services.challenge.admin_services import (
-    admin_retrieve_challenges_handler,
     admin_retrieve_challenge_dataset_handler,
     admin_retrieve_challenge_by_id_handler,
+    admin_retrieve_competitions_handler,
 )
 
 router = APIRouter(prefix="/admin")
@@ -50,50 +50,29 @@ router = APIRouter(prefix="/admin")
 # ADMIN – LIST COMPETITIONS
 # -------------------------------------------------------------------
 @router.get(
-    path="/challenges",
+    path="/challenges/{choice}",
     description=(
         "Retrieves competitions for admin with pagination, filters, and sorting. "
         "Only COS_ADMIN can access."
     ),
 )
-async def admin_retrieve_challenges(
+async def admin_retrieve_competitions(
+    req_params: AdminRetrieveCompetitionsParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
-    page: int = Query(1, ge=1, description="Page number (1-based)"),
-    limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    status_filter: CompetitionStatusEnum | None = Query(
-        None, alias="status", description="Filter by competition status"
-    ),
-    sort_by: str = Query(
-        "Newest",
-        pattern="^(Hottest|Newest|Oldest)$",
-        description=(
-            "Sort by: Hottest (most participants), "
-            "Newest (latest relevant date), "
-            "Oldest (oldest relevant date)."
-        ),
-    ),
 ) -> CustomJSONResponse:
     """
     Retrieves a list of competitions for the admin panel.
 
-    Supports:
-    - Pagination (page, limit)
-    - Optional status filter
-    - Sorting by `Hottest`, `Newest`, or `Oldest`.
-
     Args:
-        authorized_user: Authenticated admin user.
-        db_session: Active DB session.
-        page: Current page number (1-based).
-        limit: Number of items per page.
-        status_filter: Optional competition status filter.
-        sort_by: Sorting strategy for competitions.
+        req_params (AdminRetrieveCompetitionsParams): The request body containing the pagination and filters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse with competitions data and pagination meta.
+        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
     """
-    logger.info("Admin Retrieve Challenges API is being called")
+    logger.info("Admin Retrieve Competitions API is being called")
 
     if authorized_user["user_role"] != UserRole.COS_ADMIN:
         return CustomJSONResponse(
@@ -109,53 +88,11 @@ async def admin_retrieve_challenges(
             },
         )
 
-    return await admin_retrieve_challenges_handler(
+    return await admin_retrieve_competitions_handler(
+        req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,
-        page=page,
-        limit=limit,
-        status_filter=status_filter,
-        sort_by=sort_by,
     )
-
-
-# async def admin_retrieve_competitions(
-#     req_params: AdminRetrieveCompetitionsParams = Depends(),
-#     authorized_user: AuthorizationData = Depends(http_bearer_header),
-#     db_session: AsyncSession = Depends(get_challenge_db_session),
-# ) -> CustomJSONResponse:
-#     """
-#     Retrieves a list of competitions for the admin panel.
-
-#     Args:
-#         req_params (AdminRetrieveCompetitionsParams): The request body containing the pagination and filters.
-#         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
-#         db_session (AsyncSession): The database session for accessing the primary database.
-
-#     Returns:
-#         CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
-#     """
-#     logger.info("Admin Retrieve Competitions API is being called")
-
-#     if authorized_user["user_role"] != UserRole.COS_ADMIN:
-#         return CustomJSONResponse(
-#             success=False,
-#             status_code=403,
-#             message="Forbidden access",
-#             error={
-#                 "code": "FORBIDDEN",
-#                 "details": (
-#                     "You are not authorized to access this resource. "
-#                     "Please contact support if required."
-#                 ),
-#             },
-#         )
-
-#     return await admin_retrieve_challenges_handler(
-#         req_params=req_params,
-#         authorized_user=authorized_user,
-#         db_session=db_session,
-#     )
 
 
 # -------------------------------------------------------------------

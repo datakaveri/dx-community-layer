@@ -1,14 +1,23 @@
-# app/services/admin_competition_services.py
-
+from datetime import datetime
+import math
 from uuid import UUID
-
 from fastapi import status
+import pytz
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
-from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
+from ..discussion.search_services import format_tsquery
 from ...schemas.default_schemas import AuthorizationData
+from ...database.challenge.enums import CompetitionStatusEnum
+from ...schemas.challenge.submission_requests import SortOrder
+from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
+from ...schemas.challenge.admin_responses import AdminRetrieveCompetitionsSchema
+from ...schemas.challenge.admin_requests import (
+    AdminRetreiveCompetitionsSortBy,
+    AdminRetrieveCompetitionsParams,
+)
 from ...database.challenge.models import (
     Competition,
     CompetitionSubmission,
@@ -18,8 +27,6 @@ from ...database.challenge.models import (
     CompetitionEvaluation,
     CompetitionDataset,
 )
-from ...database.challenge.enums import CompetitionStatusEnum
-from ...schemas.challenge.admin_requests import AdminRetrieveCompetitionsParams
 
 
 async def admin_retrieve_challenges_handler(
@@ -264,9 +271,138 @@ async def admin_retrieve_competitions_handler(
 
     try:
         # -----------------------
+        # Count by status
+        # -----------------------
+        count_by_status = await db_session.execute(
+            select(Competition.status, func.count()).group_by(Competition.status)
+        )
+
+        counts_map = {status.value: 0 for status in CompetitionStatusEnum}
+        for status_value, count in count_by_status:
+            if status_value:
+                counts_map[status_value.value] = count
+            else:
+                counts_map.setdefault("UNKNOWN", 0)
+                counts_map["UNKNOWN"] += count
+
+        # -----------------------
         # Base selectable
         # -----------------------
         stmt = select(Competition)
+
+        # -----------------------
+        # Apply choice filters
+        # -----------------------
+        if req_params.choice:
+            stmt = stmt.where(Competition.status == req_params.choice)
+
+        # -----------------------
+        # Search Query
+        # -----------------------
+        if req_params.query:
+            formatted_query = format_tsquery(req_params.query)
+            ts_query = func.to_tsquery("english", formatted_query)
+
+            stmt = stmt.where(Competition.title_vector.op("@@")(ts_query))
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(Competition.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if req_params.sort_by == AdminRetreiveCompetitionsSortBy.TITLE:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(Competition.title.asc())
+            else:
+                stmt = stmt.order_by(Competition.title.desc())
+
+        elif req_params.sort_by == AdminRetreiveCompetitionsSortBy.PUBLISHED_AT:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(Competition.published_at.asc())
+            else:
+                stmt = stmt.order_by(Competition.published_at.desc())
+
+        elif req_params.sort_by == AdminRetreiveCompetitionsSortBy.EVALUATION_ENDS_AT:
+            stmt = stmt.outerjoin(
+                CompetitionTimeline,
+                CompetitionTimeline.competition_id == Competition.id,
+            )
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionTimeline.evaluation_ends_at.asc())
+            else:
+                stmt = stmt.order_by(CompetitionTimeline.evaluation_ends_at.desc())
+
+        elif req_params.sort_by == AdminRetreiveCompetitionsSortBy.SCHEDULED_PUBLISH_AT:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(Competition.scheduled_publish_at.asc())
+            else:
+                stmt = stmt.order_by(Competition.scheduled_publish_at.desc())
+
+        elif req_params.sort_by == AdminRetreiveCompetitionsSortBy.UPDATED_AT:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(Competition.updated_at.asc())
+            else:
+                stmt = stmt.order_by(Competition.updated_at.desc())
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(Competition.timelines),
+            selectinload(Competition.prize_pools),
+            selectinload(Competition.participants),
+            selectinload(Competition.submissions),
+        )
+        result = await db_session.execute(stmt)
+        competitions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_competitions = []
+
+        for competition in competitions:
+            serialized_competition = AdminRetrieveCompetitionsSchema.model_validate(
+                competition
+            ).model_dump(exclude={"participant_count", "submission_count", "days_left"})
+
+            # Calculate counts
+            serialized_competition["participant_count"] = len(
+                getattr(competition, "participants", [])
+            )
+            serialized_competition["submission_count"] = len(
+                getattr(competition, "submissions", [])
+            )
+
+            serialized_competitions.append(serialized_competition)
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Competitions retrieved successfully",
+            data={
+                "submissions": serialized_competitions,
+            },
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+                "count_by_status": counts_map,
+            },
+        )
 
     except Exception as e:
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
