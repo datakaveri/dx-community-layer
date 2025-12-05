@@ -8,6 +8,7 @@ from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...middlewares.authorization import http_bearer_header, http_bearer_header_public
 from ...schemas.challenge.competition_requests import (
+    RetrieveBookmarkedCompetitionsParams,
     RetrieveCompetitionLeaderboardParams,
     RetrieveCompetitonsParams,
     RetrieveParticipatedCompetitionsParams,
@@ -17,6 +18,7 @@ from ...schemas.challenge.competition_responses import (
     RETRIEVE_PARTICIPATED_COMPETITIONS_RESPONSE_MODEL,
 )
 from ...services.challenge.competition_services import (
+    retrieve_bookmarked_competitions_handler,
     retrieve_competition_leaderboard_handler,
     retrieve_competitions_handler,
     retrieve_participated_competitions_handler,
@@ -62,6 +64,35 @@ async def retrieve_participated_competitions(
     logger.info("Retrieve Participated Competitions API is being called")
 
     return await retrieve_participated_competitions_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+
+@router.get(
+    path="/bookmarked",
+    description="Returns all competitions that the user has bookmarked.",
+)
+async def retrieve_bookmarked_competitions(
+    req_params: RetrieveBookmarkedCompetitionsParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
+) -> CustomJSONResponse:
+    """
+    Retrieves competitions that the user has bookmarked.
+
+    Args:
+        req_params (RetrieveBookmarkedCompetitionsParams): The request body containing the sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+    """
+    logger.info("Retrieve Bookmarked Competitions API is being called")
+
+    return await retrieve_bookmarked_competitions_handler(
         req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,

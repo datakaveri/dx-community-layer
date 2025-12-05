@@ -5,7 +5,7 @@ from fastapi import status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...schemas.challenge.competition_requests import CompetitionsSortBy
+from ...schemas.challenge.competition_requests import CompetitionsSortByEnum
 
 from ...middlewares.logging import logger
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
@@ -248,7 +248,7 @@ async def unbookmark_competition_handler(
 async def get_bookmarked_competitions_handler(
     authorized_user: AuthorizationData,
     db_session: AsyncSession,
-    sort_by: CompetitionsSortBy,
+    sort_by: CompetitionsSortByEnum,
     page: int = 1,
     limit: int = 10,
 ) -> CustomJSONResponse:
@@ -337,15 +337,15 @@ async def get_bookmarked_competitions_handler(
                 .limit(limit)
             )
 
-            if sort_by == CompetitionsSortBy.NEWEST:
+            if sort_by == CompetitionsSortByEnum.NEWEST:
                 bookmarks_stmt = bookmarks_stmt.order_by(
                     BookmarkedCompetition.created_at.desc()
                 )
-            elif sort_by == CompetitionsSortBy.OLDEST:
+            elif sort_by == CompetitionsSortByEnum.OLDEST:
                 bookmarks_stmt = bookmarks_stmt.order_by(
                     BookmarkedCompetition.created_at.asc()
                 )
-            elif sort_by == CompetitionsSortBy.HOTTEST:
+            elif sort_by == CompetitionsSortByEnum.HOTTEST:
                 bookmarks_stmt = bookmarks_stmt.order_by(
                     func.coalesce(participants_count_sq.c.participants_count, 0).desc()
                 )

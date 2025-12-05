@@ -8,7 +8,7 @@ from .submission_requests import SortOrder
 from ...database.challenge.enums import PrizeTypeEnum
 
 
-class CompetitionsSortBy(enum.Enum):
+class CompetitionsSortByEnum(enum.Enum):
     HOTTEST = "Hottest"
     NEWEST = "Newest"
     OLDEST = "Oldest"
@@ -30,8 +30,8 @@ class RetrieveCompetitonsParams:
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
         limit: int = Query(10, gt=0, description="The number of competitions per page"),
-        sort_by: CompetitionsSortBy = Query(
-            default=CompetitionsSortBy.NEWEST,
+        sort_by: CompetitionsSortByEnum = Query(
+            default=CompetitionsSortByEnum.NEWEST,
             description="The field to sort by",
         ),
     ):
@@ -100,6 +100,23 @@ class RetrieveParticipatedCompetitionsParams:
         self.limit = limit
         self.sort_by = sort_by
         self.sort_order = sort_order
+
+
+class RetrieveBookmarkedCompetitionsParams:
+    def __init__(
+        self,
+        query: Optional[str] = Query(default=None, description="Query to search for"),
+        page: int = Query(1, gt=0, description="The page number for pagination"),
+        limit: int = Query(10, gt=0, description="The number of competitions per page"),
+        sort_by: CompetitionsSortByEnum = Query(
+            default=CompetitionsSortByEnum.NEWEST,
+            description="The field to sort by",
+        ),
+    ):
+        self.query = query
+        self.page = page
+        self.limit = limit
+        self.sort_by = sort_by
 
 
 class CreateCompetitionParams:

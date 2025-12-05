@@ -4,7 +4,7 @@ import uuid
 from pydantic import BaseModel
 
 from .submission_responses import CompetitionTimelinesSchema
-from ...database.challenge.enums import PrizeTypeEnum
+from ...database.challenge.enums import CompetitionStatusEnum, PrizeTypeEnum
 from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 from ..default_schemas import (
     SuccessfulResponse,
@@ -141,6 +141,27 @@ RETRIEVE_PARTICIPATED_COMPETITIONS_RESPONSE_MODEL = {
     403: {"model": ForbiddenErrorResponse},
     500: {"model": RetrieveParticipatedCompetitionsBackendErrorResponse},
 }
+
+
+class RetrieveBookmarkedCompetitionsCompetitionSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    subtitle: Optional[str]
+    status: CompetitionStatusEnum
+    image_url: str
+    prize_pools: Optional[CompetitionPrizePoolSchema]
+
+    model_config = {"from_attributes": True}
+
+
+class RetrieveBookmarkedCompetitionsSchema(BaseModel):
+    id: uuid.UUID
+    created_at: datetime
+    competition: RetrieveBookmarkedCompetitionsCompetitionSchema
+    participant_count: Optional[int] = 0
+    days_left: Optional[int] = 0
+
+    model_config = {"from_attributes": True}
 
 
 class CreateCompetitionData(BaseModel):

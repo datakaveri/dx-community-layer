@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...schemas.challenge.competition_responses import (
     ParticipatedCompetitionsSchema,
+    RetrieveBookmarkedCompetitionsSchema,
     RetrieveCompetitionsLeaderboardsSubmissions,
     RetrieveCompetitionsSchema,
 )
@@ -22,8 +23,9 @@ from ...configs.env_config import env_config
 from ...middlewares.logging import logger
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.challenge.competition_requests import (
-    CompetitionsSortBy,
+    CompetitionsSortByEnum,
     CreateCompetitionParams,
+    RetrieveBookmarkedCompetitionsParams,
     RetrieveCompetitionChoices,
     RetrieveCompetitionLeaderboardParams,
     RetrieveCompetitionLeaderboardSortByEnum,
@@ -34,6 +36,7 @@ from ...schemas.challenge.competition_requests import (
 )
 from ...schemas.default_schemas import AuthorizationData
 from ...database.challenge.models import (
+    BookmarkedCompetition,
     Competition,
     CompetitionParticipant,
     CompetitionSubmission,
@@ -135,17 +138,17 @@ async def retrieve_competitions_handler(
         # -----------------------
         # Sorting
         # -----------------------
-        if req_params.sort_by == CompetitionsSortBy.NEWEST:
+        if req_params.sort_by == CompetitionsSortByEnum.NEWEST:
             stmt = stmt.order_by(
                 Competition.published_at.desc().nullslast(),
                 Competition.updated_at.desc(),
             )
-        elif req_params.sort_by == CompetitionsSortBy.OLDEST:
+        elif req_params.sort_by == CompetitionsSortByEnum.OLDEST:
             stmt = stmt.order_by(
                 Competition.published_at.asc().nullslast(),
                 Competition.updated_at.desc(),
             )
-        elif req_params.sort_by == CompetitionsSortBy.HOTTEST:
+        elif req_params.sort_by == CompetitionsSortByEnum.HOTTEST:
             stmt = stmt.outerjoin(
                 participants_count_subq,
                 Competition.id == participants_count_subq.c.competition_id,
@@ -517,6 +520,167 @@ async def retrieve_participated_competitions_handler(
         return CustomBackendError(
             message="Participated competitions retrieval failed",
             details="An error occurred while retrieving the participated competitions. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
+
+async def retrieve_bookmarked_competitions_handler(
+    req_params: RetrieveBookmarkedCompetitionsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves competitions that the user has bookmarked.
+
+    Args:
+        req_params (RetrieveBookmarkedCompetitionsParams): The request body containing the sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
+    try:
+        # -----------------------
+        # Subquery
+        # -----------------------
+        participants_count_subq = (
+            select(
+                CompetitionParticipant.competition_id,
+                func.count(CompetitionParticipant.id).label("participants_count"),
+            )
+            .group_by(CompetitionParticipant.competition_id)
+            .subquery()
+        )
+
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = (
+            select(BookmarkedCompetition)
+            .join(
+                Competition,
+                Competition.id == BookmarkedCompetition.competition_id,
+            )
+            .where(
+                BookmarkedCompetition.user_id == authorized_user["user_id"],
+                BookmarkedCompetition.is_active.is_(True),
+            )
+        )
+
+        # -----------------------
+        # Search Query
+        # -----------------------
+        if req_params.query:
+            formatted_query = format_tsquery(req_params.query)
+            ts_query = func.to_tsquery("english", formatted_query)
+
+            stmt = stmt.where(Competition.title_vector.op("@@")(ts_query))
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(BookmarkedCompetition.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if req_params.sort_by == CompetitionsSortByEnum.NEWEST:
+            stmt = stmt.order_by(
+                BookmarkedCompetition.created_at.desc(),
+                Competition.updated_at.desc(),
+            )
+        elif req_params.sort_by == CompetitionsSortByEnum.OLDEST:
+            stmt = stmt.order_by(
+                BookmarkedCompetition.created_at.asc(),
+                Competition.updated_at.desc(),
+            )
+        elif req_params.sort_by == CompetitionsSortByEnum.HOTTEST:
+            stmt = stmt.outerjoin(
+                participants_count_subq,
+                Competition.id == participants_count_subq.c.competition_id,
+            ).order_by(
+                func.coalesce(participants_count_subq.c.participants_count, 0).desc(),
+                Competition.updated_at.desc(),
+            )
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(BookmarkedCompetition.competition).selectinload(
+                BookmarkedCompetition.competition.property.mapper.class_.prize_pools
+            ),
+            selectinload(BookmarkedCompetition.competition).selectinload(
+                BookmarkedCompetition.competition.property.mapper.class_.timelines
+            ),
+            selectinload(BookmarkedCompetition.competition).selectinload(
+                BookmarkedCompetition.competition.property.mapper.class_.participants
+            ),
+        )
+        result = await db_session.execute(stmt)
+        bookmarked_competitions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_bookmarked_competitions = []
+
+        for bookmarked_competition in bookmarked_competitions:
+            serialized_competition = (
+                RetrieveBookmarkedCompetitionsSchema.model_validate(
+                    bookmarked_competition
+                ).model_dump(exclude={"participant_count", "days_left"})
+            )
+
+            # Calculate counts
+            serialized_competition["participant_count"] = len(
+                getattr(bookmarked_competition.competition, "participants", [])
+            )
+
+            # Calculate days left
+            date_difference = (
+                bookmarked_competition.competition.timelines.submission_ends_at
+                - current_timestamp
+            ).days
+            serialized_competition["days_left"] = max(date_difference, 0)
+
+            serialized_bookmarked_competitions.append(serialized_competition)
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Bookmarked competitions retrieved successfully",
+            data={
+                "bookmarked_competitions": serialized_bookmarked_competitions,
+            },
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Bookmarked competitions retrieval failed",
+            details="An error occurred while retrieving the bookmarked competitions. Please contact developers if the issue persists.",
         )
 
     finally:

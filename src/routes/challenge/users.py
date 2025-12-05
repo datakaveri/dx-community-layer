@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Path, Query, status, Body
 
 from ...configs.db_config import get_challenge_db_session
 from ...database.challenge.enums import CompetitionStatusEnum
-from ...schemas.challenge.competition_requests import CompetitionsSortBy
+from ...schemas.challenge.competition_requests import CompetitionsSortByEnum
 from ...database.challenge.models import (
     Competition,
     CompetitionSubmission,
@@ -74,8 +74,8 @@ async def users_list_challenges(
         alias="status",
         description="Filter by competition status (defaults to only PUBLISHED if not provided)",
     ),
-    sort_by: CompetitionsSortBy = Query(
-        CompetitionsSortBy.NEWEST,
+    sort_by: CompetitionsSortByEnum = Query(
+        CompetitionsSortByEnum.NEWEST,
         alias="sort_by",
         description="Sort by field (defaults to NEWEST if not provided)",
     ),
@@ -192,11 +192,11 @@ async def users_list_challenges(
     )
 
     # Apply ordering
-    if sort_by == CompetitionsSortBy.NEWEST:
+    if sort_by == CompetitionsSortByEnum.NEWEST:
         stmt = stmt.order_by(Competition.published_at.desc().nullslast())
-    elif sort_by == CompetitionsSortBy.OLDEST:
+    elif sort_by == CompetitionsSortByEnum.OLDEST:
         stmt = stmt.order_by(Competition.published_at.asc())
-    elif sort_by == CompetitionsSortBy.HOTTEST:
+    elif sort_by == CompetitionsSortByEnum.HOTTEST:
         stmt = stmt.order_by(
             func.coalesce(participants_count_sq.c.participants_count, 0).desc()
         )
@@ -531,8 +531,8 @@ async def users_unbookmark_competition(
     responses=BOOKMARKED_COMPETITIONS_RESPONSE_MODEL,
 )
 async def users_get_bookmarked_competitions(
-    sort_by: CompetitionsSortBy = Query(
-        CompetitionsSortBy.NEWEST,
+    sort_by: CompetitionsSortByEnum = Query(
+        CompetitionsSortByEnum.NEWEST,
         alias="sort_by",
         description="Sort by field (defaults to NEWEST if not provided)",
     ),
