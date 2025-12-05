@@ -13,9 +13,14 @@ from ...schemas.default_schemas import AuthorizationData
 from ...database.challenge.enums import CompetitionStatusEnum
 from ...schemas.challenge.submission_requests import SortOrder
 from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
-from ...schemas.challenge.admin_responses import AdminRetrieveCompetitionsSchema
+from ...schemas.challenge.admin_responses import (
+    AdminRetrieveCompetitionSubmissionSchema,
+    AdminRetrieveCompetitionsSchema,
+)
 from ...schemas.challenge.admin_requests import (
     AdminRetreiveCompetitionsSortBy,
+    AdminRetrieveCompetitionSubmissionsParams,
+    AdminRetrieveCompetitionSubmissionsSortByEnum,
     AdminRetrieveCompetitionsParams,
 )
 from ...database.challenge.models import (
@@ -26,6 +31,7 @@ from ...database.challenge.models import (
     CompetitionParticipant,
     CompetitionEvaluation,
     CompetitionDataset,
+    User,
 )
 
 
@@ -393,7 +399,7 @@ async def admin_retrieve_competitions_handler(
             status_code=status.HTTP_200_OK,
             message="Competitions retrieved successfully",
             data={
-                "submissions": serialized_competitions,
+                "competitions": serialized_competitions,
             },
             meta={
                 "total_count": total_count,
@@ -409,6 +415,140 @@ async def admin_retrieve_competitions_handler(
         return CustomBackendError(
             message="Admin competitions retrieval failed",
             details="An error occurred while retrieving the admin competitions. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
+
+async def admin_retrieve_competition_submissions_handler(
+    req_params: AdminRetrieveCompetitionSubmissionsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves all submissions for a competition.
+
+    Args:
+        req_params (AdminRetrieveCompetitionSubmissionsParams): The request body containing the competition ID and pagination parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved submissions and relevant metadata.
+    """
+    logger.info(
+        f"{authorized_user['email']} - Admin Retrieve Competition Submissions handler started"
+    )
+
+    try:
+        competition_stmt = select(Competition).where(
+            Competition.id == req_params.competition_id
+        )
+        competition = await db_session.execute(competition_stmt)
+        competition = competition.scalars().one_or_none()
+
+        if not competition:
+            logger.error(
+                f"{authorized_user['email']} - Competition not found (id={req_params.discussion_id})"
+            )
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Competition not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "message": "The competition you are trying to retrieve submissions does not exist. Please contact support if the issue persists.",
+                },
+            )
+
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = (
+            select(CompetitionSubmission)
+            .join(User, User.id == CompetitionSubmission.user_id)
+            .where(CompetitionSubmission.competition_id == req_params.competition_id)
+        )
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(CompetitionSubmission.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if (
+            req_params.sort_by
+            == AdminRetrieveCompetitionSubmissionsSortByEnum.PARTICIPANT_NAME
+        ):
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(User.name.asc())
+            else:
+                stmt = stmt.order_by(User.name.desc())
+
+        elif (
+            req_params.sort_by
+            == AdminRetrieveCompetitionSubmissionsSortByEnum.SUBMITTED_AT
+        ):
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.created_at.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.created_at.desc())
+
+        elif req_params.sort_by == AdminRetrieveCompetitionSubmissionsSortByEnum.TITLE:
+            if req_params.sort_order == SortOrder.ASC:
+                stmt = stmt.order_by(CompetitionSubmission.title.asc())
+            else:
+                stmt = stmt.order_by(CompetitionSubmission.title.desc())
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(CompetitionSubmission.user),
+        )
+        result = await db_session.execute(stmt)
+        submissions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_submissions = [
+            AdminRetrieveCompetitionSubmissionSchema.model_validate(submission)
+            for submission in submissions
+        ]
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Admin competition submissions retrieved successfully",
+            data={
+                "submissions": serialized_submissions,
+            },
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Admin competition submissions retrieval failed",
+            details="An error occurred while retrieving the admin competition submissions. Please contact developers if the issue persists.",
         )
 
     finally:

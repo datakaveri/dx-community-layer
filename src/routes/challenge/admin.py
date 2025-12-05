@@ -6,7 +6,10 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...schemas.challenge.admin_requests import AdminRetrieveCompetitionsParams
+from ...schemas.challenge.admin_requests import (
+    AdminRetrieveCompetitionSubmissionsParams,
+    AdminRetrieveCompetitionsParams,
+)
 from ...middlewares.logging import logger
 from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
@@ -40,15 +43,13 @@ from ...services.challenge.submission_services import (
 from ...services.challenge.admin_services import (
     admin_retrieve_challenge_dataset_handler,
     admin_retrieve_challenge_by_id_handler,
+    admin_retrieve_competition_submissions_handler,
     admin_retrieve_competitions_handler,
 )
 
 router = APIRouter(prefix="/admin")
 
 
-# -------------------------------------------------------------------
-# ADMIN – LIST COMPETITIONS
-# -------------------------------------------------------------------
 @router.get(
     path="/challenges/{choice}",
     description=(
@@ -200,34 +201,42 @@ async def admin_retrieve_challenge_dataset(
     description="Retrieves all submissions for a competition. Only COS_ADMIN can access.",
     responses=LIST_SUBMISSIONS_RESPONSE_MODEL,
 )
-async def admin_list_competition_submissions(
-    competition_id: UUID = Path(..., description="ID of the competition"),
-    page: int = Query(1, ge=1, description="Page number (1-based)"),
-    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+async def admin_retrieve_competition_submissions(
+    req_params: AdminRetrieveCompetitionSubmissionsParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Lists submissions for a given competition for admin.
+    Retrieves all submissions for a competition.
 
     Args:
-        competition_id: Competition ID.
-        page: Page number (1-based).
-        limit: Number of submissions per page.
-        authorized_user: Authenticated admin user.
-        db_session: Active DB session.
+        req_params (AdminRetrieveCompetitionSubmissionsParams): The request body containing the competition ID and pagination parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse with submissions list and pagination metadata.
+        CustomJSONResponse: A JSON response with the retrieved submissions and relevant metadata.
     """
-    logger.info("Admin List Competition Submissions API is being called")
+    logger.info("Admin Retrieve Competition Submissions API is being called")
 
-    return await get_admin_competition_submissions_handler(
-        competition_id=competition_id,
+    if authorized_user["user_role"] != UserRole.COS_ADMIN:
+        return CustomJSONResponse(
+            success=False,
+            status_code=403,
+            message="Forbidden access",
+            error={
+                "code": "FORBIDDEN",
+                "details": (
+                    "You are not authorized to access this resource. "
+                    "Please contact support if required."
+                ),
+            },
+        )
+
+    return await admin_retrieve_competition_submissions_handler(
+        req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,
-        page=page,
-        limit=limit,
     )
 
 

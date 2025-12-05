@@ -70,8 +70,6 @@ async def retrieve_user_submissions_handler(
             .where(CompetitionSubmission.user_id == authorized_user["user_id"])
         )
 
-        print(authorized_user["user_id"])
-
         # -----------------------
         # Apply choice filters
         # -----------------------

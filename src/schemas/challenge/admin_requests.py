@@ -1,5 +1,6 @@
 import enum
 from typing import Optional
+import uuid
 from fastapi import Path, Query
 
 from .submission_requests import SortOrder
@@ -51,6 +52,36 @@ class AdminRetrieveCompetitionsParams:
         ),
     ):
         self.choice: CompetitionStatusEnum = self.STATUS_MAP[choice.value]
+        self.query = query
+        self.page = page
+        self.limit = limit
+        self.sort_by = sort_by
+        self.sort_order = sort_order
+
+
+class AdminRetrieveCompetitionSubmissionsSortByEnum(enum.Enum):
+    PARTICIPANT_NAME = "participant_name"
+    TITLE = "updated_at"
+    SUBMITTED_AT = "submitted_at"
+
+
+class AdminRetrieveCompetitionSubmissionsParams:
+    def __init__(
+        self,
+        competition_id: uuid.UUID = Path(..., description="ID of the competition"),
+        query: Optional[str] = Query(default=None, description="Query to search for"),
+        page: int = Query(1, gt=0, description="The page number for pagination"),
+        limit: int = Query(10, gt=0, description="The number of submissions per page"),
+        sort_by: Optional[AdminRetrieveCompetitionSubmissionsSortByEnum] = Query(
+            default=None,
+            description="The field to sort by",
+        ),
+        sort_order: Optional[SortOrder] = Query(
+            default=None,
+            description="The order to sort by",
+        ),
+    ):
+        self.competition_id = competition_id
         self.query = query
         self.page = page
         self.limit = limit

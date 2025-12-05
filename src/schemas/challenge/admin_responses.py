@@ -3,6 +3,7 @@ import uuid
 from typing import List, Optional
 from pydantic import BaseModel
 
+from ..discussion.discussion_responses import UserSchema
 from .submission_responses import CompetitionTimelinesSchema
 from .competition_responses import CompetitionPrizePoolSchema
 from ...database.challenge.enums import CompetitionStatusEnum
@@ -29,3 +30,20 @@ class AdminRetrieveCompetitionsSchema(BaseModel):
 
 class AdminRetrieveCompetitionsData(BaseModel):
     competitions: List[AdminRetrieveCompetitionsSchema]
+
+
+class AdminRetrieveCompetitionSubmissionSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: str
+    user: UserSchema
+    attachments: Optional[List]
+    is_disqualified: bool
+    score: Optional[float]
+    submission_count: int
+    evaluation_comment: Optional[str]
+    evaluation_attachments: Optional[List]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
