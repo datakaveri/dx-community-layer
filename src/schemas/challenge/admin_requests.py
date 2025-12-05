@@ -61,7 +61,7 @@ class AdminRetrieveCompetitionsParams:
 
 class AdminRetrieveCompetitionSubmissionsSortByEnum(enum.Enum):
     PARTICIPANT_NAME = "participant_name"
-    TITLE = "updated_at"
+    TITLE = "title"
     SUBMITTED_AT = "submitted_at"
 
 
