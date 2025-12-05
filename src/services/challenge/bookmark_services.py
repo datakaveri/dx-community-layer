@@ -46,7 +46,6 @@ async def bookmark_competition_handler(
         # Verify competition exists and is published
         competition_stmt = select(Competition).where(
             Competition.id == competition_id,
-            Competition.status == CompetitionStatusEnum.PUBLISHED,
         )
         competition_result = await db_session.execute(competition_stmt)
         competition = competition_result.scalar_one_or_none()
@@ -94,7 +93,10 @@ async def bookmark_competition_handler(
         except Exception as db_error:
             # Handle database permission errors
             error_msg = str(db_error)
-            if "permission denied" in error_msg.lower() or "InsufficientPrivilegeError" in error_msg:
+            if (
+                "permission denied" in error_msg.lower()
+                or "InsufficientPrivilegeError" in error_msg
+            ):
                 logger.error(
                     f"Database permission error when checking bookmark status: {db_error}"
                 )
@@ -206,7 +208,10 @@ async def unbookmark_competition_handler(
         except Exception as db_error:
             # Handle database permission errors
             error_msg = str(db_error)
-            if "permission denied" in error_msg.lower() or "InsufficientPrivilegeError" in error_msg:
+            if (
+                "permission denied" in error_msg.lower()
+                or "InsufficientPrivilegeError" in error_msg
+            ):
                 logger.error(
                     f"Database permission error when checking bookmark: {db_error}"
                 )
@@ -277,14 +282,20 @@ async def get_bookmarked_competitions_handler(
 
         # Get total count of active bookmarks
         try:
-            count_stmt = select(func.count()).select_from(BookmarkedCompetition).where(
-                BookmarkedCompetition.user_id == user_id,
-                BookmarkedCompetition.is_active == True,
+            count_stmt = (
+                select(func.count())
+                .select_from(BookmarkedCompetition)
+                .where(
+                    BookmarkedCompetition.user_id == user_id,
+                    BookmarkedCompetition.is_active == True,
+                )
             )
             total_bookmarks = (await db_session.execute(count_stmt)).scalar_one()
 
             # Calculate pagination
-            total_pages = (total_bookmarks + limit - 1) // limit if total_bookmarks > 0 else 0
+            total_pages = (
+                (total_bookmarks + limit - 1) // limit if total_bookmarks > 0 else 0
+            )
             offset = (page - 1) * limit
 
             # Get paginated bookmarks with competition details
@@ -296,11 +307,13 @@ async def get_bookmarked_competitions_handler(
                     CompetitionPrizePool.total_pool_amount.label("total_pool_amount"),
                     CompetitionPrizePool.currency.label("currency"),
                     CompetitionPrizePool.prize_type.label("prize_type"),
-                    func.coalesce(
-                        participants_count_sq.c.participants_count, 0
-                    ).label("participants_count"),
+                    func.coalesce(participants_count_sq.c.participants_count, 0).label(
+                        "participants_count"
+                    ),
                 )
-                .join(Competition, BookmarkedCompetition.competition_id == Competition.id)
+                .join(
+                    Competition, BookmarkedCompetition.competition_id == Competition.id
+                )
                 .join(
                     CompetitionTimeline,
                     CompetitionTimeline.competition_id == Competition.id,
@@ -325,9 +338,13 @@ async def get_bookmarked_competitions_handler(
             )
 
             if sort_by == CompetitionsSortBy.NEWEST:
-                bookmarks_stmt = bookmarks_stmt.order_by(BookmarkedCompetition.created_at.desc())
+                bookmarks_stmt = bookmarks_stmt.order_by(
+                    BookmarkedCompetition.created_at.desc()
+                )
             elif sort_by == CompetitionsSortBy.OLDEST:
-                bookmarks_stmt = bookmarks_stmt.order_by(BookmarkedCompetition.created_at.asc())
+                bookmarks_stmt = bookmarks_stmt.order_by(
+                    BookmarkedCompetition.created_at.asc()
+                )
             elif sort_by == CompetitionsSortBy.HOTTEST:
                 bookmarks_stmt = bookmarks_stmt.order_by(
                     func.coalesce(participants_count_sq.c.participants_count, 0).desc()
@@ -338,7 +355,10 @@ async def get_bookmarked_competitions_handler(
         except Exception as db_error:
             # Handle database permission errors
             error_msg = str(db_error)
-            if "permission denied" in error_msg.lower() or "InsufficientPrivilegeError" in error_msg:
+            if (
+                "permission denied" in error_msg.lower()
+                or "InsufficientPrivilegeError" in error_msg
+            ):
                 logger.error(
                     f"Database permission error when getting bookmarks: {db_error}"
                 )
@@ -379,7 +399,9 @@ async def get_bookmarked_competitions_handler(
                     "competition_title": competition.title,
                     "competition_subtitle": competition.subtitle,
                     "competition_image_url": competition.image_url,
-                    "competition_status": competition.status.value if competition.status else None,
+                    "competition_status": (
+                        competition.status.value if competition.status else None
+                    ),
                     "bookmarked_at": bookmark.created_at.isoformat(),
                     "prize_pool": {
                         "total_pool_amount": total_pool_amount or 0.0,
@@ -409,4 +431,3 @@ async def get_bookmarked_competitions_handler(
             message="Failed to get bookmarked competitions",
             details=str(exc),
         )
-
