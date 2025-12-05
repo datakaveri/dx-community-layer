@@ -39,6 +39,36 @@ router.include_router(users_router)
 
 
 @router.get(
+    path="/participated",
+    description="Returns all competitions that the user has participated in.",
+    responses=RETRIEVE_PARTICIPATED_COMPETITIONS_RESPONSE_MODEL,
+)
+async def retrieve_participated_competitions(
+    req_params: RetrieveParticipatedCompetitionsParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
+) -> CustomJSONResponse:
+    """
+    Retrieves competitions that the user has participated in.
+
+    Args:
+        req_params (RetrieveParticipatedCompetitionsParams): The request body containing the sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+    """
+    logger.info("Retrieve Participated Competitions API is being called")
+
+    return await retrieve_participated_competitions_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+
+@router.get(
     path="/{choice}",
     description=public_desc(
         (
@@ -101,36 +131,6 @@ async def retrieve_competition_leaderboard(
     logger.info("Retrieve Competition Leaderboard API is being called")
 
     return await retrieve_competition_leaderboard_handler(
-        req_params=req_params,
-        authorized_user=authorized_user,
-        db_session=db_session,
-    )
-
-
-@router.get(
-    path="/participated",
-    description="Returns all competitions that the user has participated in.",
-    responses=RETRIEVE_PARTICIPATED_COMPETITIONS_RESPONSE_MODEL,
-)
-async def retrieve_participated_competitions(
-    req_params: RetrieveParticipatedCompetitionsParams = Depends(),
-    authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_challenge_db_session),
-) -> CustomJSONResponse:
-    """
-    Retrieves competitions that the user has participated in.
-
-    Args:
-        req_params (RetrieveParticipatedCompetitionsParams): The request body containing the sorting parameters.
-        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
-        db_session (AsyncSession): The database session for accessing the primary database.
-
-    Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
-    """
-    logger.info("Retrieve Participated Competitions API is being called")
-
-    return await retrieve_participated_competitions_handler(
         req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,

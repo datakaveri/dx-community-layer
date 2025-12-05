@@ -12,8 +12,14 @@ from ...schemas.custom_responses import CustomJSONResponse
 from ...middlewares.authorization import http_bearer_header
 from ...schemas.default_schemas import AuthorizationData, UserRole
 from ...database.challenge.enums import CompetitionStatusEnum
-from ...schemas.challenge.competition_requests import CreateCompetitionParams, UpdateCompetitionParams
-from ...schemas.challenge.submission_requests import PublishSubmissionParams, AdminEditSubmissionParams
+from ...schemas.challenge.competition_requests import (
+    CreateCompetitionParams,
+    UpdateCompetitionParams,
+)
+from ...schemas.challenge.submission_requests import (
+    PublishSubmissionParams,
+    AdminEditSubmissionParams,
+)
 from ...schemas.challenge.submission_responses import (
     LIST_SUBMISSIONS_RESPONSE_MODEL,
     DisqualifySubmissionResponse,
@@ -112,6 +118,45 @@ async def admin_retrieve_challenges(
     )
 
 
+# async def admin_retrieve_challenges(
+#     req_params: AdminRetrieveCompetitionsParams = Depends(),
+#     authorized_user: AuthorizationData = Depends(http_bearer_header),
+#     db_session: AsyncSession = Depends(get_challenge_db_session),
+# ) -> CustomJSONResponse:
+#     """
+#     Retrieves a list of competitions for the admin panel.
+
+#     Args:
+#         req_params (AdminRetrieveCompetitionsParams): The request body containing the pagination and filters.
+#         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+#         db_session (AsyncSession): The database session for accessing the primary database.
+
+#     Returns:
+#         CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+#     """
+#     logger.info("Admin Retrieve Challenges API is being called")
+
+#     if authorized_user["user_role"] != UserRole.COS_ADMIN:
+#         return CustomJSONResponse(
+#             success=False,
+#             status_code=403,
+#             message="Forbidden access",
+#             error={
+#                 "code": "FORBIDDEN",
+#                 "details": (
+#                     "You are not authorized to access this resource. "
+#                     "Please contact support if required."
+#                 ),
+#             },
+#         )
+
+#     return await admin_retrieve_challenges_handler(
+#         req_params=req_params,
+#         authorized_user=authorized_user,
+#         db_session=db_session,
+#     )
+
+
 # -------------------------------------------------------------------
 # ADMIN – CREATE COMPETITION
 # -------------------------------------------------------------------
@@ -169,7 +214,9 @@ async def admin_create_challenge(
     ),
 )
 async def admin_retrieve_challenge_dataset(
-    competition_id: UUID = Path(..., description="ID of the competition to retrieve dataset for"),
+    competition_id: UUID = Path(
+        ..., description="ID of the competition to retrieve dataset for"
+    ),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
