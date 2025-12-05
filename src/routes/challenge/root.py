@@ -72,8 +72,9 @@ async def retrieve_participated_competitions(
     path="/{choice}",
     description=public_desc(
         (
-            "Retrieves all competitions accross the TGDex platform based on the choice provided.",
-            "Supports pagination, sorting and filtering (by query).",
+            "Retrieves all competitions accross the TGDex platform based on the choice provided."
+            "Supports pagination, sorting and filtering (by query). \n"
+            "`Note: Authentication required for joined competitions.`"
         )
     ),
 )

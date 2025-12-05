@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
-from ...schemas.custom_responses import CustomJSONResponse
+from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
 from ...schemas.default_schemas import AuthorizationData
 from ...database.challenge.models import (
     Competition,
@@ -19,6 +19,7 @@ from ...database.challenge.models import (
     CompetitionDataset,
 )
 from ...database.challenge.enums import CompetitionStatusEnum
+from ...schemas.challenge.admin_requests import AdminRetrieveCompetitionsParams
 
 
 async def admin_retrieve_challenges_handler(
@@ -52,7 +53,9 @@ async def admin_retrieve_challenges_handler(
     Returns:
         CustomJSONResponse: List of competitions plus pagination metadata.
     """
-    logger.info(f"{authorized_user['email']} - Admin Retrieve Challenges handler started")
+    logger.info(
+        f"{authorized_user['email']} - Admin Retrieve Challenges handler started"
+    )
 
     # Participants count subquery
     participants_count_sq = (
@@ -239,6 +242,41 @@ async def admin_retrieve_challenges_handler(
             },
         },
     )
+
+
+async def admin_retrieve_competitions_handler(
+    req_params: AdminRetrieveCompetitionsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves a list of competitions for the admin panel.
+
+    Args:
+        req_params (AdminRetrieveCompetitionsParams): The request body containing the pagination and filters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+
+    try:
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = select(Competition)
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Admin competitions retrieval failed",
+            details="An error occurred while retrieving the admin competitions. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
 
 
 async def admin_retrieve_challenge_dataset_handler(

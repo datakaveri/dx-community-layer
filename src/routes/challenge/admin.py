@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...schemas.challenge.admin_requests import AdminRetrieveCompetitionsParams
 from ...middlewares.logging import logger
 from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
@@ -118,7 +119,7 @@ async def admin_retrieve_challenges(
     )
 
 
-# async def admin_retrieve_challenges(
+# async def admin_retrieve_competitions(
 #     req_params: AdminRetrieveCompetitionsParams = Depends(),
 #     authorized_user: AuthorizationData = Depends(http_bearer_header),
 #     db_session: AsyncSession = Depends(get_challenge_db_session),
@@ -134,7 +135,7 @@ async def admin_retrieve_challenges(
 #     Returns:
 #         CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
 #     """
-#     logger.info("Admin Retrieve Challenges API is being called")
+#     logger.info("Admin Retrieve Competitions API is being called")
 
 #     if authorized_user["user_role"] != UserRole.COS_ADMIN:
 #         return CustomJSONResponse(

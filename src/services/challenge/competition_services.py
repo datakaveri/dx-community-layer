@@ -24,6 +24,7 @@ from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.challenge.competition_requests import (
     CompetitionsSortBy,
     CreateCompetitionParams,
+    RetrieveCompetitionChoices,
     RetrieveCompetitionLeaderboardParams,
     RetrieveCompetitionLeaderboardSortByEnum,
     RetrieveCompetitonsParams,
@@ -89,8 +90,27 @@ async def retrieve_competitions_handler(
         # -----------------------
         # Apply choice filters
         # -----------------------
-        if req_params.choice:
-            stmt = stmt.where(Competition.status == req_params.choice)
+        if req_params.choice == RetrieveCompetitionChoices.JOINED:
+            if not authorized_user["user_id"]:
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    message="Unauthorized access",
+                    error={
+                        "code": "UNAUTHORIZED",
+                        "details": "Invalid token. Please provide a valid Bearer token.",
+                    },
+                )
+
+            stmt = stmt.join(
+                CompetitionParticipant,
+                CompetitionParticipant.competition_id == Competition.id,
+                isouter=True,
+            ).where(CompetitionParticipant.user_id == authorized_user["id"])
+        elif req_params.choice == RetrieveCompetitionChoices.COMPLETED:
+            stmt = stmt.where(Competition.status == CompetitionStatusEnum.COMPLETED)
+        else:
+            stmt = stmt.where(Competition.status == CompetitionStatusEnum.PUBLISHED)
 
         # -----------------------
         # Search Query

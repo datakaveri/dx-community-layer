@@ -5,7 +5,7 @@ from typing import Any, List, Dict, Optional
 from fastapi import Body, HTTPException, Path, Query, status
 
 from .submission_requests import SortOrder
-from ...database.challenge.enums import PrizeTypeEnum, CompetitionStatusEnum
+from ...database.challenge.enums import PrizeTypeEnum
 
 
 class CompetitionsSortBy(enum.Enum):
@@ -15,24 +15,17 @@ class CompetitionsSortBy(enum.Enum):
 
 
 class RetrieveCompetitionChoices(enum.Enum):
-    SCHEDULED = "scheduled"
     PUBLISHED = "published"
-    EVALUATION = "evaluation"
+    JOINED = "joined"
     COMPLETED = "completed"
 
 
 class RetrieveCompetitonsParams:
-    STATUS_MAP = {
-        "scheduled": CompetitionStatusEnum.SCHEDULED,
-        "published": CompetitionStatusEnum.PUBLISHED,
-        "evaluation": CompetitionStatusEnum.EVALUATION,
-        "completed": CompetitionStatusEnum.COMPLETED,
-    }
-
     def __init__(
         self,
         choice: RetrieveCompetitionChoices = Path(
-            ..., description="Type of the competition to retrieve"
+            ...,
+            description="Type of the competition to retrieve",
         ),
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
@@ -42,7 +35,7 @@ class RetrieveCompetitonsParams:
             description="The field to sort by",
         ),
     ):
-        self.choice: CompetitionStatusEnum = self.STATUS_MAP[choice.value]
+        self.choice = choice
         self.query = query
         self.page = page
         self.limit = limit
