@@ -106,7 +106,7 @@ async def retrieve_competitions_handler(
                 CompetitionParticipant,
                 CompetitionParticipant.competition_id == Competition.id,
                 isouter=True,
-            ).where(CompetitionParticipant.user_id == authorized_user["id"])
+            ).where(CompetitionParticipant.user_id == authorized_user["user_id"])
         elif req_params.choice == RetrieveCompetitionChoices.COMPLETED:
             stmt = stmt.where(Competition.status == CompetitionStatusEnum.COMPLETED)
         else:
