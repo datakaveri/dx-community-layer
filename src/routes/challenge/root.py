@@ -3,11 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...docs import public_desc
 from ...middlewares.logging import logger
+from ...schemas.default_schemas import AuthorizationData
 from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...middlewares.authorization import http_bearer_header, http_bearer_header_public
 from ...schemas.challenge.competition_requests import (
     RetrieveCompetitionLeaderboardParams,
+    RetrieveCompetitonsParams,
     RetrieveParticipatedCompetitionsParams,
 )
 from ...schemas.challenge.competition_responses import (
@@ -16,6 +18,7 @@ from ...schemas.challenge.competition_responses import (
 )
 from ...services.challenge.competition_services import (
     retrieve_competition_leaderboard_handler,
+    retrieve_competitions_handler,
     retrieve_participated_competitions_handler,
 )
 
@@ -36,6 +39,39 @@ router.include_router(users_router)
 
 
 @router.get(
+    path="/{choice}",
+    description=public_desc(
+        (
+            "Retrieves all competitions accross the TGDex platform based on the choice provided.",
+            "Supports pagination, sorting and filtering (by query).",
+        )
+    ),
+)
+async def retrieve_competitions(
+    req_params: RetrieveCompetitonsParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header_public),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
+) -> CustomJSONResponse:
+    """
+    Retrieves all competitions accross the TGDex platform.
+
+    Args:
+        req_params (RetrieveCompetitonsParams): The request body containing the sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+    """
+
+    logger.info("Retrieve Competitions API is being called")
+
+    return await retrieve_competitions_handler(
+        req_params=req_params, authorized_user=authorized_user, db_session=db_session
+    )
+
+
+@router.get(
     path="/{competition_id}/leaderboard",
     description=public_desc(
         (
@@ -47,7 +83,7 @@ router.include_router(users_router)
 )
 async def retrieve_competition_leaderboard(
     req_params: RetrieveCompetitionLeaderboardParams = Depends(),
-    authorized_user: dict = Depends(http_bearer_header_public),
+    authorized_user: AuthorizationData = Depends(http_bearer_header_public),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
@@ -78,7 +114,7 @@ async def retrieve_competition_leaderboard(
 )
 async def retrieve_participated_competitions(
     req_params: RetrieveParticipatedCompetitionsParams = Depends(),
-    authorized_user: dict = Depends(http_bearer_header),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """

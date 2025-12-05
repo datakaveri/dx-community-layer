@@ -1,17 +1,18 @@
-from datetime import datetime, timezone
 import math
-from typing import Any, List
-from uuid import UUID
-
-from fastapi import status
 import pytz
-from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
+from fastapi import status
+from typing import Any, List
 from sqlalchemy import func, select
+from sqlalchemy import select, update
+from datetime import datetime, timezone
 from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...schemas.challenge.competition_responses import (
     ParticipatedCompetitionsSchema,
     RetrieveCompetitionsLeaderboardsSubmissions,
+    RetrieveCompetitionsSchema,
 )
 from ...schemas.challenge.submission_requests import SortOrder
 from ..discussion.search_services import format_tsquery
@@ -21,9 +22,11 @@ from ...configs.env_config import env_config
 from ...middlewares.logging import logger
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.challenge.competition_requests import (
+    CompetitionsSortBy,
     CreateCompetitionParams,
     RetrieveCompetitionLeaderboardParams,
     RetrieveCompetitionLeaderboardSortByEnum,
+    RetrieveCompetitonsParams,
     RetrieveParticipatedCompetitionsParams,
     RetrieveParticipatedCompetitionsSortByEnum,
     UpdateCompetitionParams,
@@ -40,11 +43,162 @@ from ...database.challenge.models import (
     User,
 )
 from ...database.challenge.enums import CompetitionStatusEnum, PrizeTypeEnum
-from sqlalchemy import select, update
 from ...database.challenge.enums import CompetitionStatusEnum
 from ...schemas.custom_responses import CustomJSONResponse
 from ...database.challenge.models import Competition
 from ...database.challenge.models import CompetitionTimeline
+
+
+async def retrieve_competitions_handler(
+    req_params: RetrieveCompetitonsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves all competitions accross the TGDex platform.
+
+    Args:
+        req_params (RetrieveCompetitonsParams): The request body containing the sorting parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
+    try:
+        # -----------------------
+        # Subquery
+        # -----------------------
+        participants_count_subq = (
+            select(
+                CompetitionParticipant.competition_id,
+                func.count(CompetitionParticipant.id).label("participants_count"),
+            )
+            .group_by(CompetitionParticipant.competition_id)
+            .subquery()
+        )
+
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = select(Competition)
+
+        # -----------------------
+        # Apply choice filters
+        # -----------------------
+        if req_params.choice:
+            stmt = stmt.where(Competition.status == req_params.choice)
+
+        # -----------------------
+        # Search Query
+        # -----------------------
+        if req_params.query:
+            formatted_query = format_tsquery(req_params.query)
+            ts_query = func.to_tsquery("english", formatted_query)
+
+            stmt = stmt.where(Competition.title_vector.op("@@")(ts_query))
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(Competition.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if req_params.sort_by == CompetitionsSortBy.NEWEST:
+            stmt = stmt.order_by(
+                Competition.published_at.desc().nullslast(),
+                Competition.updated_at.desc(),
+            )
+        elif req_params.sort_by == CompetitionsSortBy.OLDEST:
+            stmt = stmt.order_by(
+                Competition.published_at.asc().nullslast(),
+                Competition.updated_at.desc(),
+            )
+        elif req_params.sort_by == CompetitionsSortBy.HOTTEST:
+            stmt = stmt.outerjoin(
+                participants_count_subq,
+                Competition.id == participants_count_subq.c.competition_id,
+            ).order_by(
+                func.coalesce(participants_count_subq.c.participants_count, 0).desc(),
+                Competition.updated_at.desc(),
+            )
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(Competition.timelines),
+            selectinload(Competition.prize_pools),
+            selectinload(Competition.participants),
+            selectinload(Competition.submissions),
+        )
+        result = await db_session.execute(stmt)
+        competitions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_competitions = []
+
+        for competition in competitions:
+            serialized_competition = RetrieveCompetitionsSchema.model_validate(
+                competition
+            ).model_dump(exclude={"participant_count", "submission_count", "days_left"})
+
+            # Calculate counts
+            serialized_competition["participant_count"] = len(
+                getattr(competition, "participants", [])
+            )
+            serialized_competition["submission_count"] = len(
+                getattr(competition, "submissions", [])
+            )
+
+            # Calculate days left
+            date_difference = (
+                competition.timelines.submission_ends_at - current_timestamp
+            ).days
+            serialized_competition["days_left"] = max(date_difference, 0)
+
+            serialized_competitions.append(serialized_competition)
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Competitions retrieved successfully",
+            data={
+                "submissions": serialized_competitions,
+            },
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Competitions retrieval failed",
+            details="An error occurred while retrieving the competitions. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
 
 
 async def retrieve_competition_leaderboard_handler(

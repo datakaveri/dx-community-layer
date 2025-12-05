@@ -4,8 +4,8 @@ import enum
 class CompetitionStatusEnum(enum.Enum):
     DRAFT = "DRAFT"
     SCHEDULED = "SCHEDULED"
-    EVALUATION = "EVALUATION"
     PUBLISHED = "PUBLISHED"
+    EVALUATION = "EVALUATION"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 

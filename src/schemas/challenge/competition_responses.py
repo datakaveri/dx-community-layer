@@ -15,6 +15,42 @@ from ..default_schemas import (
 )
 
 
+class CompetitionPrizePoolSchema(BaseModel):
+    id: uuid.UUID
+    prize_type: PrizeTypeEnum
+    total_pool_amount: Optional[float]
+    currency: Optional[str]
+    prize_description: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+class ParticipatedCompetitionsSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    prize_pools: CompetitionPrizePoolSchema
+    timelines: CompetitionTimelinesSchema
+
+    model_config = {"from_attributes": True}
+
+
+class RetrieveCompetitionsSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    subtitle: Optional[str]
+    image_url: str
+    prize_pools: CompetitionPrizePoolSchema
+    participant_count: Optional[int] = 0
+    submission_count: Optional[int] = 0
+    days_left: Optional[int] = 0
+
+    model_config = {"from_attributes": True}
+
+
+class RetrieveCompetitionsData(BaseModel):
+    competitions: List[RetrieveCompetitionsSchema]
+
+
 class RetrieveCompetitionsLeaderboardsCompetition(BaseModel):
     id: uuid.UUID
     title: str
@@ -69,25 +105,6 @@ RETRIEVE_COMPETITION_LEADERBOARD_RESPONSE_MODEL = {
     403: {"model": ForbiddenErrorResponse},
     500: {"model": RetrieveCompetitionsLeaderboardBackendErrorResponse},
 }
-
-
-class CompetitionPrizePoolSchema(BaseModel):
-    id: uuid.UUID
-    prize_type: PrizeTypeEnum
-    total_pool_amount: Optional[float]
-    currency: Optional[str]
-    prize_description: Optional[str]
-
-    model_config = {"from_attributes": True}
-
-
-class ParticipatedCompetitionsSchema(BaseModel):
-    id: uuid.UUID
-    title: str
-    prize_pools: CompetitionPrizePoolSchema
-    timelines: CompetitionTimelinesSchema
-
-    model_config = {"from_attributes": True}
 
 
 class RetrieveParticipatedCompetitionsResponseData(BaseModel):

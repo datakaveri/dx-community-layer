@@ -5,7 +5,52 @@ from typing import Any, List, Dict, Optional
 from fastapi import Body, HTTPException, Path, Query, status
 
 from .submission_requests import SortOrder
-from ...database.challenge.enums import PrizeTypeEnum
+from ...database.challenge.enums import PrizeTypeEnum, CompetitionStatusEnum
+
+
+class CompetitionsSortBy(enum.Enum):
+    HOTTEST = "Hottest"
+    NEWEST = "Newest"
+    OLDEST = "Oldest"
+
+
+class RetrieveCompetitionChoices(enum.Enum):
+    DRAFT = "draft"
+    SCHEDULED = "scheduled"
+    PUBLISHED = "published"
+    EVALUATION = "evaluation"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class RetrieveCompetitonsParams:
+    STATUS_MAP = {
+        "draft": CompetitionStatusEnum.DRAFT,
+        "scheduled": CompetitionStatusEnum.SCHEDULED,
+        "published": CompetitionStatusEnum.PUBLISHED,
+        "evaluation": CompetitionStatusEnum.EVALUATION,
+        "completed": CompetitionStatusEnum.COMPLETED,
+        "cancelled": CompetitionStatusEnum.CANCELLED,
+    }
+
+    def __init__(
+        self,
+        choice: RetrieveCompetitionChoices = Path(
+            ..., description="Type of the competition to retrieve"
+        ),
+        query: Optional[str] = Query(default=None, description="Query to search for"),
+        page: int = Query(1, gt=0, description="The page number for pagination"),
+        limit: int = Query(10, gt=0, description="The number of competitions per page"),
+        sort_by: CompetitionsSortBy = Query(
+            default=CompetitionsSortBy.NEWEST,
+            description="The field to sort by",
+        ),
+    ):
+        self.choice: CompetitionStatusEnum = self.STATUS_MAP[choice.value]
+        self.query = query
+        self.page = page
+        self.limit = limit
+        self.sort_by = sort_by
 
 
 class RetrieveCompetitionLeaderboardSortByEnum(str, enum.Enum):
@@ -312,9 +357,3 @@ class UpdateCompetitionParams:
         self.rules_and_guidelines = rules_and_guidelines
         self.is_drafted = is_drafted
         self.publish_schedule = publish_schedule
-
-
-class CompetitionsSortBy(enum.Enum):
-    HOTTEST = "Hottest"
-    NEWEST = "Newest"
-    OLDEST = "Oldest"
