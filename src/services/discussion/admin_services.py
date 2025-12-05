@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta
-import math
-from pydantic import Tag
-from fastapi import status
 import pytz
+import math
+from fastapi import status
+from datetime import datetime
 from sqlalchemy.orm import selectinload
 from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...middlewares.logging import logger
 from .search_services import format_tsquery
 from ...schemas.default_schemas import AuthorizationData
-from ...database.discussion.models import Discussion, DiscussionReview, DiscussionTag
+from ...database.discussion.models import (
+    Discussion,
+    DiscussionReview,
+    DiscussionTag,
+    Tag,
+)
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,

@@ -3,19 +3,20 @@ import json
 import httpx
 from jose import jwt
 from sqlalchemy.future import select
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 from datetime import datetime, timezone
 from fastapi.security import HTTPBearer
-from fastapi import Depends, Header, status
+from fastapi import Depends, Header, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security.utils import get_authorization_scheme_param
 from jose.exceptions import JWTError, ExpiredSignatureError, JWTClaimsError, JWSError
 
 from ..middlewares.logging import logger
 from ..configs.env_config import env_config
-from ..database.discussion.models import User
+from ..database.discussion.models import User as DiscussionUser
+from ..database.challenge.models import User as ChallengeUser
 from ..configs.redis_config import redis_client
-from ..configs.db_config import get_discussion_db_session
+from ..configs.db_config import get_challenge_db_session, get_discussion_db_session
 from ..schemas.custom_responses import CustomHttpException
 from ..schemas.default_schemas import AuthorizationData, UserRole
 
@@ -152,7 +153,12 @@ class HttpBearerHeader(HTTPBearer):
         )
 
     async def update_user_info(
-        self, user_id: str, name: str, email: str, db_session: AsyncSession
+        self,
+        user_id: str,
+        name: str,
+        email: str,
+        service: Literal["discussion", "challenge"],
+        db_session: AsyncSession,
     ) -> uuid.UUID:
         """Ensure a User row exists and is up to date.
 
@@ -162,6 +168,8 @@ class HttpBearerHeader(HTTPBearer):
         # Prefer a stable mapping cache from external id -> effective internal id
         idmap_key = f"user:idmap:{user_id}"
         cached_map = await self.redis_client.get(idmap_key)
+        User = ChallengeUser if service == "challenge" else DiscussionUser
+
         if cached_map:
             try:
                 mapped_id = uuid.UUID(json.loads(cached_map))
@@ -228,10 +236,12 @@ class HttpBearerHeader(HTTPBearer):
 
     async def __call__(
         self,
+        request: Request,
         Authorization: Annotated[
             Optional[str], Header(description="Bearer token")
         ] = None,
-        session: AsyncSession = Depends(get_discussion_db_session),
+        discussion_db_session: AsyncSession = Depends(get_discussion_db_session),
+        challenge_db_session: AsyncSession = Depends(get_challenge_db_session),
     ) -> AuthorizationData:
         if (not Authorization) and self.public:
             return AuthorizationData(
@@ -289,8 +299,19 @@ class HttpBearerHeader(HTTPBearer):
                 error_details="Token missing required user info.",
             )
 
+        if request.url.path.startswith("/challenge"):
+            db_session = challenge_db_session
+            service = "challenge"
+        else:
+            db_session = discussion_db_session
+            service = "discussion"
+
         effective_user_id = await self.update_user_info(
-            user_id, user_name, user_email, session
+            user_id=user_id,
+            name=user_name,
+            email=user_email,
+            service=service,
+            db_session=db_session,
         )
 
         return AuthorizationData(
