@@ -15,22 +15,18 @@ class CompetitionsSortBy(enum.Enum):
 
 
 class RetrieveCompetitionChoices(enum.Enum):
-    DRAFT = "draft"
     SCHEDULED = "scheduled"
     PUBLISHED = "published"
     EVALUATION = "evaluation"
     COMPLETED = "completed"
-    CANCELLED = "cancelled"
 
 
 class RetrieveCompetitonsParams:
     STATUS_MAP = {
-        "draft": CompetitionStatusEnum.DRAFT,
         "scheduled": CompetitionStatusEnum.SCHEDULED,
         "published": CompetitionStatusEnum.PUBLISHED,
         "evaluation": CompetitionStatusEnum.EVALUATION,
         "completed": CompetitionStatusEnum.COMPLETED,
-        "cancelled": CompetitionStatusEnum.CANCELLED,
     }
 
     def __init__(
