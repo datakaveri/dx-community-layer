@@ -43,6 +43,7 @@ class RetrieveCompetitionsSchema(BaseModel):
     participant_count: Optional[int] = 0
     submission_count: Optional[int] = 0
     days_left: Optional[int] = 0
+    results_announced_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
 

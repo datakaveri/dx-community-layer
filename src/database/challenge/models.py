@@ -91,6 +91,9 @@ class Competition(Base):
     constraints: Mapped[Optional[str]] = mapped_column(Text)
     rules_and_guidelines: Mapped[Optional[str]] = mapped_column(String(300))
     other_resources: Mapped[Optional[str]] = mapped_column(Text)
+    results_announced_at: Mapped[Optional[DateTime]] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     # Full-text search
     title_vector: Mapped[str] = mapped_column(
