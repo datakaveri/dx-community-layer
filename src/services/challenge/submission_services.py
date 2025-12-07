@@ -317,6 +317,24 @@ async def create_user_submission_handler(
                 },
             )
 
+        existing_submission_stmt = select(CompetitionSubmission.id).where(
+            CompetitionSubmission.competition_id == competition_id,
+            CompetitionSubmission.user_id == user_id,
+        )
+        existing_submission_result = await db_session.execute(existing_submission_stmt)
+        existing_submission = existing_submission_result.scalar_one_or_none()
+
+        if existing_submission:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_409_CONFLICT,
+                message="Conflict",
+                error={
+                    "code": "CONFLICT",
+                    "details": "Submission already exists for the user. Please update the existing submission in case of any changes.",
+                },
+            )
+
         # Determine next submission count for the user
         submission_count_stmt = select(func.count()).where(
             CompetitionSubmission.competition_id == competition_id,
