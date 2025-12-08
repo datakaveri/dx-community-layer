@@ -39,6 +39,14 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    # full-text search vector for user name
+    name_vector: Mapped[Optional[str]] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', COALESCE(name, ''))", persisted=True),
+        nullable=True,
+        index=True,
+    )
+
     # Relationships
     competitions: Mapped[List["Competition"]] = relationship(
         back_populates="creator", cascade="all, delete-orphan"

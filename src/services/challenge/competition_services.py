@@ -285,6 +285,7 @@ async def retrieve_competition_leaderboard_handler(
             stmt = stmt.where(
                 (Competition.title_vector.op("@@")(ts_query))
                 | (CompetitionSubmission.title_vector.op("@@")(ts_query))
+                | (User.name_vector.op("@@")(ts_query))
             )
 
         # -----------------------
