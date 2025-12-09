@@ -70,7 +70,6 @@ async def retrieve_competitions_handler(
         CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
     """
     logger.info(f"{authorized_user['email']} - Execution started")
-    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
 
     try:
         # -----------------------
@@ -183,7 +182,7 @@ async def retrieve_competitions_handler(
         for competition in competitions:
             serialized_competition = RetrieveCompetitionsSchema.model_validate(
                 competition
-            ).model_dump(exclude={"participant_count", "submission_count", "days_left"})
+            ).model_dump(exclude={"participant_count", "submission_count"})
 
             # Calculate counts
             serialized_competition["participant_count"] = len(
@@ -192,12 +191,6 @@ async def retrieve_competitions_handler(
             serialized_competition["submission_count"] = len(
                 getattr(competition, "submissions", [])
             )
-
-            # Calculate days left
-            date_difference = (
-                competition.timelines.submission_ends_at - current_timestamp.date()
-            ).days
-            serialized_competition["days_left"] = max(date_difference + 1, 0)
 
             serialized_competitions.append(serialized_competition)
 
@@ -544,7 +537,6 @@ async def retrieve_bookmarked_competitions_handler(
         CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
     """
     logger.info(f"{authorized_user['email']} - Execution started")
-    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
 
     try:
         # -----------------------
@@ -645,20 +637,13 @@ async def retrieve_bookmarked_competitions_handler(
             serialized_competition = (
                 RetrieveBookmarkedCompetitionsSchema.model_validate(
                     bookmarked_competition
-                ).model_dump(exclude={"participant_count", "days_left"})
+                ).model_dump(exclude={"participant_count"})
             )
 
             # Calculate counts
             serialized_competition["participant_count"] = len(
                 getattr(bookmarked_competition.competition, "participants", [])
             )
-
-            # Calculate days left
-            date_difference = (
-                bookmarked_competition.competition.timelines.submission_ends_at
-                - current_timestamp.date()
-            ).days
-            serialized_competition["days_left"] = max(date_difference + 1, 0)
 
             serialized_bookmarked_competitions.append(serialized_competition)
 

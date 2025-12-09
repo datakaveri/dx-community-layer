@@ -40,9 +40,9 @@ class RetrieveCompetitionsSchema(BaseModel):
     subtitle: Optional[str]
     image_url: str
     prize_pools: CompetitionPrizePoolSchema
+    timelines: CompetitionTimelinesSchema
     participant_count: Optional[int] = 0
     submission_count: Optional[int] = 0
-    days_left: Optional[int] = 0
     results_announced_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
@@ -150,6 +150,7 @@ class RetrieveBookmarkedCompetitionsCompetitionSchema(BaseModel):
     subtitle: Optional[str]
     status: CompetitionStatusEnum
     image_url: str
+    timelines: Optional[CompetitionTimelinesSchema]
     prize_pools: Optional[CompetitionPrizePoolSchema]
 
     model_config = {"from_attributes": True}
@@ -160,7 +161,6 @@ class RetrieveBookmarkedCompetitionsSchema(BaseModel):
     created_at: datetime
     competition: RetrieveBookmarkedCompetitionsCompetitionSchema
     participant_count: Optional[int] = 0
-    days_left: Optional[int] = 0
 
     model_config = {"from_attributes": True}
 
