@@ -9,7 +9,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     func,
-    Enum,
+    Date,
 )
 from typing import Any, Optional, List
 from sqlalchemy.schema import MetaData
@@ -160,15 +160,13 @@ class CompetitionTimeline(Base):
         nullable=False,
         index=True,
     )
-    submission_starts_at: Mapped[DateTime] = mapped_column(
+    submission_starts_at: Mapped[Date] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
-    submission_ends_at: Mapped[DateTime] = mapped_column(
+    submission_ends_at: Mapped[Date] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
-    evaluation_ends_at: Mapped[Optional[DateTime]] = mapped_column(
-        DateTime(timezone=True)
-    )
+    evaluation_ends_at: Mapped[Optional[Date]] = mapped_column(DateTime(timezone=True))
 
     competition: Mapped["Competition"] = relationship(back_populates="timelines")
 

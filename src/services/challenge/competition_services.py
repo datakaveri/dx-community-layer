@@ -195,9 +195,9 @@ async def retrieve_competitions_handler(
 
             # Calculate days left
             date_difference = (
-                competition.timelines.submission_ends_at - current_timestamp
+                competition.timelines.submission_ends_at - current_timestamp.date()
             ).days
-            serialized_competition["days_left"] = max(date_difference, 0)
+            serialized_competition["days_left"] = max(date_difference + 1, 0)
 
             serialized_competitions.append(serialized_competition)
 
@@ -206,7 +206,7 @@ async def retrieve_competitions_handler(
             status_code=status.HTTP_200_OK,
             message="Competitions retrieved successfully",
             data={
-                "submissions": serialized_competitions,
+                "competitions": serialized_competitions,
             },
             meta={
                 "total_count": total_count,
@@ -656,9 +656,9 @@ async def retrieve_bookmarked_competitions_handler(
             # Calculate days left
             date_difference = (
                 bookmarked_competition.competition.timelines.submission_ends_at
-                - current_timestamp
+                - current_timestamp.date()
             ).days
-            serialized_competition["days_left"] = max(date_difference, 0)
+            serialized_competition["days_left"] = max(date_difference + 1, 0)
 
             serialized_bookmarked_competitions.append(serialized_competition)
 
