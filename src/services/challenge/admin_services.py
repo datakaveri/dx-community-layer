@@ -14,6 +14,7 @@ from ...database.challenge.enums import CompetitionStatusEnum
 from ...schemas.challenge.submission_requests import SortOrder
 from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
 from ...schemas.challenge.admin_responses import (
+    AdminRetrieveCompetitionSubmissionCompetitionSchema,
     AdminRetrieveCompetitionSubmissionSchema,
     AdminRetrieveCompetitionsSchema,
 )
@@ -529,12 +530,19 @@ async def admin_retrieve_competition_submissions_handler(
             for submission in submissions
         ]
 
+        serialized_competition = (
+            AdminRetrieveCompetitionSubmissionCompetitionSchema.model_validate(
+                competition
+            )
+        )
+
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
             message="Admin competition submissions retrieved successfully",
             data={
                 "submissions": serialized_submissions,
+                "competition": serialized_competition,
             },
             meta={
                 "total_count": total_count,

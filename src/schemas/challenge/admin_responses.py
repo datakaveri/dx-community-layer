@@ -47,3 +47,13 @@ class AdminRetrieveCompetitionSubmissionSchema(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AdminRetrieveCompetitionSubmissionCompetitionSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    subtitle: Optional[str]
+    status: CompetitionStatusEnum
+    results_announced_at: Optional[datetime]
+
+    model_config = {"from_attributes": True}
