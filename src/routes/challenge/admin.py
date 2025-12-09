@@ -51,6 +51,49 @@ router = APIRouter(prefix="/admin")
 
 
 @router.get(
+    path="/challenge/{competition_id}",
+    description="Retrieves a single competition by ID with all details. Only COS_ADMIN can access.",
+)
+async def admin_retrieve_challenge_by_id(
+    competition_id: UUID = Path(..., description="ID of the competition to retrieve"),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
+) -> CustomJSONResponse:
+    """
+    Retrieves a single competition with full admin-level details.
+
+    Args:
+        competition_id: Competition ID.
+        authorized_user: Authenticated admin user.
+        db_session: Active DB session.
+
+    Returns:
+        CustomJSONResponse with competition details or 404 if not found.
+    """
+    logger.info("Admin Retrieve Challenge by ID API is being called")
+
+    if authorized_user["user_role"] != UserRole.COS_ADMIN:
+        return CustomJSONResponse(
+            success=False,
+            status_code=403,
+            message="Forbidden access",
+            error={
+                "code": "FORBIDDEN",
+                "details": (
+                    "You are not authorized to access this resource. "
+                    "Please contact support if required."
+                ),
+            },
+        )
+
+    return await admin_retrieve_challenge_by_id_handler(
+        competition_id=competition_id,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+
+@router.get(
     path="/challenges/{choice}",
     description=(
         "Retrieves competitions for admin with pagination, filters, and sorting. "
@@ -235,52 +278,6 @@ async def admin_retrieve_competition_submissions(
 
     return await admin_retrieve_competition_submissions_handler(
         req_params=req_params,
-        authorized_user=authorized_user,
-        db_session=db_session,
-    )
-
-
-# -------------------------------------------------------------------
-# ADMIN – GET COMPETITION BY ID
-# -------------------------------------------------------------------
-@router.get(
-    path="/challenges/{competition_id}",
-    description="Retrieves a single competition by ID with all details. Only COS_ADMIN can access.",
-)
-async def admin_retrieve_challenge_by_id(
-    competition_id: UUID = Path(..., description="ID of the competition to retrieve"),
-    authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_challenge_db_session),
-) -> CustomJSONResponse:
-    """
-    Retrieves a single competition with full admin-level details.
-
-    Args:
-        competition_id: Competition ID.
-        authorized_user: Authenticated admin user.
-        db_session: Active DB session.
-
-    Returns:
-        CustomJSONResponse with competition details or 404 if not found.
-    """
-    logger.info("Admin Retrieve Challenge by ID API is being called")
-
-    if authorized_user["user_role"] != UserRole.COS_ADMIN:
-        return CustomJSONResponse(
-            success=False,
-            status_code=403,
-            message="Forbidden access",
-            error={
-                "code": "FORBIDDEN",
-                "details": (
-                    "You are not authorized to access this resource. "
-                    "Please contact support if required."
-                ),
-            },
-        )
-
-    return await admin_retrieve_challenge_by_id_handler(
-        competition_id=competition_id,
         authorized_user=authorized_user,
         db_session=db_session,
     )
