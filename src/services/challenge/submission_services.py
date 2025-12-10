@@ -270,13 +270,9 @@ async def create_user_submission_handler(
                 },
             )
 
-        now = datetime.now(timezone.utc)
-        if submission_starts_at.tzinfo is None:
-            submission_starts_at = submission_starts_at.replace(tzinfo=timezone.utc)
-        if submission_ends_at.tzinfo is None:
-            submission_ends_at = submission_ends_at.replace(tzinfo=timezone.utc)
+        current_date = datetime.now(pytz("Asia/Kolkata")).date()
 
-        if now < submission_starts_at:
+        if current_date < submission_starts_at:
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -287,7 +283,7 @@ async def create_user_submission_handler(
                 },
             )
 
-        if now > submission_ends_at:
+        if current_date > submission_ends_at:
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_400_BAD_REQUEST,
