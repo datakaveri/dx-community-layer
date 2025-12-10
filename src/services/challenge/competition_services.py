@@ -1288,7 +1288,7 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
         )
 
     # Fix: timezone-aware datetime
-    now = datetime.now(timezone.utc)
+    current_date = datetime.now(pytz.timezone("Asia/Kolkata")).date()
 
     if not timeline.submission_ends_at:
         return CustomJSONResponse(
@@ -1297,7 +1297,7 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
             message="Submission end date not set.",
         )
 
-    if timeline.submission_ends_at > now:
+    if timeline.submission_ends_at > current_date:
         return CustomJSONResponse(
             success=False,
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1310,6 +1310,7 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
         .values(
             status=CompetitionStatusEnum.COMPLETED,
             updated_at=datetime.now(pytz.timezone("Asia/Kolkata")),
+            results_announced_at=datetime.now(pytz.timezone("Asia/Kolkata")),
         )
     )
 

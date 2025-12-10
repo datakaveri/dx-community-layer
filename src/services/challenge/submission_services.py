@@ -270,7 +270,7 @@ async def create_user_submission_handler(
                 },
             )
 
-        current_date = datetime.now(pytz("Asia/Kolkata")).date()
+        current_date = datetime.now(pytz.timezone("Asia/Kolkata")).date()
 
         if current_date < submission_starts_at:
             return CustomJSONResponse(
