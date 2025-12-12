@@ -189,16 +189,16 @@ async def generate_download_url_handler(
             )
 
         # Check if user owns this attachment
-        if attachment_user_id != authorized_user["user_id"]:
-            return CustomJSONResponse(
-                success=False,
-                status_code=status.HTTP_403_FORBIDDEN,
-                message="Forbidden access",
-                error={
-                    "code": "FORBIDDEN",
-                    "details": "You are not authorized to access this attachment.",
-                },
-            )
+        # if attachment_user_id != authorized_user["user_id"]:
+        #     return CustomJSONResponse(
+        #         success=False,
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         message="Forbidden access",
+        #         error={
+        #             "code": "FORBIDDEN",
+        #             "details": "You are not authorized to access this attachment.",
+        #         },
+        #     )
 
         # Generate presigned URL for downloading (skip existence check - let S3 handle it)
         download_url = s3_client.generate_presigned_url(
