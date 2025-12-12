@@ -1,7 +1,7 @@
 import pytz
 import math
 from fastapi import status
-from datetime import datetime
+from datetime import datetime, timedelta, time
 from sqlalchemy.orm import selectinload
 from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,12 +88,19 @@ async def admin_retrieve_discussions_handler(
                 start_date = datetime.strptime(
                     req_params.filters.time_range.start_date,
                     AdminRetrieveDiscussionParams.DATE_FORMAT,
-                ).astimezone(pytz.UTC)
+                ).date()
                 end_date = datetime.strptime(
                     req_params.filters.time_range.end_date,
                     AdminRetrieveDiscussionParams.DATE_FORMAT,
-                ).astimezone(pytz.UTC)
-                stmt = stmt.where(Discussion.created_at.between(start_date, end_date))
+                ).date()
+
+                start_dt = datetime.combine(start_date, time.min).replace(tzinfo=pytz.UTC)
+
+                end_dt = (
+                    datetime.combine(end_date, time.min).replace(tzinfo=pytz.UTC)
+                    + timedelta(days=1)
+                )
+                stmt = stmt.where(Discussion.created_at >= start_dt, Discussion.created_at < end_dt)
 
         # -----------------------
         # Tag filter
