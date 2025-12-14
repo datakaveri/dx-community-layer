@@ -1297,7 +1297,7 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
             message="Submission end date not set.",
         )
 
-    if timeline.submission_ends_at > current_date:
+    if timeline.submission_ends_at >= current_date:
         return CustomJSONResponse(
             success=False,
             status_code=status.HTTP_400_BAD_REQUEST,
