@@ -29,6 +29,7 @@ from ...schemas.challenge.submission_responses import (
     DisqualifySubmissionResponse,
 )
 from ...services.challenge.competition_services import (
+    admin_announce_competition_result_handler,
     create_competition_handler,
     update_competition_handler,
     delete_competition_handler,
@@ -460,7 +461,7 @@ async def admin_disqualify_submission(
     path="/challenges/announce-result",
     description="Announce competition result. Only COS_ADMIN can access.",
 )
-async def announce_competition_result(
+async def admin_announce_competition_result(
     competition_id: UUID = Query(..., description="Competition ID"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
@@ -489,9 +490,10 @@ async def announce_competition_result(
             },
         )
 
-    return await announce_result_service(
+    return await admin_announce_competition_result_handler(
         competition_id=competition_id,
-        db=db_session,
+        authorized_user=authorized_user,
+        db_session=db_session,
     )
 
 

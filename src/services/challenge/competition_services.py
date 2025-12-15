@@ -1324,3 +1324,115 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
         status_code=status.HTTP_200_OK,
         message="Result has been announced successfully",
     )
+
+
+async def admin_announce_competition_result_handler(
+    competition_id: UUID,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Announces the results for a competition.
+
+    Args:
+        competition_id (UUID): The ID of the competition to announce results for.
+        authorized_user (AuthorizationData): The authenticated admin user.
+        db_session (AsyncSession): The database session.
+
+    Returns:
+        CustomJSONResponse: A JSON response indicating success or failure.
+
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
+    try:
+        competition_stmt = select(Competition).where(Competition.id == competition_id)
+        competition_stmt = competition_stmt.options(
+            selectinload(Competition.timelines),
+            selectinload(Competition.submissions),
+        )
+        competition = await db_session.execute(competition_stmt)
+        competition = competition.scalars().one_or_none()
+
+        if not competition:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Competition not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "message": "The competition does not exist. Please contact developers if the issue persists.",
+                },
+            )
+
+        if not competition.timelines:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Competition has no timeline.",
+                error={
+                    "code": "BAD_REQUEST",
+                    "message": "The competition has no timeline. Please contact developers if the issue persists.",
+                },
+            )
+
+        if not competition.timelines.submission_ends_at:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Submission end date not set.",
+                error={
+                    "code": "BAD_REQUEST",
+                    "message": "The competition has no submission end date. Please contact developers if the issue persists.",
+                },
+            )
+
+        if competition.timelines.submission_ends_at >= current_timestamp.date():
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Submission period has not ended yet.",
+                error={
+                    "code": "BAD_REQUEST",
+                    "message": "The submission period has not ended yet. Please contact developers if the issue persists.",
+                },
+            )
+
+        if any(
+            submission.is_disqualified == False and submission.score in [None, 0]
+            for submission in competition.submissions
+        ):
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Submissions have not been evaluated yet.",
+                error={
+                    "code": "BAD_REQUEST",
+                    "message": "Please evaluate all the submissions before announcing the results. Please contact developers if the issue persists.",
+                },
+            )
+
+        competition.status = CompetitionStatusEnum.COMPLETED
+        competition.updated_at = current_timestamp
+        competition.results_announced_at = current_timestamp
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Result has been announced successfully",
+        )
+
+    except Exception as e:
+        await db_session.rollback()
+
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Failed to announce results",
+            details="An error occurred while announcing the results. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
