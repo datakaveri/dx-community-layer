@@ -55,11 +55,11 @@ class RetrieveUserSubmissionsParams:
             score = None
             try:
                 score = float(self.query)
+
+                if 0 <= score <= 100:
+                    self.score = score
             except ValueError:
                 pass
-
-            if 0 <= score <= 100:
-                self.score = score
 
 
 class CreateSubmissionRequest(BaseModel):
