@@ -135,6 +135,18 @@ def custom_openapi():
     openapi_schema["info"]["x-logo"] = {
         "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png",
     }
+    openapi_schema["x-tagGroups"] = [
+        {
+            "name": "Discussion",
+            "tags": [
+                "Discussion APIs",
+                "Discussion - Admin APIs",
+                "Discussion - Search APIs",
+                "Discussion - Attachment APIs",
+                "Discussion - Comment APIs",
+            ],
+        },
+    ]
 
     components = openapi_schema.get("components", {})
     for path, path_item in openapi_schema.get("paths", {}).items():

@@ -38,6 +38,7 @@ from ...schemas.default_schemas import AuthorizationData, UserRole
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.discussion.discussion_responses import (
     GetPopularTagsSuccessfulResponseData,
+    RecentBookmarkedDiscussion,
     RetrieveDiscussionByIDResponseDiscussion,
     RetrieveDiscussionsResponseDiscussion,
     UserSchema,
@@ -1434,6 +1435,16 @@ async def get_recent_authors_handler(
     authorized_user: AuthorizationData,
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
+    """
+    Retrieves the top 3 most recent authors for each discussion type.
+
+    Args:
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the top 3 recent authors for each discussion type.
+    """
     logger.info(f"{authorized_user['email']} - Execution started")
 
     try:
@@ -1510,32 +1521,53 @@ async def recent_bookmarked_discussions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Fetch the last 5 bookmarked discussions for the user, ordered by latest bookmark.
-    Returns only id and title for each discussion.
+    Fetch the last 5 bookmarked discussions for the user, ordered by latest bookmark. Returns only id and title for each discussion.
+
+    Args:
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (Session): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the last 5 bookmarked discussions for the user.
     """
+    logger.info(f"{authorized_user['email']} - Execution started")
+
     try:
-        user_id = authorized_user["user_id"]
-        q = (
-            select(Discussion.id, Discussion.title)
+        stmt = (
+            select(Discussion)
             .join(
                 BookmarkedDiscussion,
                 BookmarkedDiscussion.discussion_id == Discussion.id,
             )
             .where(
-                BookmarkedDiscussion.user_id == user_id,
+                BookmarkedDiscussion.user_id == authorized_user["id"],
                 BookmarkedDiscussion.is_active.is_(True),
             )
             .order_by(BookmarkedDiscussion.created_at.desc())
             .limit(5)
         )
-        res = await db_session.execute(q)
-        bookmarks = [{"id": str(row.id), "title": row.title} for row in res.all()]
+
+        result = await db_session.execute(stmt)
+        bookmarked_discussions = result.all()
+
+        serialized_bookmarked_discussions = [
+            RecentBookmarkedDiscussion.model_validate(discussion).model_dump()
+            for discussion in bookmarked_discussions
+        ]
+
         return CustomJSONResponse(
             success=True,
-            status_code=200,
+            status_code=status.HTTP_200_OK,
             message="Recent bookmarks fetched successfully",
-            data=bookmarks,
+            data=serialized_bookmarked_discussions,
         )
+
     except Exception as e:
-        logger.exception(f"Error fetching recent bookmarks: {str(e)}")
-        return CustomBackendError(message="Failed to fetch recent bookmarks.")
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Failed to retrieve recent bookmarked discussions",
+            details="An error occurred while retrieving recent bookmarked discussions. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")

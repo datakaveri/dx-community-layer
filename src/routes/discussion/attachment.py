@@ -23,7 +23,7 @@ from ...schemas.discussion.attachment_responses import (
     DELETE_ATTACHMENTS_RESPONSE_MODEL,
 )
 
-router = APIRouter(prefix="/attachment")
+router = APIRouter(prefix="/attachment", tags=["Discussion - Attachment APIs"])
 
 
 @router.post(

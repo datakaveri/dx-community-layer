@@ -42,6 +42,7 @@ from ...schemas.discussion.discussion_responses import (
     DISCUSSION_ACTIONS_RESPONSE_MODEL,
     GET_POPULAR_TAGS_RESPONSE_MODEL,
     RECENT_AUTHORS_RESPONSE_MODEL,
+    RECENT_BOOKMARKED_DISCUSSIONS_RESPONSE_MODEL,
     RETRIEVE_DISCUSSION_BY_ID_RESPONSE_MODEL,
     RETRIEVE_DISCUSSION_RESPONSE_MODEL,
     UPDATE_DISCUSSION_RESPONSE_MODEL,
@@ -53,7 +54,7 @@ from .comments import router as comments_router
 from .attachment import router as attachment_router
 
 
-router = APIRouter(prefix="/discussion", tags=["Discussion APIs"])
+router = APIRouter(prefix="/discussion")
 
 router.include_router(admin_router)
 router.include_router(search_router)
@@ -71,6 +72,7 @@ router.include_router(attachment_router)
         )
     ),
     responses=RETRIEVE_DISCUSSION_BY_ID_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def retrieve_discussion_by_id(
     discussion_id: uuid.UUID = Path(
@@ -110,6 +112,7 @@ async def retrieve_discussion_by_id(
         )
     ),
     responses=RETRIEVE_DISCUSSION_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def retrieve_discussions(
     req_params: RetrieveDiscussionParams = Depends(),
@@ -142,6 +145,7 @@ async def retrieve_discussions(
         "Returns the created discussion’s UUID and status."
     ),
     responses=CREATE_DISCUSSION_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def create_discussion(
     req_params: CreateDiscussionParams = Depends(),
@@ -179,6 +183,7 @@ async def create_discussion(
         "Only the owner or an admin can update. "
     ),
     responses=UPDATE_DISCUSSION_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def update_discussion(
     req_params: UpdateDiscussionParams = Depends(),
@@ -209,6 +214,7 @@ async def update_discussion(
     path="/{discussion_id}/actions/{action}",
     description="This endpoint performs actions on a discussion such as `bookmark`, `unbookmark`, `pin` & `unpin`.",
     responses=DISCUSSION_ACTIONS_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def discussion_actions(
     req_params: DiscussionActionsParams = Depends(),
@@ -238,6 +244,7 @@ async def discussion_actions(
     path="/{discussion_id}/reaction",
     description="Adds or updates a reaction to a discussion. If the user has already reacted, this updates the reaction.",
     responses=ADD_UPDATE_DISCUSSION_REACTION_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def add_update_discussion_reaction(
     req_params: AddUpdateDiscussionReactionParams = Depends(),
@@ -271,6 +278,7 @@ async def add_update_discussion_reaction(
         "this returns a no-op or a 404."
     ),
     responses=DELETE_DISCUSSION_REACTION_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def delete_discussion_reaction(
     discussion_id: uuid.UUID = Path(..., description="ID of the discussion to delete"),
@@ -303,6 +311,7 @@ async def delete_discussion_reaction(
         "Adds a vote to a discussion. If the user has already voted, this return a 409 conflict."
     ),
     responses=ADD_DISCUSSION_VOTE_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def add_discussion_vote(
     discussion_id: uuid.UUID = Path(..., description="ID of the discussion to vote on"),
@@ -336,6 +345,7 @@ async def add_discussion_vote(
         "this returns a no-op or a 404."
     ),
     responses=DELETE_DISCUSSION_VOTE_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def delete_discussion_vote(
     discussion_id: uuid.UUID = Path(..., description="ID of the discussion to delete"),
@@ -369,6 +379,7 @@ async def delete_discussion_vote(
         "this returns a no-op or a 404."
     ),
     responses=DELETE_DISCUSSION_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def delete_discussion(
     discussion_id: uuid.UUID = Path(..., description="ID of the discussion to delete"),
@@ -404,6 +415,7 @@ async def delete_discussion(
         )
     ),
     responses=GET_POPULAR_TAGS_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def get_popular_tags(
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
@@ -435,6 +447,7 @@ async def get_popular_tags(
         )
     ),
     responses=RECENT_AUTHORS_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def get_recent_authors(
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
@@ -442,8 +455,16 @@ async def get_recent_authors(
 ) -> CustomJSONResponse:
     """
     Retrieves up to three recent unique discussion authors.
+
+    Args:
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (Session): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with up to three recent discussion authors.
     """
     logger.info("Get Recent Authors API is being called")
+
     return await get_recent_authors_handler(
         authorized_user=authorized_user, db_session=db_session
     )
@@ -452,11 +473,25 @@ async def get_recent_authors(
 @router.get(
     path="/recent/bookmarked",
     description="Fetch the last 5 discussions bookmarked by the authenticated user. Returns only id and title.",
+    responses=RECENT_BOOKMARKED_DISCUSSIONS_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
 )
 async def recent_bookmarked_discussions(
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
+    """
+    Fetches the last 5 discussions bookmarked by the authenticated user.
+
+    Args:
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (Session): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the last 5 discussions bookmarked by the user.
+    """
+    logger.info("Recent Bookmarked Discussions API is being called")
+
     return await recent_bookmarked_discussions_handler(
         authorized_user=authorized_user, db_session=db_session
     )

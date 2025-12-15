@@ -20,7 +20,7 @@ from ...middlewares.authorization import http_bearer_header
 from ...schemas.default_schemas import AuthorizationData, UserRole
 
 
-router = APIRouter(prefix="/admin")
+router = APIRouter(prefix="/admin", tags=["Discussion - Admin APIs"])
 
 
 @router.get(

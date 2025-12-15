@@ -28,14 +28,35 @@ docs_tags_metadata = [
         "name": "Discussion APIs",
         "description": (
             "The Discussion APIs handle all operations related to the discussions. "
-            "These routes provide functionality for managing the discussion forums and its contents in TGDex ecosystem."
+            "These routes provide functionality for creating, retrieving, updating, and deleting discussions."
         ),
     },
     {
-        "name": "Challenge APIs",
+        "name": "Discussion - Admin APIs",
         "description": (
-            "The Challenge APIs handle all operations related to the challenges. "
-            "These routes provide functionality for managing the challenges and its contents in TGDex ecosystem."
+            "The Admin APIs handle all operations related to the admin panel. "
+            "These routes provide functionality for retrieving discussions for the admin panel."
+        ),
+    },
+    {
+        "name": "Discussion - Search APIs",
+        "description": (
+            "The Search API handle all operations related to the search functionality. "
+            "These routes provide functionality for searching discussions, tags, and authors."
+        ),
+    },
+    {
+        "name": "Discussion - Attachment APIs",
+        "description": (
+            "The Attachment APIs handle all operations related to the attachments. "
+            "These routes provide functionality for creating, retrieving, updating, and deleting attachments."
+        ),
+    },
+    {
+        "name": "Discussion - Comment APIs",
+        "description": (
+            "The Comment APIs handle all operations related to the comments. "
+            "These routes provide functionality for creating, retrieving, updating, and deleting comments."
         ),
     },
 ]

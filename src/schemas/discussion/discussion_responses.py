@@ -734,3 +734,36 @@ RECENT_AUTHORS_RESPONSE_MODEL = {
     422: {"model": ValidationErrorResponse},
     500: {"model": RecentAuthorsBackendErrorResponse},
 }
+
+
+class RecentBookmarkedDiscussion(BaseModel):
+    id: uuid.UUID
+    title: str
+
+    model_config = {"from_attributes": True}
+
+
+class RecentBookmarkedDiscussionsSuccessfulResponse(SuccessfulResponse):
+    message: Literal["Recent bookmarked discussions retrieved successfully"]
+    data: List[RecentBookmarkedDiscussion]
+
+
+class RecentBookmarkedDiscussionsBackendError(BaseModel):
+    code: Literal["INTERNAL_SERVER_ERROR"]
+    details: Literal[
+        "An error occurred while retrieving recent bookmarked discussions. Please contact developers if the issue persists."
+    ]
+
+
+class RecentBookmarkedDiscussionsBackendErrorResponse(BackendErrorResponse):
+    message: Literal["Failed to retrieve recent bookmarked discussions"]
+    error: RecentBookmarkedDiscussionsBackendError
+
+
+RECENT_BOOKMARKED_DISCUSSIONS_RESPONSE_MODEL = {
+    200: {"model": RecentBookmarkedDiscussionsSuccessfulResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    422: {"model": ValidationErrorResponse},
+    500: {"model": RecentBookmarkedDiscussionsBackendErrorResponse},
+}
