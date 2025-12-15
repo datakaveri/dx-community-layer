@@ -271,7 +271,9 @@ async def retrieve_competition_leaderboard_handler(
         # -----------------------
         # Search Query
         # -----------------------
-        if req_params.query:
+        if req_params.score:
+            stmt = stmt.where(CompetitionSubmission.score == req_params.score)
+        elif req_params.query:
             formatted_query = format_tsquery(req_params.query)
             ts_query = func.to_tsquery("english", formatted_query)
 

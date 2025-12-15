@@ -49,6 +49,17 @@ class RetrieveUserSubmissionsParams:
         self.limit = limit
         self.sort_by = sort_by
         self.sort_order = sort_order
+        self.score = None
+
+        if self.query:
+            score = None
+            try:
+                score = float(self.query)
+            except ValueError:
+                pass
+
+            if 0 <= score <= 100:
+                self.score = score
 
 
 class CreateSubmissionRequest(BaseModel):
