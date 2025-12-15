@@ -322,9 +322,9 @@ async def retrieve_competition_leaderboard_handler(
             req_params.sort_by == RetrieveCompetitionLeaderboardSortByEnum.SUBMITTED_AT
         ):
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(CompetitionSubmission.created_at.asc())
+                stmt = stmt.order_by(CompetitionSubmission.updated_at.asc())
             else:
-                stmt = stmt.order_by(CompetitionSubmission.created_at.desc())
+                stmt = stmt.order_by(CompetitionSubmission.updated_at.desc())
 
         # -----------------------
         # Pagination

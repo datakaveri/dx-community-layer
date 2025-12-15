@@ -497,9 +497,9 @@ async def admin_retrieve_competition_submissions_handler(
             == AdminRetrieveCompetitionSubmissionsSortByEnum.SUBMITTED_AT
         ):
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(CompetitionSubmission.created_at.asc())
+                stmt = stmt.order_by(CompetitionSubmission.updated_at.asc())
             else:
-                stmt = stmt.order_by(CompetitionSubmission.created_at.desc())
+                stmt = stmt.order_by(CompetitionSubmission.updated_at.desc())
 
         elif req_params.sort_by == AdminRetrieveCompetitionSubmissionsSortByEnum.TITLE:
             if req_params.sort_order == SortOrder.ASC:
