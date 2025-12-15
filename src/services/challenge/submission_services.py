@@ -1160,7 +1160,7 @@ async def download_user_submission_handler(
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_404_NOT_FOUND,
-                message=f"{req_params.type.value.capitalize()} attachments not found",
+                message=f"{req_params.type.value.capitalize()} attachments are not available",
                 error={
                     "code": "NOT_FOUND",
                     "details": f"{req_params.type.value.capitalize()} attachments does not exist. Please contact developers if the issue persists.",
