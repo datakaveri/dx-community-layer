@@ -1143,7 +1143,7 @@ async def download_user_submission_handler(
         else:
             download_attachments = submission.evaluation_attachments
 
-        for attachment in download_attachments:
+        for attachment in download_attachments or []:
             # Generate presigned download URL
             download_url = s3_client.generate_presigned_url(
                 "get_object",
@@ -1155,6 +1155,17 @@ async def download_user_submission_handler(
             )
 
             download_urls.append(download_url)
+
+        if not download_urls:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message=f"{req_params.type.value.capitalize()} attachments not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": f"{req_params.type.value.capitalize()} attachments does not exist. Please contact developers if the issue persists.",
+                },
+            )
 
         return CustomJSONResponse(
             success=True,
