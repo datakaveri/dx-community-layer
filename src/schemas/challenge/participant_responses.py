@@ -21,7 +21,7 @@ class JoinCompetitionData(BaseModel):
 class JoinCompetitionSuccessResponse(BaseModel):
     success: bool = True
     status_code: int = 201
-    message: Literal["Successfully joined the competition"]
+    message: Literal["Successfully joined the challenge"]
     data: JoinCompetitionData
     error: None = None
     meta: None = None

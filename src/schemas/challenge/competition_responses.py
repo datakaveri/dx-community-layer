@@ -77,7 +77,7 @@ class RetrieveCompetitionsLeaderboardData(BaseModel):
 
 
 class RetrieveCompetitionsLeaderboardSuccessResponse(SuccessfulResponse):
-    message: Literal["Competition leaderboard retrieved successfully"]
+    message: Literal["Challenge leaderboard retrieved successfully"]
     data: RetrieveCompetitionsLeaderboardData
     meta: PaginatedResponseMeta
 
@@ -89,13 +89,13 @@ class RetrieveCompetitionsLeaderboardBackendError(BaseModel):
             "Failed to authorize user. Please contact developers if the issue persists."
         ],
         Literal[
-            "An error occurred while retrieving the competition leaderboard. Please contact developers if the issue persists."
+            "An error occurred while retrieving the challenge leaderboard. Please contact developers if the issue persists."
         ],
     ]
 
 
 class RetrieveCompetitionsLeaderboardBackendErrorResponse(BackendErrorResponse):
-    message: Literal["Competition leaderboard retrieval failed"]
+    message: Literal["Challenge leaderboard retrieval failed"]
     error: RetrieveCompetitionsLeaderboardBackendError
 
 
@@ -113,7 +113,7 @@ class RetrieveParticipatedCompetitionsResponseData(BaseModel):
 
 
 class RetrieveParticipatedCompetitionsSuccessResponse(SuccessfulResponse):
-    message: Literal["Participated competitions retrieved successfully"]
+    message: Literal["Participated challenges retrieved successfully"]
     data: RetrieveParticipatedCompetitionsResponseData
     meta: PaginatedResponseMeta
 
@@ -125,13 +125,13 @@ class RetrieveParticipatedCompetitionsBackendError(BaseModel):
             "Failed to authorize user. Please contact developers if the issue persists."
         ],
         Literal[
-            "An error occurred while retrieving the participated competitions. Please contact developers if the issue persists."
+            "An error occurred while retrieving the participated challenges. Please contact developers if the issue persists."
         ],
     ]
 
 
 class RetrieveParticipatedCompetitionsBackendErrorResponse(BackendErrorResponse):
-    message: Literal["Participated competitions retrieval failed"]
+    message: Literal["Participated challenges retrieval failed"]
     error: RetrieveParticipatedCompetitionsBackendError
 
 

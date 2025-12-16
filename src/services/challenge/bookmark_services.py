@@ -26,8 +26,8 @@ async def bookmark_competition_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Handles bookmarking a competition.
-    Ensures the competition exists, is published, and the user hasn't already bookmarked it.
+    Handles bookmarking a challenge.
+    Ensures the challenge exists, is published, and the user hasn't already bookmarked it.
     """
     try:
         user_id = authorized_user["user_id"]
@@ -57,7 +57,7 @@ async def bookmark_competition_handler(
                 message="Resource not found",
                 error={
                     "code": "NOT_FOUND",
-                    "details": "Competition not found or not published.",
+                    "details": "Challenge not found or not published.",
                 },
             )
 
@@ -78,7 +78,7 @@ async def bookmark_competition_handler(
                     message="Resource already exists",
                     error={
                         "code": "CONFLICT",
-                        "details": "You have already bookmarked this competition.",
+                        "details": "You have already bookmarked this challenge.",
                     },
                 )
 
@@ -121,7 +121,7 @@ async def bookmark_competition_handler(
             return CustomJSONResponse(
                 success=True,
                 status_code=status.HTTP_200_OK,
-                message="Competition bookmarked successfully",
+                message="Challenge bookmarked successfully",
                 data={
                     "bookmark_id": str(inactive_bookmark.id),
                     "competition_id": str(competition_id),
@@ -144,7 +144,7 @@ async def bookmark_competition_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_201_CREATED,
-            message="Competition bookmarked successfully",
+            message="Challenge bookmarked successfully",
             data={
                 "bookmark_id": str(new_bookmark.id),
                 "competition_id": str(competition_id),
@@ -154,10 +154,10 @@ async def bookmark_competition_handler(
             },
         )
     except Exception as exc:
-        logger.error("Failed to bookmark competition", exc_info=True)
+        logger.error("Failed to bookmark challenge", exc_info=True)
         await db_session.rollback()
         return CustomBackendError(
-            message="Failed to bookmark competition",
+            message="Failed to bookmark challenge",
             details=str(exc),
         )
 
@@ -168,7 +168,7 @@ async def unbookmark_competition_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Handles unbookmarking a competition.
+    Handles unbookmarking a challenge.
     Marks the bookmark as inactive (soft delete).
     """
     try:
@@ -234,13 +234,13 @@ async def unbookmark_competition_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Competition unbookmarked successfully",
+            message="Challenge unbookmarked successfully",
         )
     except Exception as exc:
-        logger.error("Failed to unbookmark competition", exc_info=True)
+        logger.error("Failed to unbookmark challenge", exc_info=True)
         await db_session.rollback()
         return CustomBackendError(
-            message="Failed to unbookmark competition",
+            message="Failed to unbookmark challenge",
             details=str(exc),
         )
 
@@ -253,7 +253,7 @@ async def get_bookmarked_competitions_handler(
     limit: int = 10,
 ) -> CustomJSONResponse:
     """
-    Handles retrieving a user's bookmarked competitions.
+    Handles retrieving a user's bookmarked challenges.
     Returns paginated list of active bookmarks.
     """
     try:
@@ -298,7 +298,7 @@ async def get_bookmarked_competitions_handler(
             )
             offset = (page - 1) * limit
 
-            # Get paginated bookmarks with competition details
+            # Get paginated bookmarks with challenge details
             bookmarks_stmt = (
                 select(
                     BookmarkedCompetition,
@@ -416,7 +416,7 @@ async def get_bookmarked_competitions_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Bookmarked competitions retrieved successfully",
+            message="Bookmarked challenges retrieved successfully",
             data={"bookmarked_competitions": bookmarked_competitions},
             meta={
                 "total_bookmarks": total_bookmarks,
@@ -426,8 +426,8 @@ async def get_bookmarked_competitions_handler(
             },
         )
     except Exception as exc:
-        logger.error("Failed to get bookmarked competitions", exc_info=True)
+        logger.error("Failed to get bookmarked challenges", exc_info=True)
         return CustomBackendError(
-            message="Failed to get bookmarked competitions",
+            message="Failed to get bookmarked challenges",
             details=str(exc),
         )

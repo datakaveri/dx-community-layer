@@ -53,23 +53,23 @@ router = APIRouter(prefix="/admin", tags=["Challenge - Admin APIs"])
 
 @router.get(
     path="/challenge/{competition_id}",
-    description="Retrieves a single competition by ID with all details. Only COS_ADMIN can access.",
+    description="Retrieves a single challenge by ID with all details. Only COS_ADMIN can access.",
 )
 async def admin_retrieve_challenge_by_id(
-    competition_id: UUID = Path(..., description="ID of the competition to retrieve"),
+    competition_id: UUID = Path(..., description="ID of the challenge to retrieve"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves a single competition with full admin-level details.
+    Retrieves a single challenge with full admin-level details.
 
     Args:
-        competition_id: Competition ID.
+        challenge_id: Challenge ID.
         authorized_user: Authenticated admin user.
         db_session: Active DB session.
 
     Returns:
-        CustomJSONResponse with competition details or 404 if not found.
+        CustomJSONResponse with challenge details or 404 if not found.
     """
     logger.info("Admin Retrieve Challenge by ID API is being called")
 
@@ -97,7 +97,7 @@ async def admin_retrieve_challenge_by_id(
 @router.get(
     path="/challenges/{choice}",
     description=(
-        "Retrieves competitions for admin with pagination, filters, and sorting. "
+        "Retrieves challenges for admin with pagination, filters, and sorting. "
         "Only COS_ADMIN can access."
     ),
 )
@@ -107,17 +107,17 @@ async def admin_retrieve_competitions(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves a list of competitions for the admin panel.
+    Retrieves a list of challenges for the admin panel.
 
     Args:
-        req_params (AdminRetrieveCompetitionsParams): The request body containing the pagination and filters.
+        req_params (AdminRetrieveChallengesParams): The request body containing the pagination and filters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+        CustomJSONResponse: A JSON response with the retrieved challenges and relevant metadata.
     """
-    logger.info("Admin Retrieve Competitions API is being called")
+    logger.info("Admin Retrieve Challenges API is being called")
 
     if authorized_user["user_role"] != UserRole.COS_ADMIN:
         return CustomJSONResponse(
@@ -141,11 +141,11 @@ async def admin_retrieve_competitions(
 
 
 # -------------------------------------------------------------------
-# ADMIN – CREATE COMPETITION
+# ADMIN – CREATE CHALLENGE
 # -------------------------------------------------------------------
 @router.post(
     path="/challenges",
-    description="Creates a new competition. Only COS_ADMIN can access.",
+    description="Creates a new challenge. Only COS_ADMIN can access.",
 )
 async def admin_create_challenge(
     req_params: CreateCompetitionParams = Depends(),
@@ -153,15 +153,15 @@ async def admin_create_challenge(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Creates a new competition (challenge) from the admin panel.
+    Creates a new challenge from the admin panel.
 
     Args:
-        req_params: Competition creation payload (title, description, timeline, etc.).
+        req_params: Challenge creation payload (title, description, timeline, etc.).
         authorized_user: Authenticated admin user.
         db_session: Active DB session.
 
     Returns:
-        CustomJSONResponse with created competition details.
+        CustomJSONResponse with created challenge details.
     """
     logger.info("Admin Create Challenge API is being called")
 
@@ -187,27 +187,27 @@ async def admin_create_challenge(
 
 
 # -------------------------------------------------------------------
-# ADMIN – GET COMPETITION DATASET
+# ADMIN – GET CHALLENGE DATASET
 # -------------------------------------------------------------------
 @router.get(
     path="/challenges/datasets/{competition_id}",
     description=(
-        "Retrieves dataset (databanks and AI models) for a competition. "
+        "Retrieves dataset (databanks and AI models) for a challenge. "
         "Only COS_ADMIN can access."
     ),
 )
 async def admin_retrieve_challenge_dataset(
     competition_id: UUID = Path(
-        ..., description="ID of the competition to retrieve dataset for"
+        ..., description="ID of the challenge to retrieve dataset for"
     ),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves dataset information for a specific competition.
+    Retrieves dataset information for a specific challenge.
 
     Args:
-        competition_id: Competition ID.
+        challenge_id: Challenge ID.
         authorized_user: Authenticated admin user.
         db_session: Active DB session.
 
@@ -238,11 +238,11 @@ async def admin_retrieve_challenge_dataset(
 
 
 # -------------------------------------------------------------------
-# ADMIN – LIST SUBMISSIONS FOR A COMPETITION
+# ADMIN – LIST SUBMISSIONS FOR A CHALLENGE
 # -------------------------------------------------------------------
 @router.get(
     path="/challenges/{competition_id}/submissions",
-    description="Retrieves all submissions for a competition. Only COS_ADMIN can access.",
+    description="Retrieves all submissions for a challenge. Only COS_ADMIN can access.",
     responses=LIST_SUBMISSIONS_RESPONSE_MODEL,
 )
 async def admin_retrieve_competition_submissions(
@@ -251,17 +251,17 @@ async def admin_retrieve_competition_submissions(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves all submissions for a competition.
+    Retrieves all submissions for a challenge.
 
     Args:
-        req_params (AdminRetrieveCompetitionSubmissionsParams): The request body containing the competition ID and pagination parameters.
+        req_params (AdminRetrieveChallengeSubmissionsParams): The request body containing the challenge ID and pagination parameters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
         CustomJSONResponse: A JSON response with the retrieved submissions and relevant metadata.
     """
-    logger.info("Admin Retrieve Competition Submissions API is being called")
+    logger.info("Admin Retrieve Challenge Submissions API is being called")
 
     if authorized_user["user_role"] != UserRole.COS_ADMIN:
         return CustomJSONResponse(
@@ -285,32 +285,32 @@ async def admin_retrieve_competition_submissions(
 
 
 # -------------------------------------------------------------------
-# ADMIN – UPDATE COMPETITION
+# ADMIN – UPDATE CHALLENGE
 # -------------------------------------------------------------------
 @router.put(
     path="/challenges/{competition_id}",
     description=(
-        "Updates an existing competition draft. Only COS_ADMIN can access. "
-        "Only draft or scheduled competitions can be updated."
+        "Updates an existing challenge draft. Only COS_ADMIN can access. "
+        "Only draft or scheduled challenges can be updated."
     ),
 )
 async def admin_update_challenge(
-    competition_id: UUID = Path(..., description="ID of the competition to update"),
+    competition_id: UUID = Path(..., description="ID of the challenge to update"),
     req_params: UpdateCompetitionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Updates an existing competition (draft/scheduled) from the admin panel.
+    Updates an existing challenge (draft/scheduled) from the admin panel.
 
     Args:
-        competition_id: Competition ID.
-        req_params: Update payload for competition.
+        challenge_id: Challenge ID.
+        req_params: Update payload for challenge.
         authorized_user: Authenticated admin user.
         db_session: Active DB session.
 
     Returns:
-        CustomJSONResponse with updated competition details.
+        CustomJSONResponse with updated challenge details.
     """
     logger.info("Admin Update Challenge API is being called")
 
@@ -337,22 +337,22 @@ async def admin_update_challenge(
 
 
 # -------------------------------------------------------------------
-# ADMIN – DELETE COMPETITION
+# ADMIN – DELETE CHALLENGE
 # -------------------------------------------------------------------
 @router.delete(
     path="/challenges/{competition_id}",
-    description="Deletes an existing competition draft or scheduled challenge. Only COS_ADMIN can access.",
+    description="Deletes an existing challenge draft or scheduled challenge. Only COS_ADMIN can access.",
 )
 async def admin_delete_challenge(
-    competition_id: UUID = Path(..., description="ID of the competition to delete"),
+    competition_id: UUID = Path(..., description="ID of the challenge to delete"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Deletes a draft or scheduled competition.
+    Deletes a draft or scheduled challenge.
 
     Args:
-        competition_id: Competition ID.
+        challenge_id: Challenge ID.
         authorized_user: Authenticated admin user.
         db_session: Active DB session.
 
@@ -388,10 +388,10 @@ async def admin_delete_challenge(
 @router.put(
     path="/{competition_id}/{submission_id}/disqualify",
     response_model=DisqualifySubmissionResponse,
-    description="Disqualify a submission inside a competition. Only COS_ADMIN can access.",
+    description="Disqualify a submission inside a challenge. Only COS_ADMIN can access.",
 )
 async def admin_disqualify_submission(
-    competition_id: str = Path(..., description="Competition ID"),
+    competition_id: str = Path(..., description="Challenge ID"),
     submission_id: str = Path(..., description="Submission ID"),
     comments: str = Body(..., description="Comments for disqualification"),
     attachment: Optional[str] = Body(
@@ -401,10 +401,10 @@ async def admin_disqualify_submission(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Disqualifies a specific submission for a given competition.
+    Disqualifies a specific submission for a given challenge.
 
     Args:
-        competition_id: Competition ID.
+        challenge_id: Challenge ID.
         submission_id: Submission ID.
         comments: Reason/comments for disqualification.
         attachment: Optional attachment (evidence).
@@ -415,7 +415,7 @@ async def admin_disqualify_submission(
         CustomJSONResponse indicating disqualification result.
     """
     logger.info(
-        f"Admin Disqualify Submission API called for competition={competition_id}, submission={submission_id}"
+        f"Admin Disqualify Submission API called for challenge={competition_id}, submission={submission_id}"
     )
 
     if authorized_user["user_role"] != UserRole.COS_ADMIN:
@@ -443,7 +443,7 @@ async def admin_disqualify_submission(
         return CustomJSONResponse(
             success=False,
             status_code=404,
-            message="Submission not found for given competition_id",
+            message="Submission not found for given challenge_id",
             error={"code": "NOT_FOUND"},
         )
 
@@ -459,25 +459,25 @@ async def admin_disqualify_submission(
 # -------------------------------------------------------------------
 @router.post(
     path="/challenges/announce-result",
-    description="Announce competition result. Only COS_ADMIN can access.",
+    description="Announce challenge result. Only COS_ADMIN can access.",
 )
 async def admin_announce_competition_result(
-    competition_id: UUID = Query(..., description="Competition ID"),
+    competition_id: UUID = Query(..., description="Challenge ID"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Announces the result for a competition.
+    Announces the result for a challenge.
 
     Args:
-        competition_id: Competition ID.
+        challenge_id: Challenge ID.
         authorized_user: Authenticated admin user.
         db_session: Active DB session.
 
     Returns:
         CustomJSONResponse indicating success or failure.
     """
-    logger.info("Announce Competition Result API Called")
+    logger.info("Announce Challenge Result API Called")
 
     if authorized_user["user_role"] != UserRole.COS_ADMIN:
         return CustomJSONResponse(
@@ -502,7 +502,7 @@ async def admin_announce_competition_result(
 # -------------------------------------------------------------------
 @router.post(
     path="/submission/{submission_id}/publish",
-    description="Publishes a submission inside a competition. Only COS_ADMIN can access.",
+    description="Publishes a submission inside a challenge. Only COS_ADMIN can access.",
 )
 async def admin_publish_submission(
     req_params: PublishSubmissionParams = Depends(),

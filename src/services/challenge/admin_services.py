@@ -45,11 +45,11 @@ async def admin_retrieve_challenges_handler(
     sort_by: str,
 ) -> CustomJSONResponse:
     """
-    Retrieves a paginated list of competitions for the admin panel.
+    Retrieves a paginated list of challenges for the admin panel.
 
     This handler:
     - Applies optional status filter (Draft, Scheduled, Live, etc.)
-    - Computes participants and submissions count per competition
+    - Computes participants and submissions count per challenge
     - Supports sorting by:
         - "Hottest" (most participants)
         - "Newest"  (latest contextual date)
@@ -61,11 +61,11 @@ async def admin_retrieve_challenges_handler(
         db_session: Active async DB session.
         page: Page number (1-based).
         limit: Number of items per page.
-        status_filter: Optional competition status to filter on.
+        status_filter: Optional challenge status to filter on.
         sort_by: Sorting strategy - "Hottest" | "Newest" | "Oldest".
 
     Returns:
-        CustomJSONResponse: List of competitions plus pagination metadata.
+        CustomJSONResponse: List of challenges plus pagination metadata.
     """
     logger.info(
         f"{authorized_user['email']} - Admin Retrieve Challenges handler started"
@@ -239,7 +239,7 @@ async def admin_retrieve_challenges_handler(
     return CustomJSONResponse(
         success=True,
         status_code=status.HTTP_200_OK,
-        message="Competitions retrieved successfully",
+        message="Challenges retrieved successfully",
         data={"competitions": data},
         meta={
             "total_counts": {
@@ -264,15 +264,15 @@ async def admin_retrieve_competitions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves a list of competitions for the admin panel.
+    Retrieves a list of challenges for the admin panel.
 
     Args:
-        req_params (AdminRetrieveCompetitionsParams): The request body containing the pagination and filters.
+        req_params (AdminRetrieveChallengesParams): The request body containing the pagination and filters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+        CustomJSONResponse: A JSON response with the retrieved challenges and relevant metadata.
     """
     logger.info(f"{authorized_user['email']} - Execution started")
 
@@ -398,7 +398,7 @@ async def admin_retrieve_competitions_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Competitions retrieved successfully",
+            message="Challenges retrieved successfully",
             data={
                 "competitions": serialized_competitions,
             },
@@ -414,8 +414,8 @@ async def admin_retrieve_competitions_handler(
     except Exception as e:
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
-            message="Admin competitions retrieval failed",
-            details="An error occurred while retrieving the admin competitions. Please contact developers if the issue persists.",
+            message="Admin challenges retrieval failed",
+            details="An error occurred while retrieving the admin challenges. Please contact developers if the issue persists.",
         )
 
     finally:
@@ -428,10 +428,10 @@ async def admin_retrieve_competition_submissions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves all submissions for a competition.
+    Retrieves all submissions for a challenge.
 
     Args:
-        req_params (AdminRetrieveCompetitionSubmissionsParams): The request body containing the competition ID and pagination parameters.
+        req_params (AdminRetrieveChallengeSubmissionsParams): The request body containing the challenge ID and pagination parameters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
@@ -439,7 +439,7 @@ async def admin_retrieve_competition_submissions_handler(
         CustomJSONResponse: A JSON response with the retrieved submissions and relevant metadata.
     """
     logger.info(
-        f"{authorized_user['email']} - Admin Retrieve Competition Submissions handler started"
+        f"{authorized_user['email']} - Admin Retrieve Challenge Submissions handler started"
     )
 
     try:
@@ -451,15 +451,15 @@ async def admin_retrieve_competition_submissions_handler(
 
         if not competition:
             logger.error(
-                f"{authorized_user['email']} - Competition not found (id={req_params.discussion_id})"
+                f"{authorized_user['email']} - Challenge not found (id={req_params.discussion_id})"
             )
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_404_NOT_FOUND,
-                message="Competition not found",
+                message="Challenge not found",
                 error={
                     "code": "NOT_FOUND",
-                    "message": "The competition you are trying to retrieve submissions does not exist. Please contact support if the issue persists.",
+                    "message": "The challenge you are trying to retrieve submissions does not exist. Please contact support if the issue persists.",
                 },
             )
 
@@ -539,7 +539,7 @@ async def admin_retrieve_competition_submissions_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Admin competition submissions retrieved successfully",
+            message="Admin challenge submissions retrieved successfully",
             data={
                 "submissions": serialized_submissions,
                 "competition": serialized_competition,
@@ -555,8 +555,8 @@ async def admin_retrieve_competition_submissions_handler(
     except Exception as e:
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
-            message="Admin competition submissions retrieval failed",
-            details="An error occurred while retrieving the admin competition submissions. Please contact developers if the issue persists.",
+            message="Admin challenge submissions retrieval failed",
+            details="An error occurred while retrieving the admin challenge submissions. Please contact developers if the issue persists.",
         )
 
     finally:
@@ -569,10 +569,10 @@ async def admin_retrieve_challenge_dataset_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves dataset (databanks, AI models, additional assets) for a given competition.
+    Retrieves dataset (databanks, AI models, additional assets) for a given challenge.
 
     Args:
-        competition_id: ID of the competition whose dataset needs to be fetched.
+        challenge_id: ID of the challenge whose dataset needs to be fetched.
         authorized_user: Authenticated admin user data.
         db_session: Active async DB session.
 
@@ -596,7 +596,7 @@ async def admin_retrieve_challenge_dataset_handler(
             message="Resource not found",
             error={
                 "code": "NOT_FOUND",
-                "details": "Dataset not found for the provided competition id.",
+                "details": "Dataset not found for the provided challenge id.",
             },
         )
 
@@ -623,10 +623,10 @@ async def admin_retrieve_challenge_by_id_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves a single competition with full details for the admin panel.
+    Retrieves a single challenge with full details for the admin panel.
 
     This includes:
-    - Core competition details
+    - Core challenge details
     - Timeline (submission / evaluation dates)
     - Prize pool info
     - Evaluation criteria
@@ -635,12 +635,12 @@ async def admin_retrieve_challenge_by_id_handler(
     - Draft status flag
 
     Args:
-        competition_id: ID of the competition to retrieve.
+        challenge_id: ID of the challenge to retrieve.
         authorized_user: Authenticated admin user data.
         db_session: Active async DB session.
 
     Returns:
-        CustomJSONResponse: Competition details or 404 if not found.
+        CustomJSONResponse: Challenge details or 404 if not found.
     """
     logger.info(
         f"{authorized_user['email']} - Admin Retrieve Challenge by ID handler started"
@@ -742,7 +742,7 @@ async def admin_retrieve_challenge_by_id_handler(
             message="Resource not found",
             error={
                 "code": "NOT_FOUND",
-                "details": "Competition not found.",
+                "details": "Challenge not found.",
             },
         )
 

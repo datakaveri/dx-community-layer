@@ -17,8 +17,8 @@ async def user_join_competition_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Handles the user join competition operation.
-    Ensures the competition exists, is published, and the user hasn't already joined.
+    Handles the user join challenge operation.
+    Ensures the challenge exists, is published, and the user hasn't already joined.
     """
 
     try:
@@ -51,7 +51,7 @@ async def user_join_competition_handler(
                 message="Resource not found",
                 error={
                     "code": "NOT_FOUND",
-                    "details": "Competition not found or not published.",
+                    "details": "Challenge not found or not published.",
                 },
             )
 
@@ -70,7 +70,7 @@ async def user_join_competition_handler(
                 message="Resource already exists",
                 error={
                     "code": "CONFLICT",
-                    "details": "You have already joined this competition.",
+                    "details": "You have already joined this challenge.",
                 },
             )
 
@@ -86,7 +86,7 @@ async def user_join_competition_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_201_CREATED,
-            message="Successfully joined the competition",
+            message="Successfully joined the challenge",
             data={
                 "participant_id": str(new_participant.id),
                 "competition_id": str(competition_id),
@@ -95,10 +95,10 @@ async def user_join_competition_handler(
             },
         )
     except Exception as exc:
-        logger.error("Failed to join competition", exc_info=True)
+        logger.error("Failed to join challenge", exc_info=True)
         await db_session.rollback()
         return CustomBackendError(
-            message="Failed to join competition",
+            message="Failed to join challenge",
             details=str(exc),
         )
 

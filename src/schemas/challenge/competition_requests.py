@@ -25,11 +25,11 @@ class RetrieveCompetitonsParams:
         self,
         choice: RetrieveCompetitionChoices = Path(
             ...,
-            description="Type of the competition to retrieve",
+            description="Type of the challenge to retrieve",
         ),
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
-        limit: int = Query(10, gt=0, description="The number of competitions per page"),
+        limit: int = Query(10, gt=0, description="The number of chasllenge per page"),
         sort_by: CompetitionsSortByEnum = Query(
             default=CompetitionsSortByEnum.NEWEST,
             description="The field to sort by",
@@ -52,7 +52,7 @@ class RetrieveCompetitionLeaderboardSortByEnum(str, enum.Enum):
 class RetrieveCompetitionLeaderboardParams:
     def __init__(
         self,
-        competition_id: uuid.UUID = Path(..., description="ID of the competition"),
+        competition_id: uuid.UUID = Path(..., description="ID of the challenge"),
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
         limit: int = Query(10, gt=0, description="The number of submissions per page"),
@@ -96,7 +96,7 @@ class RetrieveParticipatedCompetitionsParams:
         self,
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
-        limit: int = Query(10, gt=0, description="The number of competitions per page"),
+        limit: int = Query(10, gt=0, description="The number of challenges per page"),
         sort_by: Optional[RetrieveParticipatedCompetitionsSortByEnum] = Query(
             default=None,
             description="The field to sort by",
@@ -118,7 +118,7 @@ class RetrieveBookmarkedCompetitionsParams:
         self,
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
-        limit: int = Query(10, gt=0, description="The number of competitions per page"),
+        limit: int = Query(10, gt=0, description="The number of challenges per page"),
         sort_by: CompetitionsSortByEnum = Query(
             default=CompetitionsSortByEnum.NEWEST,
             description="The field to sort by",
@@ -133,19 +133,19 @@ class RetrieveBookmarkedCompetitionsParams:
 class CreateCompetitionParams:
     def __init__(
         self,
-        title: str = Body(..., description="Competition title"),
-        is_drafted: bool = Body(..., description="Whether the competition is a draft"),
+        title: str = Body(..., description="Challenge title"),
+        is_drafted: bool = Body(..., description="Whether the challenge is a draft"),
         subtitle: Optional[str] = Body(
-            None, description="Short subtitle for the competition"
+            None, description="Short subtitle for the challenge"
         ),
         overview: Optional[str] = Body(
-            None, description="High-level overview for the competition"
+            None, description="High-level overview for the challenge"
         ),
         description: Optional[str] = Body(
             None, description="Detailed description (required if not draft)"
         ),
         comp_image_url: Optional[str] = Body(
-            None, description="Public image URL for the competition"
+            None, description="Public image URL for the challenge"
         ),
         constraints: Optional[str] = Body(None, description="Constraints"),
         prize_type: Optional[PrizeTypeEnum] = Body(
@@ -273,16 +273,16 @@ class CreateCompetitionParams:
 class UpdateCompetitionParams:
     def __init__(
         self,
-        title: Optional[str] = Body(None, description="Competition title"),
+        title: Optional[str] = Body(None, description="Challenge title"),
         subtitle: Optional[str] = Body(
-            None, description="Short subtitle for the competition"
+            None, description="Short subtitle for the challenge"
         ),
         overview: Optional[str] = Body(
-            None, description="High-level overview for the competition"
+            None, description="High-level overview for the challenge"
         ),
         description: Optional[str] = Body(None, description="Detailed description"),
         comp_image_url: Optional[str] = Body(
-            None, description="Public image URL for the competition"
+            None, description="Public image URL for the challenge"
         ),
         constraints: Optional[str] = Body(None, description="Constraints"),
         prize_type: Optional[PrizeTypeEnum] = Body(None, description="Prize type"),
@@ -330,7 +330,7 @@ class UpdateCompetitionParams:
         ),
         is_drafted: Optional[bool] = Body(
             None,
-            description="Whether the competition is a draft. Set to false to publish.",
+            description="Whether the challenge is a draft. Set to false to publish.",
         ),
         publish_schedule: Optional[datetime] = Body(
             default=None,

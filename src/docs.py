@@ -70,7 +70,7 @@ docs_tags_metadata = [
         "name": "Challenge - Admin APIs",
         "description": (
             "The Admin APIs handle all operations related to the admin panel. "
-            "These routes provide functionality for managing competitions for the admin panel."
+            "These routes provide functionality for managing challenges for the admin panel."
         ),
     },
     {

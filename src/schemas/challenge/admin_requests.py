@@ -37,11 +37,11 @@ class AdminRetrieveCompetitionsParams:
     def __init__(
         self,
         choice: AdminRetrieveCompetitionsChoices = Path(
-            ..., description="Type of the competition to retrieve"
+            ..., description="Type of the challenge to retrieve"
         ),
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
-        limit: int = Query(10, gt=0, description="The number of competitions per page"),
+        limit: int = Query(10, gt=0, description="The number of challenges per page"),
         sort_by: Optional[AdminRetreiveCompetitionsSortBy] = Query(
             default=None,
             description="The field to sort by",
@@ -68,7 +68,7 @@ class AdminRetrieveCompetitionSubmissionsSortByEnum(enum.Enum):
 class AdminRetrieveCompetitionSubmissionsParams:
     def __init__(
         self,
-        competition_id: uuid.UUID = Path(..., description="ID of the competition"),
+        competition_id: uuid.UUID = Path(..., description="ID of the challenge"),
         query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="The page number for pagination"),
         limit: int = Query(10, gt=0, description="The number of submissions per page"),
