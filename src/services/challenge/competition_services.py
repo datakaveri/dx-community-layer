@@ -787,6 +787,40 @@ async def create_competition_handler(
             req_params.submission_starts_at is not None
             or req_params.submission_ends_at is not None
         ):
+            if competition.published_at and req_params.submission_starts_at:
+                if req_params.submission_starts_at < competition.published_at:
+                    await db_session.rollback()
+
+                    logger.error(
+                        f"{authorized_user['email']} - submission_starts_at must be after published_at"
+                    )
+                    return CustomJSONResponse(
+                        success=False,
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        message="Bad Request",
+                        error={
+                            "code": "BAD_REQUEST",
+                            "details": "submission_start must be after published_at",
+                        },
+                    )
+
+            elif competition.scheduled_publish_at and req_params.submission_starts_at:
+                if req_params.submission_starts_at < competition.scheduled_publish_at:
+                    await db_session.rollback()
+
+                    logger.error(
+                        f"{authorized_user['email']} - submission_starts_at must be after scheduled_publish_at"
+                    )
+                    return CustomJSONResponse(
+                        success=False,
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        message="Bad Request",
+                        error={
+                            "code": "BAD_REQUEST",
+                            "details": "submission_start must be after scheduled_publish_at",
+                        },
+                    )
+
             timeline = CompetitionTimeline(
                 competition_id=competition.id,
                 submission_starts_at=req_params.submission_starts_at,
@@ -909,9 +943,7 @@ async def create_competition_handler(
     except Exception as e:
         logger.error(f"Create challenge failed: {e}", exc_info=True)
         await db_session.rollback()
-        return CustomBackendError(
-            message="Failed to create challenge", details=str(e)
-        )
+        return CustomBackendError(message="Failed to create challenge", details=str(e))
 
 
 async def update_competition_handler(
@@ -1019,6 +1051,40 @@ async def update_competition_handler(
             req_params.submission_starts_at is not None
             or req_params.submission_ends_at is not None
         ):
+            if competition.published_at and req_params.submission_starts_at:
+                if req_params.submission_starts_at < competition.published_at:
+                    await db_session.rollback()
+
+                    logger.error(
+                        f"{authorized_user['email']} - submission_starts_at must be after published_at"
+                    )
+                    return CustomJSONResponse(
+                        success=False,
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        message="Bad Request",
+                        error={
+                            "code": "BAD_REQUEST",
+                            "details": "submission_start must be after published_at",
+                        },
+                    )
+
+            elif competition.scheduled_publish_at and req_params.submission_starts_at:
+                if req_params.submission_starts_at < competition.scheduled_publish_at:
+                    await db_session.rollback()
+
+                    logger.error(
+                        f"{authorized_user['email']} - submission_starts_at must be after scheduled_publish_at"
+                    )
+                    return CustomJSONResponse(
+                        success=False,
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        message="Bad Request",
+                        error={
+                            "code": "BAD_REQUEST",
+                            "details": "submission_start must be after scheduled_publish_at",
+                        },
+                    )
+
             if timeline:
                 if req_params.submission_starts_at is not None:
                     timeline.submission_starts_at = req_params.submission_starts_at
@@ -1203,9 +1269,7 @@ async def update_competition_handler(
     except Exception as e:
         logger.error(f"Update challenge failed: {e}", exc_info=True)
         await db_session.rollback()
-        return CustomBackendError(
-            message="Failed to update challenge", details=str(e)
-        )
+        return CustomBackendError(message="Failed to update challenge", details=str(e))
 
 
 async def delete_competition_handler(
@@ -1270,9 +1334,7 @@ async def delete_competition_handler(
     except Exception as e:
         logger.error(f"Delete challenge failed: {e}", exc_info=True)
         await db_session.rollback()
-        return CustomBackendError(
-            message="Failed to delete challenge", details=str(e)
-        )
+        return CustomBackendError(message="Failed to delete challenge", details=str(e))
 
 
 async def announce_result_service(competition_id: UUID, db: AsyncSession):
