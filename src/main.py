@@ -137,6 +137,12 @@ def custom_openapi():
     }
     openapi_schema["x-tagGroups"] = [
         {
+            "name": "Utility",
+            "tags": [
+                "Utility APIs",
+            ],
+        },
+        {
             "name": "Discussion",
             "tags": [
                 "Discussion APIs",
@@ -144,6 +150,15 @@ def custom_openapi():
                 "Discussion - Search APIs",
                 "Discussion - Attachment APIs",
                 "Discussion - Comment APIs",
+            ],
+        },
+        {
+            "name": "Challenge",
+            "tags": [
+                "Challenge APIs",
+                "Challenge - Admin APIs",
+                "Challenge - Attachment APIs",
+                "Challenge - Submission APIs",
             ],
         },
     ]

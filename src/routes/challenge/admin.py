@@ -48,7 +48,7 @@ from ...services.challenge.admin_services import (
     admin_retrieve_competitions_handler,
 )
 
-router = APIRouter(prefix="/admin")
+router = APIRouter(prefix="/admin", tags=["Challenge - Admin APIs"])
 
 
 @router.get(

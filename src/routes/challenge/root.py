@@ -31,7 +31,7 @@ from .attachment import router as attachment_router
 from .submission import router as submission_router
 
 
-router = APIRouter(prefix="/challenge", tags=["Challenge APIs"])
+router = APIRouter(prefix="/challenge")
 
 
 router.include_router(admin_router)
@@ -44,6 +44,7 @@ router.include_router(users_router)
     path="/participated",
     description="Returns all competitions that the user has participated in.",
     responses=RETRIEVE_PARTICIPATED_COMPETITIONS_RESPONSE_MODEL,
+    tags=["Challenge APIs"],
 )
 async def retrieve_participated_competitions(
     req_params: RetrieveParticipatedCompetitionsParams = Depends(),
@@ -73,6 +74,7 @@ async def retrieve_participated_competitions(
 @router.get(
     path="/bookmarked",
     description="Returns all competitions that the user has bookmarked.",
+    tags=["Challenge APIs"],
 )
 async def retrieve_bookmarked_competitions(
     req_params: RetrieveBookmarkedCompetitionsParams = Depends(),
@@ -108,6 +110,7 @@ async def retrieve_bookmarked_competitions(
             "`Note: Authentication required for joined competitions.`"
         )
     ),
+    tags=["Challenge APIs"],
 )
 async def retrieve_competitions(
     req_params: RetrieveCompetitonsParams = Depends(),
@@ -142,6 +145,7 @@ async def retrieve_competitions(
         )
     ),
     responses=RETRIEVE_COMPETITION_LEADERBOARD_RESPONSE_MODEL,
+    tags=["Challenge APIs"],
 )
 async def retrieve_competition_leaderboard(
     req_params: RetrieveCompetitionLeaderboardParams = Depends(),

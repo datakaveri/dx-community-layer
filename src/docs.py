@@ -35,7 +35,7 @@ docs_tags_metadata = [
         "name": "Discussion - Admin APIs",
         "description": (
             "The Admin APIs handle all operations related to the admin panel. "
-            "These routes provide functionality for retrieving discussions for the admin panel."
+            "These routes provide functionality for managing discussions for the admin panel."
         ),
     },
     {
@@ -57,6 +57,34 @@ docs_tags_metadata = [
         "description": (
             "The Comment APIs handle all operations related to the comments. "
             "These routes provide functionality for creating, retrieving, updating, and deleting comments."
+        ),
+    },
+    {
+        "name": "Challenge APIs",
+        "description": (
+            "The Challenge APIs handle all operations related to the challenges. "
+            "These routes provide functionality for creating, retrieving, updating, and deleting challenges."
+        ),
+    },
+    {
+        "name": "Challenge - Admin APIs",
+        "description": (
+            "The Admin APIs handle all operations related to the admin panel. "
+            "These routes provide functionality for managing competitions for the admin panel."
+        ),
+    },
+    {
+        "name": "Challenge - Attachment APIs",
+        "description": (
+            "The Attachment APIs handle all operations related to the attachments. "
+            "These routes provide functionality for creating, retrieving, updating, and deleting attachments."
+        ),
+    },
+    {
+        "name": "Challenge - Submission APIs",
+        "description": (
+            "The Submission APIs handle all operations related to the submissions. "
+            "These routes provide functionality for creating, retrieving, updating, and deleting submissions."
         ),
     },
 ]

@@ -23,7 +23,7 @@ from ...services.challenge.attachment_services import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-router = APIRouter(prefix="/attachment")
+router = APIRouter(prefix="/attachment", tags=["Challenge - Attachment APIs"])
 
 
 @router.post(
@@ -72,4 +72,3 @@ async def generate_download_url(
     return await generate_download_url_handler(
         req_params=req_params, authorized_user=authorized_user, db_session=db_session
     )
-

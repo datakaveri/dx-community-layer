@@ -262,6 +262,7 @@ async def users_list_challenges(
         "Returns all competition information similar to the admin detail view, "
         "but only for published challenges."
     ),
+    tags=["Challenge APIs"],
 )
 async def users_get_challenge_by_id(
     competition_id: UUID = Path(..., description="ID of the competition to retrieve"),
@@ -475,6 +476,7 @@ async def users_get_challenge_by_id(
     path="/challenges/{competition_id}/join",
     description="Endpoint for authenticated users to join a published competition.",
     responses=JOIN_COMPETITION_RESPONSE_MODEL,
+    tags=["Challenge APIs"],
 )
 async def users_join_competition(
     competition_id: UUID = Path(..., description="ID of the competition to join"),
@@ -493,6 +495,7 @@ async def users_join_competition(
     path="/challenges/{competition_id}/bookmark",
     description="Endpoint for authenticated users to bookmark a published competition.",
     responses=BOOKMARK_COMPETITION_RESPONSE_MODEL,
+    tags=["Challenge APIs"],
 )
 async def users_bookmark_competition(
     competition_id: UUID = Path(..., description="ID of the competition to bookmark"),
@@ -511,6 +514,7 @@ async def users_bookmark_competition(
     path="/challenges/{competition_id}/bookmark",
     description="Endpoint for authenticated users to unbookmark a competition.",
     responses=UNBOOKMARK_COMPETITION_RESPONSE_MODEL,
+    tags=["Challenge APIs"],
 )
 async def users_unbookmark_competition(
     competition_id: UUID = Path(..., description="ID of the competition to unbookmark"),
@@ -555,6 +559,7 @@ async def users_get_bookmarked_competitions(
     path="/challenges/{competition_id}/submissions",
     description="Endpoint for authenticated users to submit an entry for a competition (within submission window).",
     responses=CREATE_SUBMISSION_RESPONSE_MODEL,
+    tags=["Challenge - Submission APIs"],
 )
 async def users_create_submission(
     competition_id: UUID = Path(..., description="ID of the competition"),
@@ -595,6 +600,7 @@ async def users_list_all_submissions(
     path="/challenges/{competition_id}/submissions",
     description="Endpoint for authenticated users to list their submissions for a specific competition.",
     responses=LIST_SUBMISSIONS_RESPONSE_MODEL,
+    tags=["Challenge - Submission APIs"],
 )
 async def users_list_competition_submissions(
     competition_id: UUID = Path(..., description="ID of the competition"),
@@ -616,6 +622,7 @@ async def users_list_competition_submissions(
 @router.put(
     path="/submissions/{submission_id}",
     description="Endpoint for authenticated users to update their submission for a specific competition.",
+    tags=["Challenge - Submission APIs"],
 )
 async def users_update_submission(
     req_params: UpdateSubmissionParams = Depends(),
@@ -633,6 +640,7 @@ async def users_update_submission(
 @router.post(
     path="/submission/{submission_id}/downloads",
     description="Endpoint for authenticated users to download the submissions for a specific competition.",
+    tags=["Challenge - Submission APIs"],
 )
 async def users_download_submission(
     req_params: DownloadSubmissionParams = Depends(),
