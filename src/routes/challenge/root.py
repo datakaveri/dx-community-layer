@@ -42,7 +42,7 @@ router.include_router(users_router)
 
 @router.get(
     path="/participated",
-    description="Returns all competitions that the user has participated in.",
+    description="Returns all challenges that the user has participated in.",
     responses=RETRIEVE_PARTICIPATED_COMPETITIONS_RESPONSE_MODEL,
     tags=["Challenge APIs"],
 )
@@ -52,17 +52,17 @@ async def retrieve_participated_competitions(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves competitions that the user has participated in.
+    Retrieves challenges that the user has participated in.
 
     Args:
-        req_params (RetrieveParticipatedCompetitionsParams): The request body containing the sorting parameters.
+        req_params (RetrieveParticipatedChallengesParams): The request body containing the sorting parameters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+        CustomJSONResponse: A JSON response with the retrieved challenges and relevant metadata.
     """
-    logger.info("Retrieve Participated Competitions API is being called")
+    logger.info("Retrieve Participated Challenges API is being called")
 
     return await retrieve_participated_competitions_handler(
         req_params=req_params,
@@ -73,8 +73,7 @@ async def retrieve_participated_competitions(
 
 @router.get(
     path="/bookmarked",
-    description="Returns all competitions that the user has bookmarked.",
-    tags=["Challenge APIs"],
+    description="Returns all challenges that the user has bookmarked.",
 )
 async def retrieve_bookmarked_competitions(
     req_params: RetrieveBookmarkedCompetitionsParams = Depends(),
@@ -82,17 +81,17 @@ async def retrieve_bookmarked_competitions(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves competitions that the user has bookmarked.
+    Retrieves challenges that the user has bookmarked.
 
     Args:
-        req_params (RetrieveBookmarkedCompetitionsParams): The request body containing the sorting parameters.
+        req_params (RetrieveBookmarkedChallengesParams): The request body containing the sorting parameters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+        CustomJSONResponse: A JSON response with the retrieved challenges and relevant metadata.
     """
-    logger.info("Retrieve Bookmarked Competitions API is being called")
+    logger.info("Retrieve Bookmarked Challenges API is being called")
 
     return await retrieve_bookmarked_competitions_handler(
         req_params=req_params,
@@ -105,9 +104,9 @@ async def retrieve_bookmarked_competitions(
     path="/{choice}",
     description=public_desc(
         (
-            "Retrieves all competitions accross the TGDex platform based on the choice provided."
+            "Retrieves all challenges accross the TGDex platform based on the choice provided."
             "Supports pagination, sorting and filtering (by query). <br>"
-            "`Note: Authentication required for joined competitions.`"
+            "`Note: Authentication required for joined challenges.`"
         )
     ),
     tags=["Challenge APIs"],
@@ -118,7 +117,7 @@ async def retrieve_competitions(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves all competitions accross the TGDex platform.
+    Retrieves all challenges accross the TGDex platform.
 
     Args:
         req_params (RetrieveCompetitonsParams): The request body containing the sorting parameters.
@@ -126,10 +125,10 @@ async def retrieve_competitions(
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+        CustomJSONResponse: A JSON response with the retrieved challenges and relevant metadata.
     """
 
-    logger.info("Retrieve Competitions API is being called")
+    logger.info("Retrieve Challenges API is being called")
 
     return await retrieve_competitions_handler(
         req_params=req_params, authorized_user=authorized_user, db_session=db_session
@@ -140,7 +139,7 @@ async def retrieve_competitions(
     path="/{competition_id}/leaderboard",
     description=public_desc(
         (
-            "Retrieves the leaderboard for a specific competition. Supports pagination, "
+            "Retrieves the leaderboard for a specific challenge. Supports pagination, "
             "sorting and filtering (by query)."
         )
     ),
@@ -153,10 +152,10 @@ async def retrieve_competition_leaderboard(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves the leaderboard for a specific competition.
+    Retrieves the leaderboard for a specific challenge.
 
     Args:
-        req_params (RetrieveCompetitionLeaderboard): The request body containing the sorting parameters.
+        req_params (RetrieveChallengeLeaderboard): The request body containing the sorting parameters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
@@ -164,7 +163,7 @@ async def retrieve_competition_leaderboard(
         CustomJSONResponse: A JSON response with the retrieved leaderboard and relevant metadata.
     """
 
-    logger.info("Retrieve Competition Leaderboard API is being called")
+    logger.info("Retrieve Challenge Leaderboard API is being called")
 
     return await retrieve_competition_leaderboard_handler(
         req_params=req_params,

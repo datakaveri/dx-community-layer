@@ -65,14 +65,14 @@ router = APIRouter(prefix="/users")
     path="/challenges",
     description=(
         "Public endpoint for users to retrieve all published challenges with a lightweight payload. "
-        "Returns only basic competition details for faster responses. Supports pagination."
+        "Returns only basic challenge details for faster responses. Supports pagination."
     ),
 )
 async def users_list_challenges(
     status_filter: CompetitionStatusEnum | None = Query(
         None,
         alias="status",
-        description="Filter by competition status (defaults to only PUBLISHED if not provided)",
+        description="Filter by challenge status (defaults to only PUBLISHED if not provided)",
     ),
     sort_by: CompetitionsSortByEnum = Query(
         CompetitionsSortByEnum.NEWEST,
@@ -80,7 +80,7 @@ async def users_list_challenges(
         description="Sort by field (defaults to NEWEST if not provided)",
     ),
     joined: bool = Query(
-        False, alias="joined", description="Filter by joined competitions"
+        False, alias="joined", description="Filter by joined challenges"
     ),
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
@@ -88,7 +88,7 @@ async def users_list_challenges(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Returns a lightweight list of all *published* competitions for end users.
+    Returns a lightweight list of all *published* challenges for end users.
 
     The payload intentionally excludes heavy / admin specific metadata like overall totals
     to keep this endpoint fast. Each challenge item includes:
@@ -259,13 +259,13 @@ async def users_list_challenges(
     path="/challenges/{competition_id}",
     description=(
         "Public endpoint for users to retrieve a single published challenge with full details. "
-        "Returns all competition information similar to the admin detail view, "
+        "Returns all challenge information similar to the admin detail view, "
         "but only for published challenges."
     ),
     tags=["Challenge APIs"],
 )
 async def users_get_challenge_by_id(
-    competition_id: UUID = Path(..., description="ID of the competition to retrieve"),
+    competition_id: UUID = Path(..., description="ID of the challenge to retrieve"),
     db_session: AsyncSession = Depends(get_challenge_db_session),
     authorized_user: AuthorizationData = Depends(http_bearer_header_public),
 ) -> CustomJSONResponse:
@@ -372,7 +372,7 @@ async def users_get_challenge_by_id(
             message="Resource not found",
             error={
                 "code": "NOT_FOUND",
-                "details": "Competition not found or not published.",
+                "details": "Challenge not found or not published.",
             },
         )
 
@@ -474,16 +474,16 @@ async def users_get_challenge_by_id(
 
 @router.post(
     path="/challenges/{competition_id}/join",
-    description="Endpoint for authenticated users to join a published competition.",
+    description="Endpoint for authenticated users to join a published challenge.",
     responses=JOIN_COMPETITION_RESPONSE_MODEL,
     tags=["Challenge APIs"],
 )
 async def users_join_competition(
-    competition_id: UUID = Path(..., description="ID of the competition to join"),
+    competition_id: UUID = Path(..., description="ID of the challenge to join"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
-    logger.info("User Join Competition API is being called")
+    logger.info("User Join challenge API is being called")
     return await user_join_competition_handler(
         competition_id=competition_id,
         authorized_user=authorized_user,
@@ -493,16 +493,16 @@ async def users_join_competition(
 
 @router.post(
     path="/challenges/{competition_id}/bookmark",
-    description="Endpoint for authenticated users to bookmark a published competition.",
+    description="Endpoint for authenticated users to bookmark a published challenge.",
     responses=BOOKMARK_COMPETITION_RESPONSE_MODEL,
     tags=["Challenge APIs"],
 )
 async def users_bookmark_competition(
-    competition_id: UUID = Path(..., description="ID of the competition to bookmark"),
+    competition_id: UUID = Path(..., description="ID of the challenge to bookmark"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
-    logger.info("User Bookmark Competition API is being called")
+    logger.info("User Bookmark Challenge API is being called")
     return await bookmark_competition_handler(
         competition_id=competition_id,
         authorized_user=authorized_user,
@@ -512,16 +512,16 @@ async def users_bookmark_competition(
 
 @router.delete(
     path="/challenges/{competition_id}/bookmark",
-    description="Endpoint for authenticated users to unbookmark a competition.",
+    description="Endpoint for authenticated users to unbookmark a challenge.",
     responses=UNBOOKMARK_COMPETITION_RESPONSE_MODEL,
     tags=["Challenge APIs"],
 )
 async def users_unbookmark_competition(
-    competition_id: UUID = Path(..., description="ID of the competition to unbookmark"),
+    competition_id: UUID = Path(..., description="ID of the challenge to unbookmark"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
-    logger.info("User Unbookmark Competition API is being called")
+    logger.info("User Unbookmark Challenge API is being called")
     return await unbookmark_competition_handler(
         competition_id=competition_id,
         authorized_user=authorized_user,
@@ -531,7 +531,7 @@ async def users_unbookmark_competition(
 
 @router.get(
     path="/bookmarks",
-    description="Endpoint for authenticated users to get their bookmarked competitions with pagination.",
+    description="Endpoint for authenticated users to get their bookmarked challenges with pagination.",
     responses=BOOKMARKED_COMPETITIONS_RESPONSE_MODEL,
 )
 async def users_get_bookmarked_competitions(
@@ -545,7 +545,7 @@ async def users_get_bookmarked_competitions(
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
-    logger.info("User Get Bookmarked Competitions API is being called")
+    logger.info("User Get Bookmarked Challenges API is being called")
     return await get_bookmarked_competitions_handler(
         authorized_user=authorized_user,
         db_session=db_session,
@@ -557,12 +557,12 @@ async def users_get_bookmarked_competitions(
 
 @router.post(
     path="/challenges/{competition_id}/submissions",
-    description="Endpoint for authenticated users to submit an entry for a competition (within submission window).",
+    description="Endpoint for authenticated users to submit an entry for a challenge (within submission window).",
     responses=CREATE_SUBMISSION_RESPONSE_MODEL,
     tags=["Challenge - Submission APIs"],
 )
 async def users_create_submission(
-    competition_id: UUID = Path(..., description="ID of the competition"),
+    competition_id: UUID = Path(..., description="ID of the challenge"),
     payload: CreateSubmissionRequest = Body(...),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
@@ -578,7 +578,7 @@ async def users_create_submission(
 
 @router.get(
     path="/submissions",
-    description="Endpoint for authenticated users to get all their submissions across competitions.",
+    description="Endpoint for authenticated users to get all their submissions across challenges.",
     responses=LIST_SUBMISSIONS_RESPONSE_MODEL,
 )
 async def users_list_all_submissions(
@@ -598,18 +598,18 @@ async def users_list_all_submissions(
 
 @router.get(
     path="/challenges/{competition_id}/submissions",
-    description="Endpoint for authenticated users to list their submissions for a specific competition.",
+    description="Endpoint for authenticated users to list their submissions for a specific challenge.",
     responses=LIST_SUBMISSIONS_RESPONSE_MODEL,
     tags=["Challenge - Submission APIs"],
 )
 async def users_list_competition_submissions(
-    competition_id: UUID = Path(..., description="ID of the competition"),
+    competition_id: UUID = Path(..., description="ID of the challenge"),
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
-    logger.info("User List Competition Submissions API is being called")
+    logger.info("User List Challenge Submissions API is being called")
     return await get_user_submissions_handler(
         authorized_user=authorized_user,
         db_session=db_session,
@@ -621,8 +621,7 @@ async def users_list_competition_submissions(
 
 @router.put(
     path="/submissions/{submission_id}",
-    description="Endpoint for authenticated users to update their submission for a specific competition.",
-    tags=["Challenge - Submission APIs"],
+    description="Endpoint for authenticated users to update their submission for a specific challenge.",
 )
 async def users_update_submission(
     req_params: UpdateSubmissionParams = Depends(),
@@ -639,8 +638,7 @@ async def users_update_submission(
 
 @router.post(
     path="/submission/{submission_id}/downloads",
-    description="Endpoint for authenticated users to download the submissions for a specific competition.",
-    tags=["Challenge - Submission APIs"],
+    description="Endpoint for authenticated users to download the submissions for a specific challenge.",
 )
 async def users_download_submission(
     req_params: DownloadSubmissionParams = Depends(),
@@ -657,7 +655,7 @@ async def users_download_submission(
 
 @router.get(
     path="/challenges/{competition_id}/submissions/interests",
-    description="Endpoint for authenticated users to get all their submissions across competitions with interests.",
+    description="Endpoint for authenticated users to get all their submissions across challenges with interests.",
 )
 async def users_get_submission_interests(
     authorized_user: AuthorizationData = Depends(http_bearer_header),

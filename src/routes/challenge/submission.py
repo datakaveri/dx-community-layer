@@ -21,7 +21,7 @@ router = APIRouter(tags=["Challenge - Submission APIs"])
 
 @router.get(
     path="/submissions/{choice}",
-    description="Endpoint for authenticated users to get their submissions across competitions.",
+    description="Endpoint for authenticated users to get their submissions across challenges.",
     responses=RETRIEVE_USER_SUBMISSIONS_RESPONSE_MODEL,
 )
 async def retrieve_user_submissions(
@@ -30,7 +30,7 @@ async def retrieve_user_submissions(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves submissions for a user across competitions based on their choice.
+    Retrieves submissions for a user across challenges based on their choice.
 
     Args:
         req_params (RetrieveUserSubmissionsParams): The request body containing the choice and sorting parameters.

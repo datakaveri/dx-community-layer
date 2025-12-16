@@ -59,7 +59,7 @@ async def retrieve_competitions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves all competitions accross the TGDex platform.
+    Retrieves all challenges accross the TGDex platform.
 
     Args:
         req_params (RetrieveCompetitonsParams): The request body containing the sorting parameters.
@@ -67,7 +67,7 @@ async def retrieve_competitions_handler(
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+        CustomJSONResponse: A JSON response with the retrieved challenges and relevant metadata.
     """
     logger.info(f"{authorized_user['email']} - Execution started")
 
@@ -197,7 +197,7 @@ async def retrieve_competitions_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Competitions retrieved successfully",
+            message="Challenges retrieved successfully",
             data={
                 "competitions": serialized_competitions,
             },
@@ -212,8 +212,8 @@ async def retrieve_competitions_handler(
     except Exception as e:
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
-            message="Competitions retrieval failed",
-            details="An error occurred while retrieving the competitions. Please contact developers if the issue persists.",
+            message="Challenges retrieval failed",
+            details="An error occurred while retrieving the challenges. Please contact developers if the issue persists.",
         )
 
     finally:
@@ -226,10 +226,10 @@ async def retrieve_competition_leaderboard_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves the leaderboard for a specific competition.
+    Retrieves the leaderboard for a specific challenge.
 
     Args:
-        req_params (RetrieveCompetitionLeaderboardParams): The request body containing the sorting parameters.
+        req_params (RetrieveChallengeLeaderboardParams): The request body containing the sorting parameters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
@@ -248,10 +248,10 @@ async def retrieve_competition_leaderboard_handler(
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_404_NOT_FOUND,
-                message="Competition not found",
+                message="Challenge not found",
                 error={
                     "code": "NOT_FOUND",
-                    "message": "The competition does not exist. Please contact developers if the issue persists.",
+                    "message": "The challenge does not exist. Please contact developers if the issue persists.",
                 },
             )
 
@@ -355,7 +355,7 @@ async def retrieve_competition_leaderboard_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Competition leaderboard retrieved successfully",
+            message="Challenge leaderboard retrieved successfully",
             data={
                 "submissions": serialized_submissions,
             },
@@ -370,8 +370,8 @@ async def retrieve_competition_leaderboard_handler(
     except Exception as e:
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
-            message="Competition leaderboard retrieval failed",
-            details="An error occurred while retrieving the competition leaderboard. Please contact developers if the issue persists.",
+            message="Challenge leaderboard retrieval failed",
+            details="An error occurred while retrieving the challenge leaderboard. Please contact developers if the issue persists.",
         )
 
     finally:
@@ -384,15 +384,15 @@ async def retrieve_participated_competitions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves competitions that the user has participated in.
+    Retrieves challenges that the user has participated in.
 
     Args:
-        req_params (RetrieveParticipatedCompetitionsParams): The request body containing the sorting parameters.
+        req_params (RetrieveParticipatedChallengesParams): The request body containing the sorting parameters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+        CustomJSONResponse: A JSON response with the retrieved challenges and relevant metadata.
     """
     logger.info(f"{authorized_user['email']} - Execution started")
 
@@ -500,7 +500,7 @@ async def retrieve_participated_competitions_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Participated competitions retrieved successfully",
+            message="Participated challenges retrieved successfully",
             data={
                 "competitions": serialized_competitions,
             },
@@ -514,8 +514,8 @@ async def retrieve_participated_competitions_handler(
     except Exception as e:
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
-            message="Participated competitions retrieval failed",
-            details="An error occurred while retrieving the participated competitions. Please contact developers if the issue persists.",
+            message="Participated challenges retrieval failed",
+            details="An error occurred while retrieving the participated challenges. Please contact developers if the issue persists.",
         )
 
     finally:
@@ -528,15 +528,15 @@ async def retrieve_bookmarked_competitions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves competitions that the user has bookmarked.
+    Retrieves challenges that the user has bookmarked.
 
     Args:
-        req_params (RetrieveBookmarkedCompetitionsParams): The request body containing the sorting parameters.
+        req_params (RetrieveBookmarkedChallengesParams): The request body containing the sorting parameters.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse: A JSON response with the retrieved competitions and relevant metadata.
+        CustomJSONResponse: A JSON response with the retrieved challenges and relevant metadata.
     """
     logger.info(f"{authorized_user['email']} - Execution started")
 
@@ -652,7 +652,7 @@ async def retrieve_bookmarked_competitions_handler(
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
-            message="Bookmarked competitions retrieved successfully",
+            message="Bookmarked challenges retrieved successfully",
             data={
                 "bookmarked_competitions": serialized_bookmarked_competitions,
             },
@@ -667,8 +667,8 @@ async def retrieve_bookmarked_competitions_handler(
     except Exception as e:
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
-            message="Bookmarked competitions retrieval failed",
-            details="An error occurred while retrieving the bookmarked competitions. Please contact developers if the issue persists.",
+            message="Bookmarked challenges retrieval failed",
+            details="An error occurred while retrieving the bookmarked challenges. Please contact developers if the issue persists.",
         )
 
     finally:
@@ -907,10 +907,10 @@ async def create_competition_handler(
             },
         )
     except Exception as e:
-        logger.error(f"Create competition failed: {e}", exc_info=True)
+        logger.error(f"Create challenge failed: {e}", exc_info=True)
         await db_session.rollback()
         return CustomBackendError(
-            message="Failed to create competition", details=str(e)
+            message="Failed to create challenge", details=str(e)
         )
 
 
@@ -939,7 +939,7 @@ async def update_competition_handler(
                 message="Resource not found",
                 error={
                     "code": "NOT_FOUND",
-                    "details": "Competition not found.",
+                    "details": "Challenge not found.",
                 },
             )
 
@@ -951,7 +951,7 @@ async def update_competition_handler(
                 message="Forbidden access",
                 error={
                     "code": "FORBIDDEN",
-                    "details": "You are not authorized to update this competition.",
+                    "details": "You are not authorized to update this challenge.",
                 },
             )
 
@@ -966,7 +966,7 @@ async def update_competition_handler(
                 message="Bad Request",
                 error={
                     "code": "BAD_REQUEST",
-                    "details": "Only draft or scheduled competitions can be updated.",
+                    "details": "Only draft or scheduled challenges can be updated.",
                 },
             )
 
@@ -1201,10 +1201,10 @@ async def update_competition_handler(
             },
         )
     except Exception as e:
-        logger.error(f"Update competition failed: {e}", exc_info=True)
+        logger.error(f"Update challenge failed: {e}", exc_info=True)
         await db_session.rollback()
         return CustomBackendError(
-            message="Failed to update competition", details=str(e)
+            message="Failed to update challenge", details=str(e)
         )
 
 
@@ -1230,7 +1230,7 @@ async def delete_competition_handler(
                 message="Resource not found",
                 error={
                     "code": "NOT_FOUND",
-                    "details": "Competition not found.",
+                    "details": "Challenge not found.",
                 },
             )
 
@@ -1241,7 +1241,7 @@ async def delete_competition_handler(
                 message="Forbidden access",
                 error={
                     "code": "FORBIDDEN",
-                    "details": "You are not authorized to delete this competition.",
+                    "details": "You are not authorized to delete this challenge.",
                 },
             )
 
@@ -1252,7 +1252,7 @@ async def delete_competition_handler(
                 message="Bad Request",
                 error={
                     "code": "BAD_REQUEST",
-                    "details": "Published competitions cannot be deleted.",
+                    "details": "Published challenges cannot be deleted.",
                 },
             )
 
@@ -1268,10 +1268,10 @@ async def delete_competition_handler(
             },
         )
     except Exception as e:
-        logger.error(f"Delete competition failed: {e}", exc_info=True)
+        logger.error(f"Delete challenge failed: {e}", exc_info=True)
         await db_session.rollback()
         return CustomBackendError(
-            message="Failed to delete competition", details=str(e)
+            message="Failed to delete challenge", details=str(e)
         )
 
 
@@ -1286,7 +1286,7 @@ async def announce_result_service(competition_id: UUID, db: AsyncSession):
         return CustomJSONResponse(
             success=False,
             status_code=status.HTTP_404_NOT_FOUND,
-            message="Competition timeline not found.",
+            message="Challenge timeline not found.",
         )
 
     # Fix: timezone-aware datetime
@@ -1332,10 +1332,10 @@ async def admin_announce_competition_result_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Announces the results for a competition.
+    Announces the results for a challenge.
 
     Args:
-        competition_id (UUID): The ID of the competition to announce results for.
+        challenge_id (UUID): The ID of the challenge to announce results for.
         authorized_user (AuthorizationData): The authenticated admin user.
         db_session (AsyncSession): The database session.
 
@@ -1359,10 +1359,10 @@ async def admin_announce_competition_result_handler(
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_404_NOT_FOUND,
-                message="Competition not found",
+                message="Challenge not found",
                 error={
                     "code": "NOT_FOUND",
-                    "message": "The competition does not exist. Please contact developers if the issue persists.",
+                    "message": "The challenge does not exist. Please contact developers if the issue persists.",
                 },
             )
 
@@ -1370,10 +1370,10 @@ async def admin_announce_competition_result_handler(
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message="Competition has no timeline.",
+                message="Challenge has no timeline.",
                 error={
                     "code": "BAD_REQUEST",
-                    "message": "The competition has no timeline. Please contact developers if the issue persists.",
+                    "message": "The challenge has no timeline. Please contact developers if the issue persists.",
                 },
             )
 
@@ -1384,7 +1384,7 @@ async def admin_announce_competition_result_handler(
                 message="Submission end date not set.",
                 error={
                     "code": "BAD_REQUEST",
-                    "message": "The competition has no submission end date. Please contact developers if the issue persists.",
+                    "message": "The challenge has no submission end date. Please contact developers if the issue persists.",
                 },
             )
 

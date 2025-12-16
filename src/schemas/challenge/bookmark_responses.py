@@ -44,7 +44,7 @@ class BookmarkedCompetitionsMeta(BaseModel):
 class BookmarkedCompetitionsSuccessResponse(BaseModel):
     success: bool = True
     status_code: int = 200
-    message: Literal["Bookmarked competitions retrieved successfully"]
+    message: Literal["Bookmarked challenges retrieved successfully"]
     data: BookmarkedCompetitionsData
     error: None = None
     meta: BookmarkedCompetitionsMeta
@@ -61,7 +61,7 @@ class BookmarkCompetitionData(BaseModel):
 class BookmarkCompetitionSuccessResponse(BaseModel):
     success: bool = True
     status_code: int = 201
-    message: Literal["Competition bookmarked successfully"]
+    message: Literal["Challenge bookmarked successfully"]
     data: BookmarkCompetitionData
     error: None = None
     meta: None = None
@@ -80,7 +80,7 @@ BOOKMARK_COMPETITION_RESPONSE_MODEL = {
 class UnbookmarkCompetitionSuccessResponse(BaseModel):
     success: bool = True
     status_code: int = 200
-    message: Literal["Competition unbookmarked successfully"]
+    message: Literal["Challenge unbookmarked successfully"]
     data: None = None
     error: None = None
     meta: None = None

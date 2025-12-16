@@ -44,7 +44,7 @@ async def retrieve_user_submissions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves submissions for a user across competitions based on their choice.
+    Retrieves submissions for a user across challenges based on their choice.
 
     Args:
         req_params (RetrieveUserSubmissionsParams): The request body containing the choice and sorting parameters.
@@ -232,7 +232,7 @@ async def create_user_submission_handler(
                 },
             )
 
-        # Fetch competition submission window
+        # Fetch challenge submission window
         submission_window = await _get_submission_window(
             db_session=db_session, competition_id=competition_id
         )
@@ -244,7 +244,7 @@ async def create_user_submission_handler(
                 message="Resource not found",
                 error={
                     "code": "NOT_FOUND",
-                    "details": "Competition not found.",
+                    "details": "Challenge not found.",
                 },
             )
 
@@ -257,7 +257,7 @@ async def create_user_submission_handler(
                 message="Bad Request",
                 error={
                     "code": "SUBMISSION_NOT_ALLOWED",
-                    "details": "Submissions can be created only for published competitions.",
+                    "details": "Submissions can be created only for published challenges.",
                 },
             )
 
@@ -268,7 +268,7 @@ async def create_user_submission_handler(
                 message="Bad Request",
                 error={
                     "code": "SUBMISSION_WINDOW_NOT_CONFIGURED",
-                    "details": "Submission window is not configured for this competition.",
+                    "details": "Submission window is not configured for this challenges.",
                 },
             )
 
@@ -296,7 +296,7 @@ async def create_user_submission_handler(
                 },
             )
 
-        # Ensure the user has joined the competition
+        # Ensure the user has joined the challenge
         participant_stmt = select(CompetitionParticipant.id).where(
             CompetitionParticipant.competition_id == competition_id,
             CompetitionParticipant.user_id == user_id,
@@ -311,7 +311,7 @@ async def create_user_submission_handler(
                 message="Forbidden access",
                 error={
                     "code": "NOT_A_PARTICIPANT",
-                    "details": "You must join the competition before submitting.",
+                    "details": "You must join the challenge before submitting.",
                 },
             )
 
@@ -617,7 +617,7 @@ async def get_admin_competition_submissions_handler(
                 message="Resource not found",
                 error={
                     "code": "NOT_FOUND",
-                    "details": "Competition not found.",
+                    "details": "Challenge not found.",
                 },
             )
 
@@ -687,9 +687,9 @@ async def get_admin_competition_submissions_handler(
             },
         )
     except Exception as exc:
-        logger.error("Failed to retrieve competition submissions", exc_info=True)
+        logger.error("Failed to retrieve challenge submissions", exc_info=True)
         return CustomBackendError(
-            message="Failed to retrieve competition submissions",
+            message="Failed to retrieve challenge submissions",
             details=str(exc),
         )
 
@@ -700,7 +700,7 @@ async def disqualify_submission_service(
 
     try:
         logger.info(
-            f"Checking submission {submission_id} under competition {competition_id}"
+            f"Checking submission {submission_id} under challenge {competition_id}"
         )
 
         query = select(CompetitionSubmission).where(
@@ -713,7 +713,7 @@ async def disqualify_submission_service(
 
         if not submission:
             logger.warning(
-                "Submission does not belong to this competition or does not exist"
+                "Submission does not belong to this challenge or does not exist"
             )
             return None
 
