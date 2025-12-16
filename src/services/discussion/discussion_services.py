@@ -1346,7 +1346,8 @@ async def delete_discussion_handler(
         )
         db_session.add(deleted_record)
 
-        await db_session.delete(discussion)
+        delete_stmt = delete(Discussion).where(Discussion.id == discussion_id)
+        await db_session.execute(delete_stmt)
         await db_session.commit()
 
         logger.info(f"{authorized_user['email']} - Discussion deleted successfully")
