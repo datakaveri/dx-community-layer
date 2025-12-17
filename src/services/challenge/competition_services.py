@@ -721,7 +721,7 @@ async def create_competition_handler(
         status_value = CompetitionStatusEnum.DRAFT
         published_at = None
         scheduled_publish_at = None
-        now = datetime.now(timezone.utc)
+        now = datetime.now(pytz.timezone("Asia/Kolkata"))
         if not req_params.is_drafted:
             if req_params.publish_schedule:
                 status_value = CompetitionStatusEnum.SCHEDULED
@@ -1019,7 +1019,7 @@ async def update_competition_handler(
             competition.rules_and_guidelines = req_params.rules_and_guidelines
 
         # Handle status change (draft to publish)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(pytz.timezone("Asia/Kolkata"))
         if req_params.is_drafted is not None:
             if not req_params.is_drafted:
                 # Publishing the competition
