@@ -1,0 +1,117 @@
+version: "3.8"
+
+services:
+  app:
+    image: <place-holder>
+
+    environment:
+      INSTANCE: production
+      BASE_URL: http://localhost:5000
+      ACTIVATED_SERVICES: '["DISCUSSION", "CHALLENGE"]'
+
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_host
+      - discussion_db_name
+      - challenge_db_name
+      - discussion_db_schema
+      - challenge_db_schema
+      - redis_url
+      - keycloak_url
+      - keycloak_realm
+      - keycloak_audience
+      - keycloak_issuer
+      - discussion_aws_s3_bucket
+      - challenge_aws_s3_bucket
+      - aws_access_key_id
+      - aws_secret_access_key
+      - aws_default_region
+
+    configs:
+      - source: app_entrypoint
+        target: /home/devops/entrypoint.sh
+        mode: 0755
+
+    entrypoint: ["/bin/sh", "/home/devops/entrypoint.sh"]
+
+    ports:
+      - "5000:5000"
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+    networks:
+      - tgdex-network
+
+networks:
+  tgdex-network:
+    external: true
+
+# SECRETS (must already exist via docker secret create ...)
+secrets:
+  postgres_user:
+    external: true
+  postgres_password:
+    external: true
+  postgres_host:
+    external: true
+  discussion_db_name:
+    external: true
+  challenge_db_name:
+    external: true
+  discussion_db_schema:
+    external: true
+  challenge_db_schema:
+    external: true
+  redis_url:
+    external: true
+  keycloak_url:
+    external: true
+  keycloak_realm:
+    external: true
+  keycloak_audience:
+    external: true
+  keycloak_issuer:
+    external: true
+  discussion_aws_s3_bucket:
+    external: true
+  challenge_aws_s3_bucket:
+    external: true
+  aws_access_key_id:
+    external: true
+  aws_secret_access_key:
+    external: true
+  aws_default_region:
+    external: true
+
+configs:
+  app_entrypoint:
+    file: ./entrypoint.sh

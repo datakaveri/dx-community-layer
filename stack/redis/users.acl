@@ -1,0 +1,6 @@
+# Redis ACL Configuration for TGDex-Discussion
+
+user default off
+
+# Change this to some user and password
+user changeme on >changeme ~* &* +@all -@dangerous
