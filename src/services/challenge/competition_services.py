@@ -788,7 +788,7 @@ async def create_competition_handler(
             or req_params.submission_ends_at is not None
         ):
             if competition.published_at and req_params.submission_starts_at:
-                if req_params.submission_starts_at < competition.published_at:
+                if req_params.submission_starts_at < competition.published_at.date():
                     await db_session.rollback()
 
                     logger.error(
@@ -805,7 +805,7 @@ async def create_competition_handler(
                     )
 
             elif competition.scheduled_publish_at and req_params.submission_starts_at:
-                if req_params.submission_starts_at < competition.scheduled_publish_at:
+                if req_params.submission_starts_at < competition.scheduled_publish_at.date():
                     await db_session.rollback()
 
                     logger.error(
@@ -1052,7 +1052,7 @@ async def update_competition_handler(
             or req_params.submission_ends_at is not None
         ):
             if competition.published_at and req_params.submission_starts_at:
-                if req_params.submission_starts_at < competition.published_at:
+                if req_params.submission_starts_at < competition.published_at.date():
                     await db_session.rollback()
 
                     logger.error(
@@ -1069,7 +1069,7 @@ async def update_competition_handler(
                     )
 
             elif competition.scheduled_publish_at and req_params.submission_starts_at:
-                if req_params.submission_starts_at < competition.scheduled_publish_at:
+                if req_params.submission_starts_at < competition.scheduled_publish_at.date():
                     await db_session.rollback()
 
                     logger.error(

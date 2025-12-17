@@ -1,6 +1,6 @@
 import uuid
 import enum
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, List, Dict, Optional
 from fastapi import Body, HTTPException, Path, Query, status
 
@@ -160,13 +160,13 @@ class CreateCompetitionParams:
         prize_pool_description: Optional[str] = Body(
             None, description="Prize pool description"
         ),
-        submission_starts_at: Optional[datetime] = Body(
+        submission_starts_at: Optional[date] = Body(
             None, description="Submission start time (required if not draft)"
         ),
-        submission_ends_at: Optional[datetime] = Body(
+        submission_ends_at: Optional[date] = Body(
             None, description="Submission end time (required if not draft)"
         ),
-        evaluation_ends_at: Optional[datetime] = Body(
+        evaluation_ends_at: Optional[date] = Body(
             None, description="Evaluation end time"
         ),
         evaluation_criteria_definition: Optional[str] = Body(
@@ -295,13 +295,13 @@ class UpdateCompetitionParams:
         prize_pool_description: Optional[str] = Body(
             None, description="Prize pool description"
         ),
-        submission_starts_at: Optional[datetime] = Body(
+        submission_starts_at: Optional[date] = Body(
             None, description="Submission start time"
         ),
-        submission_ends_at: Optional[datetime] = Body(
+        submission_ends_at: Optional[date] = Body(
             None, description="Submission end time"
         ),
-        evaluation_ends_at: Optional[datetime] = Body(
+        evaluation_ends_at: Optional[date] = Body(
             None, description="Evaluation end time"
         ),
         evaluation_criteria_definition: Optional[str] = Body(
