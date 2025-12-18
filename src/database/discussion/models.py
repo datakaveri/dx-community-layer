@@ -22,6 +22,7 @@ from .enums import (
     DiscussionsTypeEnum,
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
+    CommentsStatusEnum
 )
 
 
@@ -568,9 +569,29 @@ class Comment(Base):
         index=True,
     )
     comment: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
+    status: Mapped[CommentsStatusEnum] = mapped_column(
+        Enum(
+            CommentsStatusEnum,
+            name="comments_status_enum",
+            schema=env_config.DISCUSSION_DB_SCHEMA,  # tgdex_dev
+        ),
+        nullable=False,
+        server_default=CommentsStatusEnum.PENDING.value,
     )
+
+    # 🔹 NEW — matches DB
+    approved_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+
 
     # Relationships
     discussion: Mapped["Discussion"] = relationship(
