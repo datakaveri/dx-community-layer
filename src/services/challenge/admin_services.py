@@ -488,9 +488,9 @@ async def admin_retrieve_competition_submissions_handler(
             == AdminRetrieveCompetitionSubmissionsSortByEnum.PARTICIPANT_NAME
         ):
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(User.name.asc())
+                stmt = stmt.order_by(func.lower(User.name).asc())
             else:
-                stmt = stmt.order_by(User.name.desc())
+                stmt = stmt.order_by(func.lower(User.name).desc())
 
         elif (
             req_params.sort_by
