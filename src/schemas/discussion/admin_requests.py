@@ -184,3 +184,23 @@ class AdminReviewDiscussionParams:
                         }
                     ]
                 )
+
+
+class AdminRetrievePendingCommentsParams:
+    def __init__(
+        self,
+        page: int = Query(1, gt=0, description="Page number"),
+        limit: int = Query(10, gt=0, description="Items per page"),
+        sort_by: Literal["discussion_title", "created_at"] = Query(
+            "created_at",
+            description="Sort field",
+        ),
+        sort_order: Literal["asc", "desc"] = Query(
+            "desc",
+            description="Sort order",
+        ),
+    ):
+        self.page = page
+        self.limit = limit
+        self.sort_by = sort_by
+        self.sort_order = sort_order

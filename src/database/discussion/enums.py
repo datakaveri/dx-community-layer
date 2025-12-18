@@ -22,3 +22,9 @@ class DiscussionsStatusEnum(enum.Enum):
     CHANGES_REQUIRED = "CHANGES_REQUIRED"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+
+
+class CommentsStatusEnum(enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"

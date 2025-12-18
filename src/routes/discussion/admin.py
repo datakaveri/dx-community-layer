@@ -4,10 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
+    AdminRetrievePendingCommentsParams,
+
 )
 from ...services.discussion.admin_services import (
     admin_retrieve_discussions_handler,
     admin_review_discussion_handler,
+    admin_retrieve_pending_comments_handler,
 )
 from ...schemas.discussion.admin_responses import (
     ADMIN_RETRIEVE_DISCUSSIONS_RESPONSE_MODEL,
@@ -102,6 +105,38 @@ async def admin_review_discussion(
         )
 
     return await admin_review_discussion_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+
+@router.get(
+    path="/comments/pending",
+    description=(
+        "Retrieve comments pending for admin approval.\n"
+        "`Note: Only Admins can access this route.`"
+    ),
+)
+async def admin_retrieve_pending_comments(
+    req_params: AdminRetrievePendingCommentsParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
+) -> CustomJSONResponse:
+    logger.info("Admin Retrieve Pending Comments API is being called")
+
+    if authorized_user["user_role"] != UserRole.COS_ADMIN:
+        return CustomJSONResponse(
+            success=False,
+            status_code=status.HTTP_403_FORBIDDEN,
+            message="Forbidden access",
+            error={
+                "code": "FORBIDDEN",
+                "details": "You are not authorized to access this resource. Please contact support if required.",
+            },
+        )
+
+    return await admin_retrieve_pending_comments_handler(
         req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,
