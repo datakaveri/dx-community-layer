@@ -14,15 +14,19 @@ from ...database.discussion.models import (
     DiscussionReview,
     DiscussionTag,
     Tag,
+    Comment,
 )
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
+    AdminRetrievePendingCommentsParams
 )
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.discussion.admin_responses import (
     AdminRetrieveDiscussionsResponseDiscussion,
 )
+
+from ...database.discussion.enums import CommentsStatusEnum
 
 
 async def admin_retrieve_discussions_handler(
@@ -257,3 +261,95 @@ async def admin_review_discussion_handler(
 
     finally:
         logger.info(f"{authorized_user['email']} - Execution completed")
+
+
+async def admin_retrieve_pending_comments_handler(
+    req_params: AdminRetrievePendingCommentsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    logger.info(f"{authorized_user['email']} - Fetch pending comments started")
+
+    try:
+        stmt = (
+            select(Comment)
+            .join(Discussion, Comment.discussion_id == Discussion.id)
+            .where(Comment.status == CommentsStatusEnum.PENDING)
+            .options(
+                selectinload(Comment.comment_attachments),
+                selectinload(Comment.discussion),
+            )
+        )
+
+        # Sorting
+        if req_params.sort_by == "discussion_title":
+            sort_column = Discussion.title
+        else:
+            sort_column = Comment.created_at
+
+        if req_params.sort_order == "asc":
+            stmt = stmt.order_by(sort_column.asc(), Comment.id.asc())
+        else:
+            stmt = stmt.order_by(sort_column.desc(), Comment.id.desc())
+
+
+        # Total count
+        count_stmt = (
+            select(func.count(Comment.id))
+            .select_from(Comment)
+            .where(Comment.status == CommentsStatusEnum.PENDING)
+        )
+        total_count = (await db_session.execute(count_stmt)).scalar_one()
+
+        # Pagination
+        stmt = stmt.offset((req_params.page - 1) * req_params.limit).limit(req_params.limit)
+
+        result = await db_session.execute(stmt)
+        comments = result.scalars().all()
+
+        serialized = []
+        for comment in comments:
+            serialized.append(
+                {
+                    "comment_id": comment.id,
+                    "discussion": {
+                        "discussion_id": comment.discussion.id,
+                        "discussion_title": comment.discussion.title,
+                    },
+                    "user_id": comment.user_id,
+                    "parent_id": comment.parent_id,
+                    "comment": comment.comment,
+                    "comment_attachments": [
+                        {
+                            "attachment_metadata": a.attachment_metadata,
+                            "s3_key": a.s3_key,
+                            "uploaded_at": a.uploaded_at,
+                        }
+                        for a in comment.comment_attachments
+                    ],
+                    "status": comment.status.value,
+                    "created_at": comment.created_at,
+                }
+            )
+
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Pending comments retrieved successfully",
+            data=serialized,
+            meta={
+                "page": req_params.page,
+                "limit": req_params.limit,
+                "total_count": total_count,
+                "total_pages": math.ceil(total_count / req_params.limit) if total_count else 1,
+            },
+
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Failed to retrieve pending comments",
+            details="Error while fetching pending comments",
+        )
