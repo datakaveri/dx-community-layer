@@ -116,3 +116,23 @@ ADMIN_REVIEW_DISCUSSION_RESPONSE_MODEL = {
     422: {"model": ValidationErrorResponse},
     500: {"model": AdminReviewDiscussionBackendErrorResponse},
 }
+
+ADMIN_REVIEW_COMMENT_RESPONSE_MODEL = {
+    200: {
+        "description": "Comment reviewed successfully",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": True,
+                    "message": "Comment reviewed successfully"
+                }
+            }
+        },
+    },
+    404: {
+        "description": "Comment not found",
+    },
+    403: {
+        "description": "Forbidden",
+    },
+}
