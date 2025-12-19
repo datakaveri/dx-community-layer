@@ -204,3 +204,32 @@ class AdminRetrievePendingCommentsParams:
         self.limit = limit
         self.sort_by = sort_by
         self.sort_order = sort_order
+
+
+class AdminReviewCommentParams:
+    def __init__(
+        self,
+        comment_id: uuid.UUID = Path(..., description="ID of the comment to review"),
+        status: Literal["APPROVED", "REJECTED"] = Body(
+            ..., description="Review status of the comment"
+        ),
+        comment: Optional[str] = Body(
+            default=None,
+            description="Admin comment (required if status is REJECTED)",
+        ),
+    ):
+        self.comment_id = comment_id
+        self.status = status
+        self.comment = comment
+
+        if self.status == "REJECTED" and not comment:
+            raise RequestValidationError(
+                [
+                    {
+                        "loc": ["body", "comment"],
+                        "msg": "Comment is required when rejecting a comment",
+                        "type": "value_error",
+                        "input": comment,
+                    }
+                ]
+            )

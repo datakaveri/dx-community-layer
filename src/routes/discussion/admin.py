@@ -5,16 +5,19 @@ from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
     AdminRetrievePendingCommentsParams,
+    AdminReviewCommentParams
 
 )
 from ...services.discussion.admin_services import (
     admin_retrieve_discussions_handler,
     admin_review_discussion_handler,
     admin_retrieve_pending_comments_handler,
+    admin_review_comment_handler
 )
 from ...schemas.discussion.admin_responses import (
     ADMIN_RETRIEVE_DISCUSSIONS_RESPONSE_MODEL,
     ADMIN_REVIEW_DISCUSSION_RESPONSE_MODEL,
+    ADMIN_REVIEW_COMMENT_RESPONSE_MODEL
 )
 from ...middlewares.logging import logger
 from ...configs.db_config import get_discussion_db_session
@@ -117,6 +120,7 @@ async def admin_review_discussion(
         "Retrieve comments pending for admin approval.\n"
         "`Note: Only Admins can access this route.`"
     ),
+    responses=ADMIN_REVIEW_COMMENT_RESPONSE_MODEL,
 )
 async def admin_retrieve_pending_comments(
     req_params: AdminRetrievePendingCommentsParams = Depends(),
@@ -137,6 +141,38 @@ async def admin_retrieve_pending_comments(
         )
 
     return await admin_retrieve_pending_comments_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+
+@router.put(
+    path="/comments/{comment_id}/review",
+    description=(
+        "Review a comment for approval or rejection.\n"
+        "`Note: Only Admins can access this route.`"
+    ),
+)
+async def admin_review_comment(
+    req_params: AdminReviewCommentParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
+) -> CustomJSONResponse:
+    logger.info("Admin Review Comment API is being called")
+
+    if authorized_user["user_role"] != UserRole.COS_ADMIN:
+        return CustomJSONResponse(
+            success=False,
+            status_code=status.HTTP_403_FORBIDDEN,
+            message="Forbidden access",
+            error={
+                "code": "FORBIDDEN",
+                "details": "You are not authorized to access this resource.",
+            },
+        )
+
+    return await admin_review_comment_handler(
         req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,

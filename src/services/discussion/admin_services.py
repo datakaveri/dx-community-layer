@@ -19,7 +19,8 @@ from ...database.discussion.models import (
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
-    AdminRetrievePendingCommentsParams
+    AdminRetrievePendingCommentsParams,
+    AdminReviewCommentParams
 )
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.discussion.admin_responses import (
@@ -352,4 +353,49 @@ async def admin_retrieve_pending_comments_handler(
         return CustomBackendError(
             message="Failed to retrieve pending comments",
             details="Error while fetching pending comments",
+        )
+    
+
+async def admin_review_comment_handler(
+    req_params: AdminReviewCommentParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    logger.info(f"{authorized_user['email']} - Review comment started")
+
+    try:
+        result = await db_session.execute(
+            select(Comment).where(Comment.id == req_params.comment_id)
+        )
+        comment_obj = result.scalars().one_or_none()
+
+        if not comment_obj:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Comment not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "The comment does not exist.",
+                },
+            )
+
+        # Update status
+        comment_obj.status = CommentsStatusEnum(req_params.status)
+        comment_obj.approved_at = datetime.now(pytz.UTC)
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Comment reviewed successfully",
+        )
+
+    except Exception as e:
+        await db_session.rollback()
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Failed to review comment",
+            details="An error occurred while reviewing the comment",
         )
