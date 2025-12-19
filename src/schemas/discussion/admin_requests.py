@@ -219,7 +219,7 @@ class AdminReviewCommentParams:
         ),
         comment: Optional[str] = Body(
             default=None,
-            description="Admin comment (required if status is REJECTED)",
+            description="The updated comment by the Admin",
         ),
     ):
         self.comment_id = comment_id
