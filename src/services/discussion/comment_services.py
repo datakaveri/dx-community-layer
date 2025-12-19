@@ -54,10 +54,10 @@ async def retrieve_discussion_comments_handler(
         stmt = select(Comment).filter(
             Comment.discussion_id == req_params.discussion_id,
             Comment.parent_id.is_(None),
-            or_(
-                Comment.status == "APPROVED",
-                Comment.user_id == authorized_user["user_id"],
-            ),
+            # or_(
+            #     Comment.status == "APPROVED",
+            #     Comment.user_id == authorized_user["user_id"],
+            # ),
         )
 
         # -----------------------
@@ -190,10 +190,10 @@ async def retrieve_comment_replies_handler(
         # -----------------------
         stmt = select(Comment).filter(
             Comment.parent_id == req_params.comment_id,
-            or_(
-                Comment.status == "APPROVED",
-                Comment.user_id == authorized_user["user_id"],
-            ),
+            # or_(
+            #     Comment.status == "APPROVED",
+            #     Comment.user_id == authorized_user["user_id"],
+            # ),
         )
 
         # -----------------------
