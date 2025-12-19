@@ -12,6 +12,7 @@ from ..default_schemas import (
     ForbiddenErrorResponse,
     ValidationErrorResponse,
 )
+from ...database.discussion.enums import CommentsStatusEnum
 from .discussion_responses import PaginatedResponseMeta, UserSchema
 
 
@@ -39,6 +40,8 @@ class CommentSchema(BaseModel):
     replied_to: Optional[UserSchema]
     comment: str
     created_at: datetime
+    status: CommentsStatusEnum
+    approved_at: datetime
     sub_comments_count: int = 0
     comment_attachments: List[CommentAttachmentSchema]
     votes: int = 0

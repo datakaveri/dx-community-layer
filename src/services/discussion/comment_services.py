@@ -2,7 +2,7 @@ import math
 from typing import List
 import uuid
 from fastapi import status
-from sqlalchemy import func, select, delete
+from sqlalchemy import func, or_, select, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,6 +54,10 @@ async def retrieve_discussion_comments_handler(
         stmt = select(Comment).filter(
             Comment.discussion_id == req_params.discussion_id,
             Comment.parent_id.is_(None),
+            or_(
+                Comment.status == "APPROVED",
+                Comment.user_id == authorized_user["user_id"],
+            ),
         )
 
         # -----------------------
@@ -69,15 +73,15 @@ async def retrieve_discussion_comments_handler(
         # -----------------------
         sort = getattr(req_params, "sort", "newest")
         if sort == "newest":
-            stmt = stmt.order_by(Comment.created_at.desc())
+            stmt = stmt.order_by(Comment.approved_at.desc())
         elif sort == "oldest":
-            stmt = stmt.order_by(Comment.created_at.asc())
+            stmt = stmt.order_by(Comment.approved_at.asc())
         elif sort == "hottest":
             # Order by most upvoted, then newest
             stmt = (
                 stmt.join(Comment.comment_votes, isouter=True)
                 .group_by(Comment.id)
-                .order_by(func.count(CommentVote.id).desc(), Comment.created_at.desc())
+                .order_by(func.count(CommentVote.id).desc(), Comment.approved_at.desc())
             )
 
         # -----------------------
@@ -184,7 +188,13 @@ async def retrieve_comment_replies_handler(
         # -----------------------
         # Base selectable
         # -----------------------
-        stmt = select(Comment).filter(Comment.parent_id == req_params.comment_id)
+        stmt = select(Comment).filter(
+            Comment.parent_id == req_params.comment_id,
+            or_(
+                Comment.status == "APPROVED",
+                Comment.user_id == authorized_user["user_id"],
+            ),
+        )
 
         # -----------------------
         # Total count
@@ -199,14 +209,14 @@ async def retrieve_comment_replies_handler(
         # -----------------------
         sort = getattr(req_params, "sort", "newest")
         if sort == "newest":
-            stmt = stmt.order_by(Comment.created_at.desc())
+            stmt = stmt.order_by(Comment.approved_at.desc())
         elif sort == "oldest":
-            stmt = stmt.order_by(Comment.created_at.asc())
+            stmt = stmt.order_by(Comment.approved_at.asc())
         elif sort == "hottest":
             stmt = (
                 stmt.join(Comment.comment_votes, isouter=True)
                 .group_by(Comment.id)
-                .order_by(func.count(CommentVote.id).desc(), Comment.created_at.desc())
+                .order_by(func.count(CommentVote.id).desc(), Comment.approved_at.desc())
             )
 
         # -----------------------

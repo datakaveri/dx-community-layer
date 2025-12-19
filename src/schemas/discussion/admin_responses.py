@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List, Literal, Union
+from typing import Any, List, Literal, Optional, Union
 
 from ..default_schemas import (
     BackendErrorResponse,
@@ -117,15 +117,42 @@ ADMIN_REVIEW_DISCUSSION_RESPONSE_MODEL = {
     500: {"model": AdminReviewDiscussionBackendErrorResponse},
 }
 
+
+class AdminPendingCommentsDiscussion(BaseModel):
+    id: uuid.UUID
+    title: str
+    type: DiscussionsTypeEnum
+    category: DiscussionsCategoryEnum
+
+    model_config = {"from_attributes": True}
+
+
+class AdminPendingCommentsCommentAttachments(BaseModel):
+    id: uuid.UUID
+    attachment_metadata: dict[str, Any]
+    s3_key: str
+    uploaded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AdminPendingCommentsSchema(BaseModel):
+    id: uuid.UUID
+    discussion: AdminPendingCommentsDiscussion
+    user: UserSchema
+    comment: str
+    comment_attachments: Optional[List[AdminPendingCommentsCommentAttachments]]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 ADMIN_REVIEW_COMMENT_RESPONSE_MODEL = {
     200: {
         "description": "Comment reviewed successfully",
         "content": {
             "application/json": {
-                "example": {
-                    "success": True,
-                    "message": "Comment reviewed successfully"
-                }
+                "example": {"success": True, "message": "Comment reviewed successfully"}
             }
         },
     },

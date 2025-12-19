@@ -3,13 +3,17 @@ import pytz
 import enum
 import json
 import uuid
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 from fastapi import Body, Path, Query
 from pydantic import BaseModel, Field, ValidationError
 from fastapi.exceptions import RequestValidationError
 
 from .discussion_requests import RetrieveDiscussionsFilters
-from ...database.discussion.enums import DiscussionsStatusEnum, DiscussionsTypeEnum
+from ...database.discussion.enums import (
+    CommentsStatusEnum,
+    DiscussionsStatusEnum,
+    DiscussionsTypeEnum,
+)
 
 
 class TimeRangeFilter(BaseModel):
@@ -219,17 +223,5 @@ class AdminReviewCommentParams:
         ),
     ):
         self.comment_id = comment_id
-        self.status = status
+        self.status = CommentsStatusEnum(status)
         self.comment = comment
-
-        if self.status == "REJECTED" and not comment:
-            raise RequestValidationError(
-                [
-                    {
-                        "loc": ["body", "comment"],
-                        "msg": "Comment is required when rejecting a comment",
-                        "type": "value_error",
-                        "input": comment,
-                    }
-                ]
-            )

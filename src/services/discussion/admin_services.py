@@ -20,10 +20,11 @@ from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
     AdminRetrievePendingCommentsParams,
-    AdminReviewCommentParams
+    AdminReviewCommentParams,
 )
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.discussion.admin_responses import (
+    AdminPendingCommentsSchema,
     AdminRetrieveDiscussionsResponseDiscussion,
 )
 
@@ -99,13 +100,16 @@ async def admin_retrieve_discussions_handler(
                     AdminRetrieveDiscussionParams.DATE_FORMAT,
                 ).date()
 
-                start_dt = datetime.combine(start_date, time.min).replace(tzinfo=pytz.UTC)
-
-                end_dt = (
-                    datetime.combine(end_date, time.min).replace(tzinfo=pytz.UTC)
-                    + timedelta(days=1)
+                start_dt = datetime.combine(start_date, time.min).replace(
+                    tzinfo=pytz.UTC
                 )
-                stmt = stmt.where(Discussion.created_at >= start_dt, Discussion.created_at < end_dt)
+
+                end_dt = datetime.combine(end_date, time.min).replace(
+                    tzinfo=pytz.UTC
+                ) + timedelta(days=1)
+                stmt = stmt.where(
+                    Discussion.created_at >= start_dt, Discussion.created_at < end_dt
+                )
 
         # -----------------------
         # Tag filter
@@ -269,9 +273,23 @@ async def admin_retrieve_pending_comments_handler(
     authorized_user: AuthorizationData,
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
+    """
+    Retrieves pending comments based on the provided request parameters.
+
+    Args:
+        req_params (AdminRetrievePendingCommentsParams): The request body containing the request parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved pending comments.
+    """
     logger.info(f"{authorized_user['email']} - Fetch pending comments started")
 
     try:
+        # -----------------------
+        # Base selectable
+        # -----------------------
         stmt = (
             select(Comment)
             .join(Discussion, Comment.discussion_id == Discussion.id)
@@ -282,7 +300,17 @@ async def admin_retrieve_pending_comments_handler(
             )
         )
 
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(Comment.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
         # Sorting
+        # -----------------------
         if req_params.sort_by == "discussion_title":
             sort_column = Discussion.title
         else:
@@ -293,75 +321,71 @@ async def admin_retrieve_pending_comments_handler(
         else:
             stmt = stmt.order_by(sort_column.desc(), Comment.id.desc())
 
-
-        # Total count
-        count_stmt = (
-            select(func.count(Comment.id))
-            .select_from(Comment)
-            .where(Comment.status == CommentsStatusEnum.PENDING)
-        )
-        total_count = (await db_session.execute(count_stmt)).scalar_one()
-
+        # -----------------------
         # Pagination
-        stmt = stmt.offset((req_params.page - 1) * req_params.limit).limit(req_params.limit)
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
 
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(Comment.user), selectinload(Comment.comment_attachments)
+        )
         result = await db_session.execute(stmt)
-        comments = result.scalars().all()
+        comments = result.scalars().unique().all()
 
-        serialized = []
-        for comment in comments:
-            serialized.append(
-                {
-                    "comment_id": comment.id,
-                    "discussion": {
-                        "discussion_id": comment.discussion.id,
-                        "discussion_title": comment.discussion.title,
-                    },
-                    "user_id": comment.user_id,
-                    "parent_id": comment.parent_id,
-                    "comment": comment.comment,
-                    "comment_attachments": [
-                        {
-                            "attachment_metadata": a.attachment_metadata,
-                            "s3_key": a.s3_key,
-                            "uploaded_at": a.uploaded_at,
-                        }
-                        for a in comment.comment_attachments
-                    ],
-                    "status": comment.status.value,
-                    "created_at": comment.created_at,
-                }
-            )
-
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_comments = [
+            AdminPendingCommentsSchema.model_validate(comment).model_dump()
+            for comment in comments
+        ]
 
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
             message="Pending comments retrieved successfully",
-            data=serialized,
+            data=serialized_comments,
             meta={
-                "page": req_params.page,
-                "limit": req_params.limit,
                 "total_count": total_count,
-                "total_pages": math.ceil(total_count / req_params.limit) if total_count else 1,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
             },
-
         )
 
     except Exception as e:
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
             message="Failed to retrieve pending comments",
-            details="Error while fetching pending comments",
+            details="An error occurred while retrieving pending comments. Please contact developers if the issue persists.",
         )
-    
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
 
 async def admin_review_comment_handler(
     req_params: AdminReviewCommentParams,
     authorized_user: AuthorizationData,
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
+    """
+    Review a comment for approval or rejection.
+
+    Args:
+        req_params (AdminReviewCommentParams): The request body containing the request parameters.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the reviewed comment and relevant metadata.
+    """
     logger.info(f"{authorized_user['email']} - Review comment started")
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
 
     try:
         result = await db_session.execute(
@@ -376,13 +400,14 @@ async def admin_review_comment_handler(
                 message="Comment not found",
                 error={
                     "code": "NOT_FOUND",
-                    "details": "The comment does not exist.",
+                    "details": "The comment does not exist. Please contact developers if the issue persists.",
                 },
             )
 
         # Update status
-        comment_obj.status = CommentsStatusEnum(req_params.status)
-        comment_obj.approved_at = datetime.now(pytz.UTC)
+        comment_obj.status = req_params.status
+        comment_obj.comment = req_params.comment
+        comment_obj.approved_at = current_timestamp
 
         await db_session.commit()
 
@@ -394,8 +419,12 @@ async def admin_review_comment_handler(
 
     except Exception as e:
         await db_session.rollback()
+
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
             message="Failed to review comment",
-            details="An error occurred while reviewing the comment",
+            details="An error occurred while reviewing the comment. Please contact developers if the issue persists.",
         )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
