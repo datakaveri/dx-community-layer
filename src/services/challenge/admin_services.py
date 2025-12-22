@@ -1328,6 +1328,9 @@ async def admin_update_competition_handler(
                 competition.datasets.datasets = new_models
 
             if req_params.data_models.add:
+                if not competition.datasets.datasets:
+                    competition.datasets.datasets = []
+
                 competition.datasets.datasets.append(req_params.data_models.add)
                 required_fields_map["data_models"] = True
 
@@ -1341,6 +1344,9 @@ async def admin_update_competition_handler(
                 competition.datasets.ai_models = new_models
 
             if req_params.ai_models.add:
+                if not competition.datasets.ai_models:
+                    competition.datasets.ai_models = []
+
                 competition.datasets.ai_models.append(req_params.ai_models.add)
                 required_fields_map["ai_models"] = True
 
