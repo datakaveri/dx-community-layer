@@ -29,7 +29,7 @@ jobs:
           VAULT_ADDR: ${{ secrets.VAULT_URL }}
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
         run: |
-          vault kv get -address="${VAULT_ADDR}" -field=monorepo-microservices-dev kv/projects/tgdex > .env.production
+          vault kv get -address="${VAULT_ADDR}" -field=monorepo-microservices-dev kv/projects/tgdex > .env
           
           if [ ! -f .env.production ]; then
             echo "Error: Failed to fetch secrets from Vault"
@@ -66,8 +66,8 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: ".env.production"
-          target: "/root/tgdex-monorepo-microservices/temp/.env"
+          source: ".env"
+          target: "/root/tgdex-monorepo-microservices/temp/"
 
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
