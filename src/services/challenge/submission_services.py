@@ -1085,9 +1085,10 @@ async def update_user_submission_handler(
                 attachment_objs.extend(submission.attachments)
                 submission.attachments = attachment_objs
 
+        submission.submission_count += 1
         submission.updated_at = datetime.now(pytz.timezone("Asia/Kolkata"))
+
         await db_session.commit()
-        await db_session.refresh(submission)
 
         return CustomJSONResponse(
             success=True,
