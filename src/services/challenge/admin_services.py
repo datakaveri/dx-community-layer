@@ -835,7 +835,7 @@ async def admin_create_competition_handler(
         existing_competition = await db_session.execute(
             select(Competition).where(Competition.title == req_params.title)
         )
-        existing_competition = existing_competition.scalars().one_or_none()
+        existing_competition = existing_competition.scalars().first()
 
         if existing_competition:
             return CustomJSONResponse(
