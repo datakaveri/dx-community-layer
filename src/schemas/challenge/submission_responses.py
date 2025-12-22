@@ -18,8 +18,8 @@ from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 
 class CompetitionTimelinesSchema(BaseModel):
     id: uuid.UUID
-    submission_starts_at: date
-    submission_ends_at: date
+    submission_starts_at: Optional[date]
+    submission_ends_at: Optional[date]
     evaluation_ends_at: Optional[date]
 
     model_config = {"from_attributes": True}
