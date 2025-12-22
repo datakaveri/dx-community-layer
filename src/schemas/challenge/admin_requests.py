@@ -429,14 +429,16 @@ class AdminUpdateCompetitionParams:
         self.rules_and_guidelines = rules_and_guidelines
         self.dataset_description = dataset_description
         self.data_models = data_models
-        if self.data_models.add:
-            for dataset in self.data_models.add:
-                dataset["id"] = str(dataset["id"])
+        if self.data_models:
+            if self.data_models.add:
+                for dataset in self.data_models.add:
+                    dataset["id"] = str(dataset["id"])
 
         self.ai_models = ai_models
-        if self.ai_models.add:
-            for dataset in self.ai_models.add:
-                dataset["id"] = str(dataset["id"])
+        if self.ai_models:
+            if self.ai_models.add:
+                for dataset in self.ai_models.add:
+                    dataset["id"] = str(dataset["id"])
 
         self.additional_assets = additional_assets
         self.publish_schedule = publish_schedule
