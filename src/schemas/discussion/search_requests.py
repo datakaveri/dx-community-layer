@@ -6,13 +6,17 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, ValidationError
 
 from .discussion_requests import RetrieveDiscussionChoices
+from ...database.discussion.enums import DiscussionsTypeEnum
 
 
 class SearchDiscussionsFilters(BaseModel):
     sub_category_id: Optional[uuid.UUID] = Field(
         default=None, description="Sub-category ID of the discussion to retrieve"
     )
-
+    type: Optional[DiscussionsTypeEnum] = Field(
+        default=None,
+        description="Discussion type filter (PUBLIC, GENERAL, etc.)"
+    )
 
 class SearchDiscussionsParams:
     def __init__(
@@ -28,12 +32,14 @@ class SearchDiscussionsParams:
             default=None,
             description=(
                 "JSON string of filters to apply to the search.<br>"
-                "The keys can be 'sub_category_id'.<br>"
+                "The keys can be 'sub_category_id' and 'type'.<br>"
                 "Each key should map to a UUID or null.<br>"
+                "type should be one of: PUBLIC, GENERAL, GETTING_STARTED, PRODUCT_FEEDBACK, PRODUCT_ANNOUNCEMENTS.<br>"
             ),
             example=json.dumps(
                 {
                     "sub_category_id": "00000000-0000-0000-0000-000000000000",
+                    "type": "PUBLIC"
                 }
             ),
         ),

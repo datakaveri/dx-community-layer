@@ -96,6 +96,10 @@ async def search_discussions_handler(
             stmt = stmt.filter(
                 Discussion.sub_category_id == req_params.filters.sub_category_id
             )
+        if req_params.filters.type:
+            stmt = stmt.filter(
+                Discussion.type == req_params.filters.type
+            )
 
         # -----------------------
         # Total count
