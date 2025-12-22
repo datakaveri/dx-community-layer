@@ -994,7 +994,7 @@ async def admin_create_competition_handler(
 
         # Additional assets
         additional_assets = {}
-        for asset in req_params.additional_assets:
+        for asset in req_params.additional_assets or []:
             file_name = asset["object_key"].split("/")[-1]
             metadata = get_s3_file_metadata(asset["object_key"])
 
