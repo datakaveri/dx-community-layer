@@ -203,7 +203,7 @@ async def download_rules_and_guidelines_handler(
             "get_object",
             Params={
                 "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
-                "Key": competition.rules_and_guidelines,
+                "Key": competition.rules_and_guidelines["s3_key"],
             },
             ExpiresIn=300,
         )
