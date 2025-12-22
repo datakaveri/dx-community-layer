@@ -35,7 +35,10 @@ async def generate_presigned_url_handler(
     logger.info(f"{authorized_user['email']} - Execution started")
 
     try:
-        object_key = f"temp/{authorized_user['user_id']}/{req_params.batch_id}/{req_params.file_name}"
+        if req_params.md_attachment:
+            object_key = f"public/{authorized_user['user_id']}/{req_params.batch_id}/{req_params.file_name}"
+        else:
+            object_key = f"temp/{authorized_user['user_id']}/{req_params.batch_id}/{req_params.file_name}"
 
         presigned_url = s3_client.generate_presigned_url(
             "put_object",
@@ -57,7 +60,11 @@ async def generate_presigned_url_handler(
             },
             meta={
                 "batch_id": req_params.batch_id,
-                "object_key": object_key,
+                "object_key": (
+                    f"https://{env_config.CHALLENGE_AWS_S3_BUCKET}.s3.amazonaws.com/{object_key}"
+                    if req_params.md_attachment
+                    else object_key
+                ),
             },
         )
     except Exception as e:

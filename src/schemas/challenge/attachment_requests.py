@@ -10,9 +10,14 @@ class GeneratePresignedURLParams:
             ..., description="ID of the batch to generate URL for"
         ),
         file_name: str = Body(..., description="Name of the file to generate URL for"),
+        md_attachment: bool = Body(
+            default=False,
+            description="Whether the file is an MD attachment or not",
+        ),
     ):
         self.batch_id = batch_id
         self.file_name = file_name
+        self.md_attachment = md_attachment
 
 
 class DeleteAttachmentParams:
