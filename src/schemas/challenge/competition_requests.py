@@ -18,6 +18,7 @@ class RetrieveCompetitionChoices(enum.Enum):
     PUBLISHED = "published"
     JOINED = "joined"
     COMPLETED = "completed"
+    EVALUATION = "evaluation"
 
 
 class RetrieveCompetitonsParams:

@@ -114,6 +114,10 @@ async def retrieve_competitions_handler(
             stmt = stmt.where(Competition.status != CompetitionStatusEnum.COMPLETED)
         elif req_params.choice == RetrieveCompetitionChoices.COMPLETED:
             stmt = stmt.where(Competition.status == CompetitionStatusEnum.COMPLETED)
+
+        elif req_params.choice == RetrieveCompetitionChoices.EVALUATION:
+            stmt = stmt.where(Competition.status == CompetitionStatusEnum.EVALUATION)
+            
         else:
             stmt = stmt.where(Competition.status == CompetitionStatusEnum.PUBLISHED)
 
