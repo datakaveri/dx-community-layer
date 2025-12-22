@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from ...schemas.default_schemas import (
     BackendErrorResponse,
@@ -14,7 +14,10 @@ from ...schemas.default_schemas import (
 from ..discussion.discussion_responses import UserSchema
 from .submission_responses import CompetitionTimelinesSchema
 from .competition_responses import CompetitionPrizePoolSchema
-from ...database.challenge.enums import CompetitionStatusEnum
+from ...database.challenge.enums import (
+    CompetitionStatusEnum,
+    SubmissionAttachmentSchema,
+)
 
 
 class AdminRetrieveCompetitionsSchema(BaseModel):
@@ -45,12 +48,12 @@ class AdminRetrieveCompetitionSubmissionSchema(BaseModel):
     title: str
     description: str
     user: UserSchema
-    attachments: Optional[List]
+    attachments: Optional[Dict[str, SubmissionAttachmentSchema]]
     is_disqualified: bool
     score: Optional[float]
     submission_count: int
     evaluation_comment: Optional[str]
-    evaluation_attachments: Optional[List]
+    evaluation_attachments: Optional[Dict[str, SubmissionAttachmentSchema]]
     created_at: datetime
     updated_at: datetime
 

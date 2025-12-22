@@ -1507,8 +1507,11 @@ async def admin_evaluate_submission_handler(
         submission_stmt = select(CompetitionSubmission).where(
             CompetitionSubmission.id == req_params.submission_id
         )
+        submission_stmt = submission_stmt.options(
+            selectinload(CompetitionSubmission.competition)
+        )
         submission = await db_session.execute(submission_stmt)
-        submission = submission.scalar_one_or_none()
+        submission = submission.scalars().one_or_none()
 
         if not submission:
             logger.error(
@@ -1582,7 +1585,7 @@ async def admin_evaluate_submission_handler(
                 if req_params.attachments.add:
                     new_attachments = deepcopy(submission.evaluation_attachments) or {}
 
-                    for source_s3_key in req_params.attachments:
+                    for source_s3_key in req_params.attachments.add:
                         file_name = source_s3_key.split("/")[-1]
                         metadata = get_s3_file_metadata(source_s3_key)
 
