@@ -1,6 +1,6 @@
 import uuid
-from fastapi import APIRouter, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, Path, Query
 
 from ...docs import public_desc
 from ...middlewares.logging import logger
@@ -119,6 +119,7 @@ async def download_rules_and_guidelines(
 )
 async def download_additional_assets(
     competition_id: uuid.UUID = Path(..., description="ID of the competition"),
+    file_name: str = Query(..., description="Name of the file to download"),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
@@ -127,6 +128,7 @@ async def download_additional_assets(
 
     Args:
         competition_id (str): The ID of the competition for which additional assets are downloaded.
+        file_name (str): The name of the file to download.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
@@ -137,6 +139,7 @@ async def download_additional_assets(
 
     return await download_additional_assets_handler(
         competition_id=competition_id,
+        file_name=file_name,
         authorized_user=authorized_user,
         db_session=db_session,
     )

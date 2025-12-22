@@ -236,6 +236,7 @@ async def download_rules_and_guidelines_handler(
 
 async def download_additional_assets_handler(
     competition_id: uuid.UUID,
+    file_name: str,
     authorized_user: AuthorizationData,
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
@@ -244,6 +245,7 @@ async def download_additional_assets_handler(
 
     Args:
         competition_id (uuid.UUID): The ID of the competition.
+        file_name (str): The name of the file to download.
         authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
         db_session (AsyncSession): The database session for accessing the primary database.
 
@@ -291,27 +293,37 @@ async def download_additional_assets_handler(
                 },
             )
 
-        download_urls = []
+        asset = competition.datasets.additional_assets.get(file_name, None)
 
-        for asset in competition.datasets.additional_assets.values():
-            object_key = asset["s3_key"]
+        if not asset:
+            logger.error(f"{authorized_user['email']} - Invalid file name: {file_name}")
 
-            download_url = s3_client.generate_presigned_url(
-                "get_object",
-                Params={
-                    "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
-                    "Key": object_key,
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="File not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "File not found for the provided file name. Please check the file name and try again.",
                 },
-                ExpiresIn=300,
             )
 
-            download_urls.append(download_url)
+        object_key = asset["s3_key"]
+
+        download_url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
+                "Key": object_key,
+            },
+            ExpiresIn=300,
+        )
 
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_200_OK,
             message="Additional Assets download URL generated successfully",
-            data={"download_urls": download_urls},
+            data={"download_url": download_url},
         )
 
     except Exception as e:
