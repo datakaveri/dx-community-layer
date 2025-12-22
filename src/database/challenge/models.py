@@ -26,6 +26,7 @@ from .enums import (
     PrizeTypeEnum,
     AdditionalAttachmentSchema,
     Datasets,
+    RulesAndGuidelinesSchema,
     SubmissionAttachmentSchema,
 )
 
@@ -105,7 +106,9 @@ class Competition(Base):
     )
     image_url: Mapped[Optional[str]] = mapped_column(String(300))
     constraints: Mapped[Optional[str]] = mapped_column(Text)
-    rules_and_guidelines: Mapped[Optional[str]] = mapped_column(String(300))
+    rules_and_guidelines: Mapped[Optional[RulesAndGuidelinesSchema]] = mapped_column(
+        JSON, nullable=True
+    )
     other_resources: Mapped[Optional[str]] = mapped_column(Text)
     results_announced_at: Mapped[Optional[DateTime]] = mapped_column(
         DateTime(timezone=True)

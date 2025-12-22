@@ -937,6 +937,7 @@ async def admin_create_competition_handler(
                 )
 
             new_competition.rules_and_guidelines = {
+                "file_name": file_name,
                 "metadata": metadata,
                 "s3_key": permanent_s3_key,
                 "uploaded_at": current_timestamp.strftime("%Y-%m-%d %H:%M:%S +0530"),
@@ -1303,6 +1304,7 @@ async def admin_update_competition_handler(
                 )
 
             competition.rules_and_guidelines = {
+                "file_name": file_name,
                 "metadata": metadata,
                 "s3_key": permanent_s3_key,
                 "uploaded_at": current_timestamp.strftime("%Y-%m-%d %H:%M:%S +0530"),

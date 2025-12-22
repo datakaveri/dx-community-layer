@@ -37,6 +37,9 @@ class AttachmentMetadata(TypedDict):
 
 
 class RulesAndGuidelinesSchema(TypedDict):
+    file_name: str = Field(
+        ..., description="Name of the file attached to the submission"
+    )
     s3_key: str = Field(..., description="S3 key of the asset")
     metadata: AttachmentMetadata = Field(
         ..., description="Metadata of the file attached to the submission"
