@@ -754,11 +754,6 @@ async def admin_retrieve_challenge_by_id_handler(
             },
         )
 
-    additional_assets = None
-    if row.additional_assets:
-        if isinstance(row.additional_assets, dict):
-            additional_assets = row.additional_assets.get("assets")
-
     data = {
         "id": str(row.id),
         "title": row.title,
@@ -794,7 +789,7 @@ async def admin_retrieve_challenge_by_id_handler(
             "data_models": row.datasets,
             "ai_models": row.ai_models,
             "other_resources": row.other_resources,
-            "additional_assets": additional_assets,
+            "additional_assets": row.additional_assets,
         },
         "participants_count": row.participants_count,
         "submission_count": row.submission_count,
