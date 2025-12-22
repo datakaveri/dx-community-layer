@@ -686,6 +686,7 @@ async def admin_retrieve_challenge_by_id_handler(
             Competition.created_by,
             Competition.constraints,
             Competition.rules_and_guidelines,
+            Competition.other_resources,
             CompetitionTimeline.submission_starts_at,
             CompetitionTimeline.submission_ends_at,
             CompetitionTimeline.evaluation_ends_at,
@@ -753,11 +754,9 @@ async def admin_retrieve_challenge_by_id_handler(
             },
         )
 
-    other_resources = None
     additional_assets = None
     if row.additional_assets:
         if isinstance(row.additional_assets, dict):
-            other_resources = row.additional_assets.get("other_resources")
             additional_assets = row.additional_assets.get("assets")
 
     data = {
@@ -794,7 +793,7 @@ async def admin_retrieve_challenge_by_id_handler(
             "description": row.dataset_description,
             "data_models": row.datasets,
             "ai_models": row.ai_models,
-            "other_resources": other_resources,
+            "other_resources": row.other_resources,
             "additional_assets": additional_assets,
         },
         "participants_count": row.participants_count,
