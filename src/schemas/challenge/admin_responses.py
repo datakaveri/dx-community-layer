@@ -1,8 +1,16 @@
-from datetime import datetime
 import uuid
-from typing import List, Optional
+from datetime import datetime
 from pydantic import BaseModel
+from typing import List, Literal, Optional, Union
 
+from ...schemas.default_schemas import (
+    BackendErrorResponse,
+    BadRequestErrorResponse,
+    ConflictErrorResponse,
+    CreatedResponse,
+    ForbiddenErrorResponse,
+    UnauthorizedErrorResponse,
+)
 from ..discussion.discussion_responses import UserSchema
 from .submission_responses import CompetitionTimelinesSchema
 from .competition_responses import CompetitionPrizePoolSchema
@@ -57,3 +65,52 @@ class AdminRetrieveCompetitionSubmissionCompetitionSchema(BaseModel):
     results_announced_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+class AdminCreateCompetitionCreatedData(BaseModel):
+    competition_id: uuid.UUID
+    status: CompetitionStatusEnum
+
+
+class AdminCreateCompetitionCreatedResponse(CreatedResponse):
+    message: Literal["Competition created successfully"]
+    data: AdminCreateCompetitionCreatedData
+
+
+class AdminCreateCompetitionConflictError(BaseModel):
+    code: Literal["CONFLICT"]
+    details: Literal[
+        "A competition with the same title already exists. Please use a different title."
+    ]
+
+
+class AdminCreateCompetitionConflictErrorResponse(ConflictErrorResponse):
+    message: Literal["Competition already exists"]
+    error: AdminCreateCompetitionConflictError
+
+
+class AdminCreateCompetitionBackendError(BaseModel):
+    code: Literal["INTERNAL_SERVER_ERROR"]
+    details: Union[
+        Literal[
+            "Failed to authorize user. Please contact developers if the issue persists."
+        ],
+        Literal[
+            "An error occurred while creating the competition. Please contact developers if the issue persists."
+        ],
+    ]
+
+
+class AdminCreateCompetitionBackendErrorResponse(BackendErrorResponse):
+    message: Literal["Competition creation failed"]
+    error: AdminCreateCompetitionBackendError
+
+
+ADMIN_CREATE_COMPETITION_RESPONSE_MODEL = {
+    201: {"model": AdminCreateCompetitionCreatedResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    403: {"model": ForbiddenErrorResponse},
+    409: {"model": AdminCreateCompetitionConflictErrorResponse},
+    500: {"model": AdminCreateCompetitionBackendErrorResponse},
+}

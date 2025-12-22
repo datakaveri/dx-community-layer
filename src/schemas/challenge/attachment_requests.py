@@ -1,49 +1,48 @@
 import enum
 import uuid
 from fastapi import Body, Path
-from fastapi import Query
-
-
-class UploadType(enum.Enum):
-    CONTENT = "content"
-    ATTACHMENT = "attachment"
 
 
 class GeneratePresignedURLParams:
     def __init__(
         self,
-        batch_id: uuid.UUID = Path(...),
-        type_of_upload: UploadType = Body(...),
-        file_name: str = Body(...),
-        content_type: str = Body(default="application/octet-stream", description="Content type of the file"),
+        batch_id: uuid.UUID = Body(
+            ..., description="ID of the batch to generate URL for"
+        ),
+        file_name: str = Body(..., description="Name of the file to generate URL for"),
     ):
         self.batch_id = batch_id
-        self.type_of_upload = type_of_upload
         self.file_name = file_name
-        self.content_type = content_type
 
 
 class DeleteAttachmentParams:
     def __init__(
         self,
-        object_key: str = Body(..., description="Object key of the attachment to delete"),
-        type: UploadType = Body(..., description="Type of the attachment to delete"),
-        pre_creation: bool = Body(
-            ..., description="Whether the attachment is added before the entity creation"
+        batch_id: uuid.UUID = Body(
+            ..., description="ID of the batch to delete attachment from"
+        ),
+        object_key: str = Body(
+            ..., description="Object key of the attachment to delete"
         ),
     ):
+        self.batch_id = batch_id
         self.object_key = object_key
-        self.type = type
-        self.pre_creation = pre_creation
 
 
-class GenerateDownloadUrlParams:
+class SubmissionAttachmentChoice(enum.Enum):
+    SOLUTION = "solution"
+    EVALUATION = "evaluation"
+
+
+class DownloadSubmissionAttachmentsParams:
     def __init__(
         self,
-        object_key: str = Query(..., description="S3 object key of the attachment to download"),
-        type: UploadType = Query(..., description="Type of the attachment to download"),
+        submission_id: uuid.UUID = Path(
+            ..., description="ID of the submission to download attachments for"
+        ),
+        choice: SubmissionAttachmentChoice = Path(
+            ..., description="Choice of attachments to download"
+        ),
     ):
-        self.id = object_key  # Keep id for backward compatibility with handler
-        self.object_key = object_key
-        self.type = type
-
+        self.submission_id = submission_id
+        self.choice = choice

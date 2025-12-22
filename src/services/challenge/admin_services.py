@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 import math
 from uuid import UUID
@@ -8,10 +9,13 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
+from ...configs.s3_config import s3_client
+from ...configs.env_config import env_config
 from ..discussion.search_services import format_tsquery
 from ...schemas.default_schemas import AuthorizationData
-from ...database.challenge.enums import CompetitionStatusEnum
+from ...database.challenge.enums import CompetitionStatusEnum, PrizeTypeEnum
 from ...schemas.challenge.submission_requests import SortOrder
+from ...services.challenge.submission_services import get_s3_file_metadata
 from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
 from ...schemas.challenge.admin_responses import (
     AdminRetrieveCompetitionSubmissionCompetitionSchema,
@@ -19,10 +23,13 @@ from ...schemas.challenge.admin_responses import (
     AdminRetrieveCompetitionsSchema,
 )
 from ...schemas.challenge.admin_requests import (
+    AdminCreateCompetitionParams,
+    AdminEvaluateSubmissionParams,
     AdminRetreiveCompetitionsSortBy,
     AdminRetrieveCompetitionSubmissionsParams,
     AdminRetrieveCompetitionSubmissionsSortByEnum,
     AdminRetrieveCompetitionsParams,
+    AdminUpdateCompetitionParams,
 )
 from ...database.challenge.models import (
     Competition,
@@ -802,3 +809,898 @@ async def admin_retrieve_challenge_by_id_handler(
         message="Resource retrieved successfully",
         data=data,
     )
+
+
+async def admin_create_competition_handler(
+    req_params: AdminCreateCompetitionParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Creates a new competition (challenge) from the admin panel.
+
+    Args:
+        req_params: Competition creation payload (title, description, timeline, etc.).
+        authorized_user: Authenticated admin user.
+        db_session: Active DB session.
+
+    Returns:
+        CustomJSONResponse with created competition details.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
+    try:
+        # Check existing title
+        existing_competition = await db_session.execute(
+            select(Competition).where(Competition.title == req_params.title)
+        )
+        existing_competition = existing_competition.scalars().one_or_none()
+
+        if existing_competition:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_409_CONFLICT,
+                message="Competition already exists",
+                error={
+                    "code": "CONFLICT",
+                    "details": "Chanllenge with the same title already exists. Please use a different title.",
+                },
+            )
+
+        # Create new competition
+        if req_params.draft:
+            competition_status = CompetitionStatusEnum.DRAFT
+        elif req_params.publish_schedule:
+            competition_status = CompetitionStatusEnum.SCHEDULED
+        else:
+            competition_status = CompetitionStatusEnum.PUBLISHED
+
+        new_competition = Competition(
+            title=req_params.title,
+            subtitle=req_params.subtitle,
+            overview=req_params.overview,
+            detailed_description=req_params.description,
+            status=competition_status,
+            created_by=authorized_user["user_id"],
+            published_at=(
+                current_timestamp
+                if competition_status == CompetitionStatusEnum.PUBLISHED
+                else None
+            ),
+            scheduled_publish_at=(
+                req_params.publish_schedule
+                if competition_status == CompetitionStatusEnum.SCHEDULED
+                else None
+            ),
+            constraints=req_params.constraints,
+            other_resources=req_params.other_resources,
+        )
+
+        db_session.add(new_competition)
+        await db_session.flush()
+
+        # Competition image file
+        if req_params.image_url:
+            file_name = req_params.image_url.split("/")[-1]
+            permanent_s3_key = f"public/{authorized_user['user_id']}/{new_competition.id}/image/{file_name}"
+
+            try:
+                s3_client.copy_object(
+                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.image_url}",
+                    Key=permanent_s3_key,
+                )
+            except Exception as s3_exc:
+                logger.exception(
+                    f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                )
+                await db_session.rollback()
+                return CustomBackendError(
+                    message="Chanllenge creation failed",
+                    details="An error occurred while creating the challenge. Please contact developers if the issue persists.",
+                )
+
+            new_competition.image_url = f"https://{env_config.CHALLENGE_AWS_S3_BUCKET}.s3.amazonaws.com/{permanent_s3_key}"
+
+        # Competition rules and guidelines file
+        if req_params.rules_and_guidelines:
+            file_name = req_params.rules_and_guidelines.split("/")[-1]
+            permanent_s3_key = f"public/{authorized_user['user_id']}/{new_competition.id}/rules_and_guidelines/{file_name}"
+            metadata = get_s3_file_metadata(req_params.rules_and_guidelines)
+
+            if "error" in metadata:
+                await db_session.rollback()
+
+                logger.error(
+                    f"{authorized_user['email']} - Error fetching metadata for {req_params.rules_and_guidelines}: {metadata['error']}"
+                )
+                return CustomBackendError(
+                    message="Chanllenge creation failed",
+                    details="An error occurred while creating the challenge. Please contact developers if the issue persists.",
+                )
+
+            try:
+                s3_client.copy_object(
+                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.rules_and_guidelines}",
+                    Key=permanent_s3_key,
+                )
+            except Exception as s3_exc:
+                logger.exception(
+                    f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                )
+                await db_session.rollback()
+                return CustomBackendError(
+                    message="Chanllenge creation failed",
+                    details="An error occurred while creating the challenge. Please contact developers if the issue persists.",
+                )
+
+            new_competition.rules_and_guidelines = {
+                "metadata": metadata,
+                "s3_key": permanent_s3_key,
+                "uploaded_at": current_timestamp.strftime("%Y-%m-%d %H:%M:%S +0530"),
+            }
+
+        # Competition evaluation
+        new_competition_evaluation = CompetitionEvaluation(
+            competition_id=new_competition.id,
+            evaluation_criteria=req_params.evaluation_criteria_definition,
+            submission_criteria=req_params.submission_file_definition,
+        )
+
+        db_session.add(new_competition_evaluation)
+
+        # Competition prize pool
+        new_competition_prize_pool = CompetitionPrizePool(
+            competition_id=new_competition.id,
+            prize_type=req_params.prize_type,
+            total_pool_amount=req_params.total_pool_amount,
+            currency=req_params.currency,
+            prize_description=req_params.prize_pool_description,
+        )
+
+        db_session.add(new_competition_prize_pool)
+
+        # Competition timelines
+        new_competition_timeline = CompetitionTimeline(
+            competition_id=new_competition.id,
+            submission_starts_at=req_params.submission_starts_at,
+            submission_ends_at=req_params.submission_ends_at,
+            evaluation_ends_at=req_params.evaluation_ends_at,
+        )
+
+        db_session.add(new_competition_timeline)
+
+        # Competition datasets
+        if req_params.data_models:
+            for data_model in req_params.data_models:
+                data_model["id"] = str(data_model["id"])
+
+        if req_params.ai_models:
+            for ai_model in req_params.ai_models:
+                ai_model["id"] = str(ai_model["id"])
+
+        new_competition_datasets = CompetitionDataset(
+            competition_id=new_competition.id,
+            description=req_params.dataset_description,
+            datasets=req_params.data_models,
+            ai_models=req_params.ai_models,
+        )
+
+        db_session.add(new_competition_datasets)
+        await db_session.flush()
+
+        # Additional assets
+        additional_assets = {}
+        for asset in req_params.additional_assets:
+            file_name = asset["object_key"].split("/")[-1]
+            metadata = get_s3_file_metadata(asset["object_key"])
+
+            if "error" in metadata:
+                await db_session.rollback()
+
+                logger.error(
+                    f"{authorized_user['email']} - Error fetching metadata for {asset["object_key"]}: {metadata['error']}"
+                )
+                return CustomBackendError(
+                    message="Chanllenge creation failed",
+                    details="An error occurred while creating the challenge. Please contact developers if the issue persists.",
+                )
+            permanent_s3_key = f"private/{authorized_user['user_id']}/{new_competition.id}/additional_assets/{file_name}"
+
+            try:
+                s3_client.copy_object(
+                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{asset['object_key']}",
+                    Key=permanent_s3_key,
+                )
+            except Exception as s3_exc:
+                logger.exception(
+                    f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                )
+                await db_session.rollback()
+                return CustomBackendError(
+                    message="Chanllenge creation failed",
+                    details="An error occurred while creating the challenge. Please contact developers if the issue persists.",
+                )
+
+            additional_assets[file_name] = {
+                "metadata": metadata,
+                "s3_key": permanent_s3_key,
+                "description": asset["description"],
+                "uploaded_at": current_timestamp.strftime("%Y-%m-%d %H:%M:%S +0530"),
+            }
+
+        new_competition_datasets.additional_assets = additional_assets
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_201_CREATED,
+            message="Chanllenge created successfully",
+            data={
+                "competition_id": new_competition.id,
+                "status": new_competition.status.value,
+            },
+        )
+
+    except Exception as e:
+        await db_session.rollback()
+
+        logger.error(f"{authorized_user['email']} - Error: {e}")
+        return CustomBackendError(
+            message="Competition creation failed",
+            details="An error occurred while creating the competition. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
+
+async def admin_update_competition_handler(
+    req_params: AdminUpdateCompetitionParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Updates an existing challenge (competition) from the admin panel.
+
+    Args:
+        req_params: Competition update payload (title, description, timeline, etc.).
+        authorized_user: Authenticated admin user.
+        db_session: Active DB session.
+
+    Returns:
+        CustomJSONResponse with updated competition details.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
+    try:
+        competition_stmt = select(Competition).where(
+            Competition.id == req_params.competition_id
+        )
+        competition_stmt = competition_stmt.options(
+            selectinload(Competition.evaluations),
+            selectinload(Competition.prize_pools),
+            selectinload(Competition.timelines),
+            selectinload(Competition.datasets),
+        )
+        competition = await db_session.execute(competition_stmt)
+        competition = competition.scalars().one_or_none()
+
+        if not competition:
+            logger.error(
+                f"{authorized_user['email']} - Competition not found (id={req_params.competition_id})"
+            )
+
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Competition not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "Competition does not exist for the provided id. Please check the id and try again.",
+                },
+            )
+
+        if competition.status not in [
+            CompetitionStatusEnum.DRAFT,
+            CompetitionStatusEnum.SCHEDULED,
+        ]:
+            logger.error(
+                f"{authorized_user['email']} - Invalid competition status: {competition.status}"
+            )
+
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Invalid competition status",
+                error={
+                    "code": "BAD_REQUEST",
+                    "details": "Competition is not in draft or scheduled status. Please check the status and try again.",
+                },
+            )
+
+        required_fields_map = {
+            "title": bool(competition.title),
+            "subtitle": bool(competition.subtitle),
+            "overview": bool(competition.overview),
+            "description": bool(competition.detailed_description),
+            "constraints": bool(competition.constraints),
+            "evaluation_criteria_definition": bool(
+                competition.evaluations.evaluation_criteria
+            ),
+            "submission_file_definition": bool(
+                competition.evaluations.submission_criteria
+            ),
+            "prize_pool_description": bool(competition.prize_pools.prize_description),
+            "submission_starts_at": bool(competition.timelines.submission_starts_at),
+            "submission_ends_at": bool(competition.timelines.submission_ends_at),
+            "evaluation_ends_at": bool(competition.timelines.evaluation_ends_at),
+            "rules_and_guidelines": bool(competition.rules_and_guidelines),
+            "dataset_description": bool(competition.datasets.description),
+            "data_models": bool(competition.datasets.datasets),
+        }
+
+        # Update the competition
+        if req_params.title and req_params.title != competition.title:
+            competition.title = req_params.title
+            required_fields_map["title"] = True
+
+        if req_params.subtitle and req_params.subtitle != competition.subtitle:
+            competition.subtitle = req_params.subtitle
+            required_fields_map["subtitle"] = True
+
+        if req_params.overview and req_params.overview != competition.overview:
+            competition.overview = req_params.overview
+            required_fields_map["overview"] = True
+
+        if (
+            req_params.description
+            and req_params.description != competition.detailed_description
+        ):
+            competition.detailed_description = req_params.description
+            required_fields_map["description"] = True
+
+        if req_params.image_url:
+            file_name = req_params.image_url.split("/")[-1]
+            permanent_s3_key = f"public/{authorized_user['user_id']}/{competition.id}/image/{file_name}"
+
+            try:
+                s3_client.copy_object(
+                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.image_url}",
+                    Key=permanent_s3_key,
+                )
+            except Exception as s3_exc:
+                logger.exception(
+                    f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                )
+                await db_session.rollback()
+                return CustomBackendError(
+                    message="Competition update failed",
+                    details="An error occurred while updating the competition. Please contact developers if the issue persists.",
+                )
+
+            competition.image_url = f"https://{env_config.CHALLENGE_AWS_S3_BUCKET}.s3.amazonaws.com/{permanent_s3_key}"
+
+        if req_params.constraints and req_params.constraints != competition.constraints:
+            competition.constraints = req_params.constraints
+            required_fields_map["constraints"] = True
+
+        if (
+            req_params.evaluation_criteria_definition
+            and req_params.evaluation_criteria_definition
+            != competition.evaluations.evaluation_criteria
+        ):
+            competition.evaluations.evaluation_criteria = (
+                req_params.evaluation_criteria_definition
+            )
+            required_fields_map["evaluation_criteria_definition"] = True
+
+        if (
+            req_params.submission_file_definition
+            and req_params.submission_file_definition
+            != competition.evaluations.submission_criteria
+        ):
+            competition.evaluations.submission_criteria = (
+                req_params.submission_file_definition
+            )
+            required_fields_map["submission_file_definition"] = True
+
+        if (
+            req_params.other_resources
+            and req_params.other_resources != competition.other_resources
+        ):
+            competition.other_resources = req_params.other_resources
+
+        if (
+            req_params.prize_type
+            and req_params.prize_type != competition.prize_pools.prize_type
+        ):
+            competition.prize_pools.prize_type = req_params.prize_type
+
+        if (
+            req_params.total_pool_amount
+            and req_params.total_pool_amount
+            != competition.prize_pools.total_pool_amount
+        ):
+            competition.prize_pools.total_pool_amount = req_params.total_pool_amount
+
+        if (
+            req_params.currency
+            and req_params.currency != competition.prize_pools.currency
+        ):
+            competition.prize_pools.currency = req_params.currency
+
+        if (
+            req_params.prize_pool_description
+            and req_params.prize_pool_description
+            != competition.prize_pools.prize_description
+        ):
+            competition.prize_pools.prize_description = (
+                req_params.prize_pool_description
+            )
+            required_fields_map["prize_pool_description"] = True
+
+        if (
+            req_params.submission_starts_at
+            and req_params.submission_starts_at
+            != competition.timelines.submission_starts_at
+        ):
+            competition.timelines.submission_starts_at = req_params.submission_starts_at
+            required_fields_map["submission_starts_at"] = True
+
+        if (
+            req_params.submission_ends_at
+            and req_params.submission_ends_at
+            != competition.timelines.submission_ends_at
+        ):
+            competition.timelines.submission_ends_at = req_params.submission_ends_at
+            required_fields_map["submission_ends_at"] = True
+
+        if (
+            req_params.evaluation_ends_at
+            and req_params.evaluation_ends_at
+            != competition.timelines.evaluation_ends_at
+        ):
+            competition.timelines.evaluation_ends_at = req_params.evaluation_ends_at
+            required_fields_map["evaluation_ends_at"] = True
+
+        if req_params.rules_and_guidelines:
+            file_name = req_params.rules_and_guidelines.split("/")[-1]
+            permanent_s3_key = f"public/{authorized_user['user_id']}/{competition.id}/rules_and_guidelines/{file_name}"
+            metadata = get_s3_file_metadata(req_params.rules_and_guidelines)
+
+            if "error" in metadata:
+                await db_session.rollback()
+
+                logger.error(
+                    f"{authorized_user['email']} - Error fetching metadata for {req_params.rules_and_guidelines}: {metadata['error']}"
+                )
+                return CustomBackendError(
+                    message="Chanllenge creation failed",
+                    details="An error occurred while creating the challenge. Please contact developers if the issue persists.",
+                )
+
+            try:
+                s3_client.copy_object(
+                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.rules_and_guidelines}",
+                    Key=permanent_s3_key,
+                )
+            except Exception as s3_exc:
+                logger.exception(
+                    f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                )
+                await db_session.rollback()
+                return CustomBackendError(
+                    message="Competition update failed",
+                    details="An error occurred while updating the competition. Please contact developers if the issue persists.",
+                )
+
+            competition.rules_and_guidelines = {
+                "metadata": metadata,
+                "s3_key": permanent_s3_key,
+                "uploaded_at": current_timestamp.strftime("%Y-%m-%d %H:%M:%S +0530"),
+            }
+            required_fields_map["rules_and_guidelines"] = True
+
+        if (
+            req_params.dataset_description
+            and req_params.dataset_description != competition.datasets.description
+        ):
+            competition.datasets.description = req_params.dataset_description
+            required_fields_map["dataset_description"] = True
+
+        if req_params.data_models:
+            if req_params.data_models.remove:
+                new_models = []
+                for models in competition.datasets.datasets:
+                    if models["id"] not in req_params.data_models.remove:
+                        new_models.append(models)
+
+                competition.datasets.datasets = new_models
+
+            if req_params.data_models.add:
+                competition.datasets.datasets.append(req_params.data_models.add)
+                required_fields_map["data_models"] = True
+
+        if req_params.ai_models:
+            if req_params.ai_models.remove:
+                new_models = []
+                for models in competition.datasets.ai_models:
+                    if models["id"] not in req_params.ai_models.remove:
+                        new_models.append(models)
+
+                competition.datasets.ai_models = new_models
+
+            if req_params.ai_models.add:
+                competition.datasets.ai_models.append(req_params.ai_models.add)
+                required_fields_map["ai_models"] = True
+
+        if req_params.additional_assets:
+            if (
+                req_params.additional_assets.remove
+                and competition.datasets.additional_assets
+            ):
+                new_assets = {}
+                for key, value in competition.datasets.additional_assets.items():
+                    if value["s3_key"] in req_params.additional_assets.remove:
+                        s3_client.delete_object(
+                            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                            Key=value["s3_key"],
+                        )
+                    else:
+                        new_assets[key] = value
+
+                competition.datasets.additional_assets = (
+                    None if not new_assets else new_assets
+                )
+
+            if req_params.additional_assets.add:
+                new_assets = deepcopy(competition.datasets.additional_assets) or {}
+
+                for asset in req_params.additional_assets.add:
+                    file_name = asset["object_key"].split("/")[-1]
+                    metadata = get_s3_file_metadata(asset["object_key"])
+
+                    if "error" in metadata:
+                        await db_session.rollback()
+
+                        logger.error(
+                            f"{authorized_user['email']} - Error fetching metadata for {asset["object_key"]}: {metadata['error']}"
+                        )
+                        return CustomBackendError(
+                            message="Competition update failed",
+                            details="An error occurred while updating the discussion. Please contact developers if the issue persists.",
+                        )
+                    permanent_s3_key = f"private/{authorized_user['user_id']}/{competition.id}/additional_assets/{file_name}"
+
+                    try:
+                        s3_client.copy_object(
+                            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                            CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{asset['object_key']}",
+                            Key=permanent_s3_key,
+                        )
+                    except Exception as s3_exc:
+                        logger.exception(
+                            f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                        )
+                        await db_session.rollback()
+                        return CustomBackendError(
+                            message="Discussion creation failed",
+                            details="An error occurred while creating the competition. Please contact developers if the issue persists.",
+                        )
+
+                    new_assets[file_name] = {
+                        "metadata": metadata,
+                        "s3_key": permanent_s3_key,
+                        "description": asset["description"],
+                        "uploaded_at": current_timestamp.strftime(
+                            "%Y-%m-%d %H:%M:%S +0530"
+                        ),
+                    }
+
+                competition.datasets.additional_assets = new_assets
+
+        if not req_params.draft:
+            if not all(required_fields_map.values()):
+                missing_fields = [
+                    field for field, value in required_fields_map.items() if not value
+                ]
+                await db_session.rollback()
+                logger.error(
+                    f"{authorized_user['email']} - Missing required fields: {missing_fields.join(', ')}"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Missing required fields",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": f"Missing required fields: {missing_fields.join(', ')}",
+                    },
+                )
+
+            if competition.prize_pools.prize_type == PrizeTypeEnum.CASH:
+                if (
+                    not competition.prize_pools.currency
+                    or not competition.prize_pools.total_pool_amount
+                ):
+                    missing_fields = []
+                    if not competition.prize_pools.currency:
+                        missing_fields.append("currency")
+                    if not competition.prize_pools.total_pool_amount:
+                        missing_fields.append("total_pool_amount")
+
+                    await db_session.rollback()
+                    logger.error(
+                        f"{authorized_user['email']} - Missing required fields: {", ".join(missing_fields)}"
+                    )
+
+                    return CustomJSONResponse(
+                        success=False,
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        message="Missing required fields",
+                        error={
+                            "code": "BAD_REQUEST",
+                            "details": f"Missing required fields: {', '.join(missing_fields)}",
+                        },
+                    )
+
+            if req_params.publish_schedule:
+                competition.publish_schedule = req_params.publish_schedule
+                competition.status = CompetitionStatusEnum.SCHEDULED
+
+            else:
+                competition.status = CompetitionStatusEnum.PUBLISHED
+
+        competition.updated_at = current_timestamp
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Competition updated successfully",
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {e}")
+        return CustomBackendError(
+            message="Competition update failed",
+            details="An error occurred while updating the competition. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
+
+async def admin_evaluate_submission_handler(
+    req_params: AdminEvaluateSubmissionParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Evaluates a specific submission for a given competition.
+
+    Args:
+        req_params (AdminDisqualifySubmissionParams): The request body containing the submission ID and disqualification reason.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response indicating the disqualification result.
+    """
+    logger.info(
+        f"{authorized_user['email']} - Admin Disqualify Submission handler started"
+    )
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
+    try:
+        submission_stmt = select(CompetitionSubmission).where(
+            CompetitionSubmission.id == req_params.submission_id
+        )
+        submission = await db_session.execute(submission_stmt)
+        submission = submission.scalar_one_or_none()
+
+        if not submission:
+            logger.error(
+                f"{authorized_user['email']} - Submission not found (id={req_params.submission_id})"
+            )
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Submission not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "Submission does not exist for the provided id. Please check the id and try again.",
+                },
+            )
+
+        if submission.competition.status in [
+            CompetitionStatusEnum.CANCELLED,
+            CompetitionStatusEnum.COMPLETED,
+        ]:
+            logger.error(
+                f"{authorized_user['email']} - Submission already evaluated (id={req_params.submission_id})"
+            )
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Submission already evaluated",
+                error={
+                    "code": "BAD_REQUEST",
+                    "details": "Submission has already been evaluated. Please contact developers if the issue persists.",
+                },
+            )
+
+        if req_params.comments:
+            submission.evaluation_comment = req_params.comments
+
+        if req_params.disqualify:
+            submission.is_disqualified = True
+            submission.score = None
+
+            for attachment in submission.evaluation_attachments.values():
+                s3_client.delete_object(
+                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                    Key=attachment["s3_key"],
+                )
+
+            submission.evaluation_attachments = None
+
+        else:
+            submission.is_disqualified = False
+
+            if req_params.score:
+                submission.score = req_params.score
+
+            if req_params.attachments:
+                if req_params.attachments.remove:
+                    new_attachments = deepcopy(submission.attachments) or {}
+
+                    for key, value in submission.evaluation_attachments.items():
+                        if value["s3_key"] in req_params.attachments.remove:
+                            s3_client.delete_object(
+                                Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                                Key=value["s3_key"],
+                            )
+                        else:
+                            new_attachments[key] = value
+
+                    submission.evaluation_attachments = (
+                        new_attachments if new_attachments else None
+                    )
+
+                if req_params.attachments.add:
+                    new_attachments = deepcopy(submission.evaluation_attachments) or {}
+
+                    for source_s3_key in req_params.attachments:
+                        file_name = source_s3_key.split("/")[-1]
+                        metadata = get_s3_file_metadata(source_s3_key)
+
+                        if "error" in metadata:
+                            await db_session.rollback()
+
+                            logger.error(
+                                f"{authorized_user['email']} - Error fetching metadata for {source_s3_key}: {metadata['error']}"
+                            )
+                            return CustomBackendError(
+                                message="Discussion creation failed",
+                                details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
+                            )
+
+                        # build permanent key and copy object to permanent location
+                        permanent_s3_key = f"private/{authorized_user['user_id']}/{submission.competition_id}/{submission.id}/evaluation_attachments/{file_name}"
+
+                        try:
+                            s3_client.copy_object(
+                                Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                                CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{source_s3_key}",
+                                Key=permanent_s3_key,
+                            )
+                        except Exception as s3_exc:
+                            await db_session.rollback()
+
+                            logger.exception(
+                                f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                            )
+                            return CustomBackendError(
+                                message="Submission creation failed",
+                                details="An error occurred while creating the submission. Please contact developers if the issue persists.",
+                            )
+
+                        new_attachments[file_name] = {
+                            "metadata": metadata,
+                            "s3_key": permanent_s3_key,
+                            "uploaded_at": current_timestamp.strftime(
+                                "%Y-%m-%d %H:%M:%S +0530"
+                            ),
+                        }
+
+                    submission.evaluation_attachments = new_attachments
+
+        submission.updated_at = current_timestamp
+
+        if submission.is_disqualified:
+            if not submission.evaluation_comment:
+                logger.error(
+                    f"{authorized_user['email']} - Evaluation comment not provided (id={req_params.submission_id})"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Evaluation comment not provided",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "Evaluation comment is required for disqualified submission. Please provide a comment and try again.",
+                    },
+                )
+
+        else:
+            if not submission.evaluation_comment:
+                logger.error(
+                    f"{authorized_user['email']} - Evaluation comment not provided (id={req_params.submission_id})"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Evaluation comment not provided",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "Evaluation comment is required for qualified submission. Please provide a comment and try again.",
+                    },
+                )
+
+            if submission.score == None:
+                logger.error(
+                    f"{authorized_user['email']} - Score not provided (id={req_params.submission_id})"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Score not provided",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "Score is required for qualified submission. Please provide a score and try again.",
+                    },
+                )
+
+            if not submission.evaluation_attachments:
+                logger.error(
+                    f"{authorized_user['email']} - Evaluation attachments not provided (id={req_params.submission_id})"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Evaluation attachments not provided",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "Evaluation attachments are required for qualified submission. Please provide evaluation attachments and try again.",
+                    },
+                )
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Submission evaluated successfully",
+        )
+
+    except Exception as e:
+        await db_session.rollback()
+
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Admin evaluate submission failed",
+            details="An error occurred while evaluating the submission. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")

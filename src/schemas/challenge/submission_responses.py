@@ -6,6 +6,7 @@ from typing import Any, List, Literal, Optional, Union
 from ..default_schemas import (
     BadRequestErrorResponse,
     SuccessfulResponse,
+    CreatedResponse,
     UnauthorizedErrorResponse,
     ForbiddenErrorResponse,
     NotFoundErrorResponse,
@@ -18,8 +19,8 @@ from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 
 class CompetitionTimelinesSchema(BaseModel):
     id: uuid.UUID
-    submission_starts_at: date
-    submission_ends_at: date
+    submission_starts_at: Optional[date]
+    submission_ends_at: Optional[date]
     evaluation_ends_at: Optional[date]
 
     model_config = {"from_attributes": True}
@@ -83,6 +84,21 @@ RETRIEVE_USER_SUBMISSIONS_RESPONSE_MODEL = {
     401: {"model": UnauthorizedErrorResponse},
     422: {"model": ValidationErrorResponse},
     500: {"model": RetrieveUserSubmissionsBackendErrorResponse},
+}
+
+
+class CreateUserSubmissionsCreatedResponse(CreatedResponse):
+    message: Literal["User submission created successfully"]
+
+
+CREATE_USER_SUBMISSION_RESPONSE_MODEL = {
+    201: {"model": SuccessfulResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    403: {"model": ForbiddenErrorResponse},
+    404: {"model": NotFoundErrorResponse},
+    409: {"model": ConflictErrorResponse},
+    500: {"model": BackendErrorResponse},
 }
 
 

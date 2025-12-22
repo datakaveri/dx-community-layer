@@ -1,8 +1,9 @@
 import enum
 import uuid
+from typing import List, Optional
 from fastapi import Body, Path, Query
-from typing import Any, Optional
 from pydantic import BaseModel, Field
+from fastapi.exceptions import RequestValidationError
 
 
 class RetrieveUserSubmissionsChoice(enum.Enum):
@@ -49,26 +50,95 @@ class RetrieveUserSubmissionsParams:
         self.limit = limit
         self.sort_by = sort_by
         self.sort_order = sort_order
-        self.score = None
-
-        if self.query:
-            score = None
-            try:
-                score = float(self.query)
-
-                if 0 <= score <= 100:
-                    self.score = score
-            except ValueError:
-                pass
 
 
-class CreateSubmissionRequest(BaseModel):
-    title: str = Field(..., max_length=300, description="Title for the submission")
-    description: str = Field(..., description="Detailed explanation of the submission")
-    attachments: Optional[list[str]] = Field(
+class CreateUserSubmissionsParams:
+    def __init__(
+        self,
+        competition_id: uuid.UUID = Path(..., description="ID of the competition"),
+        title: str = Body(..., max_length=300, description="Title for the submission"),
+        description: str = Body(..., description="Description of the submission"),
+        attachments: List[str] = Body(
+            default=None,
+            description="Attachments to add to the submission (s3 keys)",
+            min_length=2,
+            max_length=2,
+        ),
+    ):
+        self.competition_id = competition_id
+        self.title = title.strip()
+        self.description = description.strip()
+        self.attachments = attachments
+
+        # Attachment validation
+        try:
+            extensions = set(
+                [
+                    attachment.split("/")[-1].split(".")[-1].lower()
+                    for attachment in self.attachments
+                ]
+            )
+
+            allowed_docs = {"pdf", "doc", "docx"}
+
+            # File type validation
+            has_zip = "zip" in extensions
+            has_doc = any(ext in allowed_docs for ext in extensions)
+
+            if not has_zip and not has_doc:
+                raise RequestValidationError(
+                    [
+                        {
+                            "loc": ["body", "attachments"],
+                            "msg": "Invalid file extension for attachment. Must be a zip file and one of pdf, doc, or docx.",
+                            "type": "value_error.invalid",
+                            "input": attachments,
+                        }
+                    ]
+                )
+        except Exception:
+            raise RequestValidationError(
+                [
+                    {
+                        "loc": ["body", "attachments"],
+                        "msg": "Invalid attachment key",
+                        "type": "value_error.invalid",
+                        "input": attachments,
+                    }
+                ]
+            )
+
+
+class UpdateSubmissionAttachmetsSchema(BaseModel):
+    add: Optional[List[str]] = Field(
         default=None,
-        description="Optional attachment metadata (e.g., S3 keys, urls)",
+        description="Optional attachment metadata (S3 keys) to add",
     )
+    remove: Optional[List[str]] = Field(
+        default=None,
+        description="Optional attachment metadata (S3 keys) to remove",
+    )
+
+
+class UpdateUserSubmissionsParams:
+    def __init__(
+        self,
+        submission_id: uuid.UUID = Path(..., description="ID of the competition"),
+        title: Optional[str] = Body(
+            default=None, max_length=300, description="Title for the submission"
+        ),
+        description: Optional[str] = Body(
+            default=None, description="Description of the submission"
+        ),
+        attachments: Optional[UpdateSubmissionAttachmetsSchema] = Body(
+            default=None,
+            description="Attachments to add to the submission (s3 keys)",
+        ),
+    ):
+        self.submission_id = submission_id
+        self.title = title
+        self.description = description
+        self.attachments = attachments
 
 
 class PublishSubmissionParams:

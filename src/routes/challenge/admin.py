@@ -1,23 +1,22 @@
-# app/routes/admin.py
-
-from typing import Optional
 from uuid import UUID
-
-from fastapi import APIRouter, Body, Depends, Path, Query
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Body, Depends, Path, Query
 
+from ...schemas.challenge.admin_responses import ADMIN_CREATE_COMPETITION_RESPONSE_MODEL
 from ...schemas.challenge.admin_requests import (
+    AdminCreateCompetitionParams,
+    AdminEvaluateSubmissionParams,
     AdminRetrieveCompetitionSubmissionsParams,
     AdminRetrieveCompetitionsParams,
+    AdminUpdateCompetitionParams,
 )
 from ...middlewares.logging import logger
 from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...middlewares.authorization import http_bearer_header
 from ...schemas.default_schemas import AuthorizationData, UserRole
-from ...database.challenge.enums import CompetitionStatusEnum
 from ...schemas.challenge.competition_requests import (
-    CreateCompetitionParams,
     UpdateCompetitionParams,
 )
 from ...schemas.challenge.submission_requests import (
@@ -30,23 +29,24 @@ from ...schemas.challenge.submission_responses import (
 )
 from ...services.challenge.competition_services import (
     admin_announce_competition_result_handler,
-    create_competition_handler,
     update_competition_handler,
     delete_competition_handler,
-    announce_result_service,
 )
 from ...services.challenge.submission_services import (
-    get_admin_competition_submissions_handler,
     publish_submission_service,
     admin_edit_submission_evaluation_service,
     disqualify_submission_service,
 )
 from ...services.challenge.admin_services import (
+    admin_create_competition_handler,
+    admin_evaluate_submission_handler,
     admin_retrieve_challenge_dataset_handler,
     admin_retrieve_challenge_by_id_handler,
     admin_retrieve_competition_submissions_handler,
     admin_retrieve_competitions_handler,
+    admin_update_competition_handler,
 )
+
 
 router = APIRouter(prefix="/admin", tags=["Challenge - Admin APIs"])
 
@@ -140,28 +140,26 @@ async def admin_retrieve_competitions(
     )
 
 
-# -------------------------------------------------------------------
-# ADMIN – CREATE CHALLENGE
-# -------------------------------------------------------------------
 @router.post(
-    path="/challenges",
-    description="Creates a new challenge. Only COS_ADMIN can access.",
+    path="/challenge",
+    description="Creates a new competition (challenge) from the admin panel. Only COS_ADMIN can access.",
+    responses=ADMIN_CREATE_COMPETITION_RESPONSE_MODEL,
 )
-async def admin_create_challenge(
-    req_params: CreateCompetitionParams = Depends(),
+async def admin_create_competition(
+    req_params: AdminCreateCompetitionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Creates a new challenge from the admin panel.
+    Creates a new competition (challenge) from the admin panel.
 
     Args:
-        req_params: Challenge creation payload (title, description, timeline, etc.).
+        req_params: Competition creation payload (title, description, timeline, etc.).
         authorized_user: Authenticated admin user.
         db_session: Active DB session.
 
     Returns:
-        CustomJSONResponse with created challenge details.
+        CustomJSONResponse with created competition details.
     """
     logger.info("Admin Create Challenge API is being called")
 
@@ -179,7 +177,50 @@ async def admin_create_challenge(
             },
         )
 
-    return await create_competition_handler(
+    return await admin_create_competition_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+
+@router.put(
+    path="/challenge/{competition_id}",
+    description="Updates an existing challenge (competition) from the admin panel. Only COS_ADMIN can access.",
+)
+async def admin_update_competition(
+    req_params: AdminUpdateCompetitionParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
+) -> CustomJSONResponse:
+    """
+    Updates an existing challenge (competition) from the admin panel.
+
+    Args:
+        req_params: Competition update payload (title, description, timeline, etc.).
+        authorized_user: Authenticated admin user.
+        db_session: Active DB session.
+
+    Returns:
+        CustomJSONResponse with updated competition details.
+    """
+    logger.info("Admin Update Challenge API is being called")
+
+    if authorized_user["user_role"] != UserRole.COS_ADMIN:
+        return CustomJSONResponse(
+            success=False,
+            status_code=403,
+            message="Forbidden access",
+            error={
+                "code": "FORBIDDEN",
+                "details": (
+                    "You are not authorized to access this resource. "
+                    "Please contact support if required."
+                ),
+            },
+        )
+
+    return await admin_update_competition_handler(
         req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,
@@ -285,58 +326,6 @@ async def admin_retrieve_competition_submissions(
 
 
 # -------------------------------------------------------------------
-# ADMIN – UPDATE CHALLENGE
-# -------------------------------------------------------------------
-@router.put(
-    path="/challenges/{competition_id}",
-    description=(
-        "Updates an existing challenge draft. Only COS_ADMIN can access. "
-        "Only draft or scheduled challenges can be updated."
-    ),
-)
-async def admin_update_challenge(
-    competition_id: UUID = Path(..., description="ID of the challenge to update"),
-    req_params: UpdateCompetitionParams = Depends(),
-    authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_challenge_db_session),
-) -> CustomJSONResponse:
-    """
-    Updates an existing challenge (draft/scheduled) from the admin panel.
-
-    Args:
-        challenge_id: Challenge ID.
-        req_params: Update payload for challenge.
-        authorized_user: Authenticated admin user.
-        db_session: Active DB session.
-
-    Returns:
-        CustomJSONResponse with updated challenge details.
-    """
-    logger.info("Admin Update Challenge API is being called")
-
-    if authorized_user["user_role"] != UserRole.COS_ADMIN:
-        return CustomJSONResponse(
-            success=False,
-            status_code=403,
-            message="Forbidden access",
-            error={
-                "code": "FORBIDDEN",
-                "details": (
-                    "You are not authorized to access this resource. "
-                    "Please contact support if required."
-                ),
-            },
-        )
-
-    return await update_competition_handler(
-        competition_id=competition_id,
-        req_params=req_params,
-        authorized_user=authorized_user,
-        db_session=db_session,
-    )
-
-
-# -------------------------------------------------------------------
 # ADMIN – DELETE CHALLENGE
 # -------------------------------------------------------------------
 @router.delete(
@@ -382,75 +371,32 @@ async def admin_delete_challenge(
     )
 
 
-# -------------------------------------------------------------------
-# ADMIN – DISQUALIFY SUBMISSION
-# -------------------------------------------------------------------
 @router.put(
-    path="/{competition_id}/{submission_id}/disqualify",
-    response_model=DisqualifySubmissionResponse,
-    description="Disqualify a submission inside a challenge. Only COS_ADMIN can access.",
+    path="/submission/{submission_id}/evaluate",
+    description="Evaluates a submission inside a competition. Only COS_ADMIN can access.",
 )
-async def admin_disqualify_submission(
-    competition_id: str = Path(..., description="Challenge ID"),
-    submission_id: str = Path(..., description="Submission ID"),
-    comments: str = Body(..., description="Comments for disqualification"),
-    attachment: Optional[str] = Body(
-        default=None, description="Attachment for disqualification"
-    ),
+async def admin_evaluate_submission(
+    req_params: AdminEvaluateSubmissionParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Disqualifies a specific submission for a given challenge.
+    Evaluates a specific submission for a given competition.
 
     Args:
-        challenge_id: Challenge ID.
-        submission_id: Submission ID.
-        comments: Reason/comments for disqualification.
-        attachment: Optional attachment (evidence).
-        authorized_user: Authenticated admin user.
-        db_session: Active DB session.
+        req_params (DisqualifySubmissionParams): The request body containing the submission ID and disqualification details.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse indicating disqualification result.
+        CustomJSONResponse: A JSON response with the disqualification details and relevant metadata.
     """
-    logger.info(
-        f"Admin Disqualify Submission API called for challenge={competition_id}, submission={submission_id}"
-    )
+    logger.info("Admin Disqualify Submission API is being called")
 
-    if authorized_user["user_role"] != UserRole.COS_ADMIN:
-        return CustomJSONResponse(
-            success=False,
-            status_code=403,
-            message="Forbidden access",
-            error={
-                "code": "FORBIDDEN",
-                "details": (
-                    "You are not authorized to access this resource. "
-                    "Please contact support if required."
-                ),
-            },
-        )
-
-    result = await disqualify_submission_service(
-        competition_id=competition_id,
-        submission_id=submission_id,
-        comments=comments,
-        db=db_session,
-    )
-
-    if not result:
-        return CustomJSONResponse(
-            success=False,
-            status_code=404,
-            message="Submission not found for given challenge_id",
-            error={"code": "NOT_FOUND"},
-        )
-
-    return CustomJSONResponse(
-        success=True,
-        status_code=200,
-        message="Submission successfully disqualified",
+    return await admin_evaluate_submission_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
+        db_session=db_session,
     )
 
 

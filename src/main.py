@@ -28,6 +28,7 @@ origins = [
     "http://127.0.0.1:5003",
     "http://localhost:5003",
     "http://localhost:4007",
+    "http://127.0.0.1:4007",
     "http://localhost:4200",
     "https://staging.catalogue.tgdex.iudx.io",
 ]
@@ -37,7 +38,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=[
         "Accept",
         "Accept-Encoding",

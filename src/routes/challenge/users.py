@@ -33,7 +33,6 @@ from ...schemas.challenge.bookmark_responses import (
     BOOKMARKED_COMPETITIONS_RESPONSE_MODEL,
 )
 from ...schemas.challenge.submission_requests import (
-    CreateSubmissionRequest,
     DownloadSubmissionParams,
     UpdateSubmissionParams,
 )
@@ -552,27 +551,6 @@ async def users_get_bookmarked_competitions(
         sort_by=sort_by,
         page=page,
         limit=limit,
-    )
-
-
-@router.post(
-    path="/challenges/{competition_id}/submissions",
-    description="Endpoint for authenticated users to submit an entry for a challenge (within submission window).",
-    responses=CREATE_SUBMISSION_RESPONSE_MODEL,
-    tags=["Challenge - Submission APIs"],
-)
-async def users_create_submission(
-    competition_id: UUID = Path(..., description="ID of the challenge"),
-    payload: CreateSubmissionRequest = Body(...),
-    authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_challenge_db_session),
-) -> CustomJSONResponse:
-    logger.info("User Create Submission API is being called")
-    return await create_user_submission_handler(
-        competition_id=competition_id,
-        payload=payload,
-        authorized_user=authorized_user,
-        db_session=db_session,
     )
 
 

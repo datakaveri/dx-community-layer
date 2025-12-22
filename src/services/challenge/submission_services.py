@@ -1,10 +1,11 @@
+from copy import deepcopy
 import math
 import pytz
 from uuid import UUID
 from fastapi import status
 from typing import Any, List
+from datetime import datetime
 from sqlalchemy import func, select
-from datetime import datetime, timezone
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ from ...schemas.default_schemas import AuthorizationData, UserRole
 from ...schemas.challenge.submission_responses import UserSubmissionsSchema
 from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
 from ...schemas.challenge.submission_requests import (
-    CreateSubmissionRequest,
+    CreateUserSubmissionsParams,
     DownloadSubmissionParams,
     DownloadSubmissionType,
     PublishSubmissionParams,
@@ -33,7 +34,6 @@ from ...database.challenge.models import (
     CompetitionParticipant,
     CompetitionSubmission,
     CompetitionPrizePool,
-    User,
 )
 from ...database.challenge.enums import CompetitionStatusEnum
 
@@ -44,7 +44,7 @@ async def retrieve_user_submissions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves submissions for a user across challenges based on their choice.
+    Retrieves submissions for a user across competitions based on their choice.
 
     Args:
         req_params (RetrieveUserSubmissionsParams): The request body containing the choice and sorting parameters.
@@ -85,9 +85,7 @@ async def retrieve_user_submissions_handler(
         # -----------------------
         # Search Query
         # -----------------------
-        if req_params.score:
-            stmt = stmt.where(CompetitionSubmission.score == req_params.score)
-        elif req_params.query:
+        if req_params.query:
             formatted_query = format_tsquery(req_params.query)
             ts_query = func.to_tsquery("english", formatted_query)
 
@@ -194,185 +192,164 @@ async def retrieve_user_submissions_handler(
         logger.info(f"{authorized_user['email']} - Execution completed")
 
 
-async def _get_submission_window(db_session: AsyncSession, competition_id: UUID):
-    stmt = (
-        select(
-            Competition.status,
-            CompetitionTimeline.submission_starts_at,
-            CompetitionTimeline.submission_ends_at,
-        )
-        .join(
-            CompetitionTimeline,
-            CompetitionTimeline.competition_id == Competition.id,
-            isouter=True,
-        )
-        .where(Competition.id == competition_id)
-    )
-    result = await db_session.execute(stmt)
-    return result.first()
-
-
 async def create_user_submission_handler(
-    competition_id: UUID,
-    payload: CreateSubmissionRequest,
+    req_params: CreateUserSubmissionsParams,
     authorized_user: AuthorizationData,
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
+    """
+    Creates a new submission for a specific competition for an authenticated user.
+
+    Args:
+        req_params (CreateUserSubmissionsParams): The request body containing the competition ID and submission details.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the created submission details and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
     try:
-        user_id = authorized_user.get("user_id")
-
-        if not user_id:
-            return CustomJSONResponse(
-                success=False,
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                message="Unauthorized access",
-                error={
-                    "code": "UNAUTHORIZED",
-                    "details": "User information missing in authorization context.",
-                },
-            )
-
-        # Fetch challenge submission window
-        submission_window = await _get_submission_window(
-            db_session=db_session, competition_id=competition_id
+        competition_stmt = select(Competition).where(
+            Competition.id == req_params.competition_id
         )
+        competition = await db_session.execute(
+            competition_stmt.options(
+                selectinload(Competition.timelines),
+                selectinload(Competition.participants),
+            )
+        )
+        competition = competition.scalar_one()
 
-        if not submission_window:
+        if not competition:
+            logger.error(
+                f"{authorized_user['email']} - Competition not found (id={req_params.competition_id})"
+            )
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_404_NOT_FOUND,
-                message="Resource not found",
+                message="Competition not found",
                 error={
                     "code": "NOT_FOUND",
-                    "details": "Challenge not found.",
+                    "details": "Competition does not exist for the provided id. Please check the id and try again.",
                 },
             )
 
-        competition_status, submission_starts_at, submission_ends_at = submission_window
-
-        if competition_status != CompetitionStatusEnum.PUBLISHED:
+        if competition.status != CompetitionStatusEnum.PUBLISHED:
+            logger.error(
+                f"{authorized_user['email']} - Competition is not published (id={req_params.competition_id})"
+            )
             return CustomJSONResponse(
                 success=False,
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Bad Request",
+                status_code=status.HTTP_403_FORBIDDEN,
+                message="Competition is not published",
                 error={
-                    "code": "SUBMISSION_NOT_ALLOWED",
-                    "details": "Submissions can be created only for published challenges.",
+                    "code": "FORBIDDEN",
+                    "details": "Competition is not published. Only published competitions can be submitted to.",
                 },
             )
 
-        if submission_starts_at is None or submission_ends_at is None:
+        if authorized_user["user_id"] not in [
+            participant.user_id for participant in competition.participants or []
+        ]:
+            logger.error(
+                f"{authorized_user['email']} - User is not a participant of the competition (id={req_params.competition_id})"
+            )
             return CustomJSONResponse(
                 success=False,
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Bad Request",
+                status_code=status.HTTP_403_FORBIDDEN,
+                message="User is not a participant of the competition",
                 error={
-                    "code": "SUBMISSION_WINDOW_NOT_CONFIGURED",
-                    "details": "Submission window is not configured for this challenges.",
+                    "code": "FORBIDDEN",
+                    "details": "User is not a participant of the competition. Only participants can submit.",
                 },
             )
 
         current_date = datetime.now(pytz.timezone("Asia/Kolkata")).date()
 
-        if current_date < submission_starts_at:
+        if competition.timelines.submission_starts_at > current_date:
+            logger.error(
+                f"{authorized_user['email']} - Submission window has not started (id={req_params.competition_id})"
+            )
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message="Bad Request",
+                message="Submission window has not started",
                 error={
-                    "code": "SUBMISSIONS_NOT_STARTED",
-                    "details": "Submission window has not started yet.",
+                    "code": "BAD_REQUEST",
+                    "details": "Submission window has not started yet. Please submit after the submission start date.",
                 },
             )
 
-        if current_date > submission_ends_at:
+        if competition.timelines.submission_ends_at < current_date:
+            logger.error(
+                f"{authorized_user['email']} - Submission window has ended (id={req_params.competition_id})"
+            )
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message="Bad Request",
+                message="Submission window has ended",
                 error={
-                    "code": "SUBMISSIONS_CLOSED",
-                    "details": "Submission window has already ended.",
+                    "code": "BAD_REQUEST",
+                    "details": "Submission window has ended. No more submissions are allowed.",
                 },
             )
 
-        # Ensure the user has joined the challenge
-        participant_stmt = select(CompetitionParticipant.id).where(
-            CompetitionParticipant.competition_id == competition_id,
-            CompetitionParticipant.user_id == user_id,
+        # Existing submissions
+        existing_submission_stmt = select(CompetitionSubmission).where(
+            CompetitionSubmission.competition_id == req_params.competition_id,
+            CompetitionSubmission.user_id == authorized_user["user_id"],
         )
-        participant_result = await db_session.execute(participant_stmt)
-        participant = participant_result.scalar_one_or_none()
 
-        if not participant:
-            return CustomJSONResponse(
-                success=False,
-                status_code=status.HTTP_403_FORBIDDEN,
-                message="Forbidden access",
-                error={
-                    "code": "NOT_A_PARTICIPANT",
-                    "details": "You must join the challenge before submitting.",
-                },
-            )
-
-        existing_submission_stmt = select(CompetitionSubmission.id).where(
-            CompetitionSubmission.competition_id == competition_id,
-            CompetitionSubmission.user_id == user_id,
-        )
-        existing_submission_result = await db_session.execute(existing_submission_stmt)
-        existing_submission = existing_submission_result.scalar_one_or_none()
+        existing_submission = await db_session.execute(existing_submission_stmt)
+        existing_submission = existing_submission.scalar_one_or_none()
 
         if existing_submission:
+            logger.error(
+                f"{authorized_user['email']} - User has already submitted (id={req_params.competition_id})"
+            )
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_409_CONFLICT,
-                message="Conflict",
+                message="Submission already exists",
                 error={
                     "code": "CONFLICT",
-                    "details": "Submission already exists for the user. Please update the existing submission in case of any changes.",
+                    "details": "You have already submitted a submission for this competition. Please edit your existing submission.",
                 },
             )
 
-        # Determine next submission count for the user
-        submission_count_stmt = select(func.count()).where(
-            CompetitionSubmission.competition_id == competition_id,
-            CompetitionSubmission.user_id == user_id,
-        )
-        submission_count = (
-            await db_session.execute(submission_count_stmt)
-        ).scalar_one()
-        next_count = submission_count + 1
-
-        submission = CompetitionSubmission(
-            competition_id=competition_id,
-            user_id=user_id,
-            title=payload.title,
-            description=payload.description,
-            submission_count=next_count,
+        new_competition_submission = CompetitionSubmission(
+            competition_id=req_params.competition_id,
+            user_id=authorized_user["user_id"],
+            title=req_params.title,
+            description=req_params.description,
         )
 
-        db_session.add(submission)
+        db_session.add(new_competition_submission)
         await db_session.flush()
 
-        if payload.attachments:
-            attachment_objs: List[dict[str, Any]] = []
+        if req_params.attachments:
+            new_attachments = {}
 
-            for source_s3_key in payload.attachments:
+            for source_s3_key in req_params.attachments:
                 file_name = source_s3_key.split("/")[-1]
                 metadata = get_s3_file_metadata(source_s3_key)
 
                 if "error" in metadata:
+                    await db_session.rollback()
+
                     logger.error(
                         f"{authorized_user['email']} - Error fetching metadata for {source_s3_key}: {metadata['error']}"
                     )
-                    await db_session.rollback()
                     return CustomBackendError(
                         message="Discussion creation failed",
                         details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
                     )
 
                 # build permanent key and copy object to permanent location
-                permanent_s3_key = f"private/{authorized_user['user_id']}/{submission.competition_id}/{submission.id}/attachments/{file_name}"
+                permanent_s3_key = f"private/{authorized_user['user_id']}/{new_competition_submission.competition_id}/{new_competition_submission.id}/submission_attachments/{file_name}"
 
                 try:
                     s3_client.copy_object(
@@ -381,55 +358,180 @@ async def create_user_submission_handler(
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
+                    await db_session.rollback()
+
                     logger.exception(
                         f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
                     )
-                    await db_session.rollback()
                     return CustomBackendError(
-                        message="Discussion creation failed",
-                        details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
+                        message="Submission creation failed",
+                        details="An error occurred while creating the submission. Please contact developers if the issue persists.",
                     )
 
-                attachment_objs.append(
-                    {
-                        "file_name": file_name,
-                        "metadata": metadata,
-                        "s3_key": permanent_s3_key,
-                    }
-                )
+                new_attachments[file_name] = {
+                    "metadata": metadata,
+                    "s3_key": permanent_s3_key,
+                    "uploaded_at": current_timestamp.strftime(
+                        "%Y-%m-%d %H:%M:%S +0530"
+                    ),
+                }
 
-            if attachment_objs:
-                submission.attachments = attachment_objs
+            new_competition_submission.attachments = new_attachments
 
         await db_session.commit()
-        await db_session.refresh(submission)
 
         return CustomJSONResponse(
             success=True,
             status_code=status.HTTP_201_CREATED,
-            message="Submission created successfully",
+            message="User submission created successfully",
             data={
-                "submission_id": str(submission.id),
-                "competition_id": str(competition_id),
-                "user_id": str(user_id),
-                "title": submission.title,
-                "description": submission.description,
-                "attachments": submission.attachments,
-                "submission_count": submission.submission_count,
-                "is_disqualified": submission.is_disqualified,
-                "score": submission.score,
-                "evaluation_comment": submission.evaluation_comment,
-                "created_at": submission.created_at.isoformat(),
-                "updated_at": submission.updated_at.isoformat(),
+                "id": new_competition_submission.id,
+                "title": new_competition_submission.title,
             },
         )
-    except Exception as exc:
-        logger.error("Failed to create submission", exc_info=True)
+
+    except Exception as e:
         await db_session.rollback()
+
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
-            message="Failed to create submission",
-            details=str(exc),
+            message="User submissions creation failed",
+            details="An error occurred while creating the submissions. Please contact developers if the issue persists.",
         )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
+
+async def update_user_submission_handler(
+    req_params: UpdateSubmissionParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Updates a submission for a specific competition for an authenticated user.
+
+    Args:
+        req_params (UpdateSubmissionParams): The request body containing the submission ID and updated details.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the updated submission details and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
+    try:
+        submission_stmt = select(CompetitionSubmission).where(
+            CompetitionSubmission.id == req_params.submission_id
+        )
+
+        submission = await db_session.execute(submission_stmt)
+        submission = submission.scalar_one_or_none()
+
+        if not submission:
+            logger.error(
+                f"{authorized_user['email']} - Submission not found (id={req_params.submission_id})"
+            )
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Submission not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": f"Submission does not exist for the provided id. Please check the id and try again.",
+                },
+            )
+
+        if req_params.title:
+            submission.title = req_params.title
+        if req_params.description:
+            submission.description = req_params.description
+
+        if req_params.attachments:
+            if req_params.attachments.remove:
+                new_attachments = deepcopy(submission.attachments) or {}
+
+                for key, value in submission.attachments.items():
+                    if value["s3_key"] in req_params.attachments.remove:
+                        s3_client.delete_object(
+                            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                            Key=value["s3_key"],
+                        )
+                    else:
+                        new_attachments[key] = value
+
+                submission.attachments = new_attachments
+
+            if req_params.attachments.add:
+                new_attachments = deepcopy(submission.attachments)
+
+                for s3_key in req_params.attachments.add:
+                    file_name = s3_key.split("/")[-1]
+                    metadata = get_s3_file_metadata(s3_key)
+
+                    if "error" in metadata:
+                        await db_session.rollback()
+
+                        logger.error(
+                            f"{authorized_user['email']} - Error fetching metadata for {s3_key}: {metadata['error']}"
+                        )
+                        return CustomBackendError(
+                            message="Submission update failed",
+                            details="An error occurred while updating the submission. Please contact developers if the issue persists.",
+                        )
+
+                    permanent_s3_key = f"private/{authorized_user['user_id']}/{submission.competition_id.competition_id}/{submission.id}/submission_attachments/{file_name}"
+
+                    try:
+                        s3_client.copy_object(
+                            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                            CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{s3_key}",
+                            Key=permanent_s3_key,
+                        )
+                    except Exception as s3_exc:
+                        await db_session.rollback()
+
+                        logger.exception(
+                            f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                        )
+                        return CustomBackendError(
+                            message="Submission creation failed",
+                            details="An error occurred while creating the submission. Please contact developers if the issue persists.",
+                        )
+
+                    new_attachments[file_name] = {
+                        "metadata": metadata,
+                        "s3_key": permanent_s3_key,
+                        "uploaded_at": current_timestamp.strftime(
+                            "%Y-%m-%d %H:%M:%S +0530"
+                        ),
+                    }
+
+                submission.attachments = new_attachments
+
+        submission.updated_at = current_timestamp
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Submission updated successfully",
+        )
+
+    except Exception as e:
+        await db_session.rollback()
+
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Submission update failed",
+            details="An error occurred while updating the submission. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
 
 
 async def get_user_submissions_handler(
@@ -583,124 +685,13 @@ async def get_user_submissions_handler(
         )
 
 
-async def get_admin_competition_submissions_handler(
-    competition_id: UUID,
-    authorized_user: AuthorizationData,
-    db_session: AsyncSession,
-    page: int = 1,
-    limit: int = 10,
-) -> CustomJSONResponse:
-    try:
-        if authorized_user.get("user_role") != UserRole.COS_ADMIN:
-            return CustomJSONResponse(
-                success=False,
-                status_code=status.HTTP_403_FORBIDDEN,
-                message="Forbidden access",
-                error={
-                    "code": "FORBIDDEN",
-                    "details": "You are not authorized to access this resource.",
-                },
-            )
-
-        # Ensure competition exists
-        competition_exists_stmt = select(Competition.id).where(
-            Competition.id == competition_id
-        )
-        competition_exists = (
-            await db_session.execute(competition_exists_stmt)
-        ).scalar_one_or_none()
-
-        if not competition_exists:
-            return CustomJSONResponse(
-                success=False,
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Resource not found",
-                error={
-                    "code": "NOT_FOUND",
-                    "details": "Challenge not found.",
-                },
-            )
-
-        count_stmt = (
-            select(func.count())
-            .select_from(CompetitionSubmission)
-            .where(CompetitionSubmission.competition_id == competition_id)
-        )
-        total_submissions = (await db_session.execute(count_stmt)).scalar_one()
-
-        total_pages = (
-            (total_submissions + limit - 1) // limit if total_submissions > 0 else 0
-        )
-        offset = (page - 1) * limit
-
-        submissions_stmt = (
-            select(
-                CompetitionSubmission,
-                User.name.label("user_name"),
-                User.email.label("user_email"),
-            )
-            .join(User, User.id == CompetitionSubmission.user_id)
-            .where(CompetitionSubmission.competition_id == competition_id)
-            .order_by(
-                CompetitionSubmission.created_at.desc(),
-                CompetitionSubmission.submission_count.desc(),
-            )
-            .offset(offset)
-            .limit(limit)
-        )
-
-        submissions_result = await db_session.execute(submissions_stmt)
-        rows = submissions_result.all()
-
-        submissions = []
-        for submission, user_name, user_email in rows:
-            submissions.append(
-                {
-                    "submission_id": str(submission.id),
-                    "competition_id": str(submission.competition_id),
-                    "user_id": str(submission.user_id),
-                    "user_name": user_name,
-                    "user_email": user_email,
-                    "title": submission.title,
-                    "description": submission.description,
-                    "attachments": submission.evaluation_attachments,
-                    "submission_count": submission.submission_count,
-                    "is_disqualified": submission.is_disqualified,
-                    "score": submission.score,
-                    "evaluation_comment": submission.evaluation_comment,
-                    "created_at": submission.created_at.isoformat(),
-                    "updated_at": submission.updated_at.isoformat(),
-                }
-            )
-
-        return CustomJSONResponse(
-            success=True,
-            status_code=status.HTTP_200_OK,
-            message="Submissions retrieved successfully",
-            data={"submissions": submissions},
-            meta={
-                "total_submissions": total_submissions,
-                "total_pages": total_pages,
-                "current_page": page,
-                "limit": limit,
-                "competition_id": str(competition_id),
-            },
-        )
-    except Exception as exc:
-        logger.error("Failed to retrieve challenge submissions", exc_info=True)
-        return CustomBackendError(
-            message="Failed to retrieve challenge submissions",
-            details=str(exc),
-        )
-
-
 async def disqualify_submission_service(
     competition_id: str, submission_id: str, comments: str, db
 ):
 
     try:
         logger.info(
-            f"Checking submission {submission_id} under challenge {competition_id}"
+            f"Checking submission {submission_id} under competition {competition_id}"
         )
 
         query = select(CompetitionSubmission).where(
@@ -713,7 +704,7 @@ async def disqualify_submission_service(
 
         if not submission:
             logger.warning(
-                "Submission does not belong to this challenge or does not exist"
+                "Submission does not belong to this competition or does not exist"
             )
             return None
 
@@ -1143,7 +1134,7 @@ async def download_user_submission_handler(
         else:
             download_attachments = submission.evaluation_attachments
 
-        for attachment in download_attachments or []:
+        for attachment in download_attachments:
             # Generate presigned download URL
             download_url = s3_client.generate_presigned_url(
                 "get_object",
@@ -1155,17 +1146,6 @@ async def download_user_submission_handler(
             )
 
             download_urls.append(download_url)
-
-        if not download_urls:
-            return CustomJSONResponse(
-                success=False,
-                status_code=status.HTTP_404_NOT_FOUND,
-                message=f"{req_params.type.value.capitalize()} attachments are not available",
-                error={
-                    "code": "NOT_FOUND",
-                    "details": f"{req_params.type.value.capitalize()} attachments does not exist. Please contact developers if the issue persists.",
-                },
-            )
 
         return CustomJSONResponse(
             success=True,
