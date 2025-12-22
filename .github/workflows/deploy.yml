@@ -11,7 +11,7 @@ env:
   CONTAINER_NAME: tgdex
 jobs:
   deploy:
-    runs-on: hetzner
+    runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
