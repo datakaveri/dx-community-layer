@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 from pydantic import BaseModel
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from ..default_schemas import (
     BadRequestErrorResponse,
@@ -14,6 +14,7 @@ from ..default_schemas import (
     BackendErrorResponse,
     ValidationErrorResponse,
 )
+from ...database.challenge.enums import SubmissionAttachmentSchema
 from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 
 
@@ -40,7 +41,7 @@ class UserSubmissionsSchema(BaseModel):
     description: str
     user: UserSchema
     competition: UserSubmissionCompetitionSchema
-    attachments: Optional[List]
+    attachments: Optional[Dict[str, SubmissionAttachmentSchema]]
     is_disqualified: bool
     score: Optional[float]
     evaluation_comment: Optional[str]
