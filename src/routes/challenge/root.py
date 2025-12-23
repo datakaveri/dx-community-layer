@@ -103,7 +103,7 @@ async def retrieve_bookmarked_competitions(
 
 
 @router.get(
-    path="/{competition_id}",
+    path="/by_id/{competition_id}",
     description=public_desc("Retrieves a specific challenge by ID."),
     tags=["Challenge APIs"],
 )
