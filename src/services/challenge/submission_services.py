@@ -1014,7 +1014,9 @@ async def update_user_submission_handler(
 
         if req_params.attachments.remove:
             for source_s3_key in req_params.attachments.remove:
-                if source_s3_key in [a["s3_key"] for a in submission.attachments]:
+                if source_s3_key in [
+                    a["s3_key"] for a in submission.attachments.values()
+                ]:
                     permanent_s3_key = source_s3_key
                     try:
                         s3_client.delete_object(
@@ -1031,11 +1033,11 @@ async def update_user_submission_handler(
                             details="An error occurred while updating the submission. Please contact developers if the issue persists.",
                         )
 
-                    submission.attachments = [
-                        a
-                        for a in submission.attachments
-                        if a["s3_key"] != permanent_s3_key
-                    ]
+                    submission.attachments = {
+                        k: v
+                        for k, v in submission.attachments.items()
+                        if v["s3_key"] != permanent_s3_key
+                    }
 
         if req_params.attachments.add:
             attachment_objs: List[dict[str, Any]] = []
