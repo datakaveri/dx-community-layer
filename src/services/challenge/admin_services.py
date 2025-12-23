@@ -1440,20 +1440,17 @@ async def admin_evaluate_submission_handler(
                 },
             )
 
-        if submission.competition.status in [
-            CompetitionStatusEnum.CANCELLED,
-            CompetitionStatusEnum.COMPLETED,
-        ]:
+        if submission.competition.status == CompetitionStatusEnum.CANCELLED:
             logger.error(
-                f"{authorized_user['email']} - Submission already evaluated (id={req_params.submission_id})"
+                f"{authorized_user['email']} - Competition is cancelled for submission (id={req_params.submission_id})"
             )
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message="Submission already evaluated",
+                message="Competition is cancelled",
                 error={
                     "code": "BAD_REQUEST",
-                    "details": "Submission has already been evaluated. Please contact developers if the issue persists.",
+                    "details": "Competition is cancelled for this submission. Please contact developers if the issue persists.",
                 },
             )
 
