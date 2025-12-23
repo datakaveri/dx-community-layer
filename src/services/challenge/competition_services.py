@@ -3,15 +3,16 @@ import pytz
 from uuid import UUID
 from fastapi import status
 from typing import Any, List
+from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy import select, update
-from datetime import datetime, timezone
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...schemas.challenge.competition_responses import (
     ParticipatedCompetitionsSchema,
     RetrieveBookmarkedCompetitionsSchema,
+    RetrieveChanllengeByIDSchema,
     RetrieveCompetitionsLeaderboardsSubmissions,
     RetrieveCompetitionsSchema,
 )
@@ -51,6 +52,114 @@ from ...database.challenge.enums import CompetitionStatusEnum
 from ...schemas.custom_responses import CustomJSONResponse
 from ...database.challenge.models import Competition
 from ...database.challenge.models import CompetitionTimeline
+
+
+async def retrieve_challenge_by_id_handler(
+    competition_id: UUID,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves a specific challenge by ID.
+
+    Args:
+        competition_id (UUID): The ID of the challenge to retrieve.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved challenge and relevant metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+
+    try:
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = select(Competition).where(Competition.id == competition_id)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(Competition.creator),
+            selectinload(Competition.prize_pools),
+            selectinload(Competition.timelines),
+            selectinload(Competition.evaluations),
+            selectinload(Competition.datasets),
+            selectinload(Competition.participants),
+            selectinload(Competition.submissions),
+            selectinload(Competition.bookmarked_competitions),
+        )
+        result = await db_session.execute(stmt)
+        chanllenge = result.scalars().one_or_none()
+
+        if not chanllenge:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Resource not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "Challenge not found for the provided challenge id. Please check the challenge id and try again.",
+                },
+            )
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_challenge = RetrieveChanllengeByIDSchema.model_validate(
+            chanllenge
+        ).model_dump(
+            exclude={
+                "participant_count",
+                "submission_count",
+                "is_joined",
+                "is_drafted",
+                "is_bookmarked",
+            }
+        )
+
+        serialized_challenge["participant_count"] = len(chanllenge.participants)
+        serialized_challenge["submission_count"] = len(chanllenge.submissions)
+
+        serialized_challenge["is_joined"] = any(
+            [
+                participant.user_id == authorized_user["user_id"]
+                for participant in chanllenge.participants
+            ]
+        )
+
+        serialized_challenge["is_drafted"] = any(
+            [
+                submission.user_id == authorized_user["user_id"]
+                for submission in chanllenge.submissions
+            ]
+        )
+
+        serialized_challenge["is_bookmarked"] = any(
+            [
+                bookmark.user_id == authorized_user["user_id"]
+                for bookmark in chanllenge.bookmarked_competitions
+            ]
+        )
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Admin challenge retrieved successfully",
+            data=serialized_challenge,
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Challenge retrieval failed",
+            details="An error occurred while retrieving the challenge. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
 
 
 async def retrieve_competitions_handler(
@@ -809,7 +918,10 @@ async def create_competition_handler(
                     )
 
             elif competition.scheduled_publish_at and req_params.submission_starts_at:
-                if req_params.submission_starts_at < competition.scheduled_publish_at.date():
+                if (
+                    req_params.submission_starts_at
+                    < competition.scheduled_publish_at.date()
+                ):
                     await db_session.rollback()
 
                     logger.error(
@@ -1073,7 +1185,10 @@ async def update_competition_handler(
                     )
 
             elif competition.scheduled_publish_at and req_params.submission_starts_at:
-                if req_params.submission_starts_at < competition.scheduled_publish_at.date():
+                if (
+                    req_params.submission_starts_at
+                    < competition.scheduled_publish_at.date()
+                ):
                     await db_session.rollback()
 
                     logger.error(

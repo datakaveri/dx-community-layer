@@ -3,16 +3,15 @@ name: Deploy TGDex-monorepo-microservices
 on:
   push:
     branches:
-      - dev
+      - Updated
   workflow_dispatch:
 
 env:
   DOCKER_IMAGE_NAME: sirpi/tgdex-monorepo-microservices
-  CONTAINER_NAME: tgdex-monorepo-microservices
-
+  CONTAINER_NAME: tgdex
 jobs:
   deploy:
-    runs-on: hetzner
+    runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
@@ -24,7 +23,6 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
           sudo apt update && sudo apt install vault -y
           vault --version
-
       - name: Fetch secrets from Vault
         env:
           VAULT_ADDR: ${{ secrets.VAULT_URL }}
@@ -49,8 +47,15 @@ jobs:
       
       - name: Build and Push Docker Image
         run: |
-          docker build --no-cache -t ${{ secrets.DOCKER_IMAGE_NAME }}:dev .
-          docker push ${{ secrets.DOCKER_IMAGE_NAME }}:dev
+          docker build --no-cache -t ${{ env.DOCKER_IMAGE_NAME }}:0-1-dev .
+          docker push ${{ env.DOCKER_IMAGE_NAME }}:0-1-dev
+      - name: Create project directory on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: mkdir -p /root/tgdex-monorepo-microservices/temp
 
       - name: Copy .env file to server
         uses: appleboy/scp-action@v0.1.7
@@ -59,7 +64,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ".env.production"
-          target: "/tmp/tgdex-monorepo-microservices/"
+          target: "/root/tgdex-monorepo-microservices/temp/"
 
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
@@ -70,46 +75,39 @@ jobs:
           script: |
             set -e
             
-            echo "=== Moving .env file to project directory ==="
-            mkdir -p /root/tgdex-monorepo-microservices
-            mv /tmp/tgdex-monorepo-microservices/.env.production /root/tgdex-monorepo-microservices/.env
-            
             echo "=== Logging in to Docker Hub ==="
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             
             echo "=== Pulling latest Docker image ==="
-            docker pull ${{ secrets.DOCKER_IMAGE_NAME }}:dev
+            docker pull ${{ env.DOCKER_IMAGE_NAME }}:0-1-dev
             
             echo "=== Stopping old container ==="
-            docker stop ${{ secrets.CONTAINER_NAME }} 2>/dev/null || true
-            docker rm ${{ secrets.CONTAINER_NAME }} 2>/dev/null || true
+            docker stop ${{ env.CONTAINER_NAME }} 2>/dev/null || true
+            docker rm ${{ env.CONTAINER_NAME }} 2>/dev/null || true
             
             echo "=== Starting new container ==="
             docker run -d \
-              --name ${{ secrets.CONTAINER_NAME }} \
-              -p 8091:5000 \
-              --env-file /root/tgdex-monorepo-microservices/.env \
-              --restart always \
-              ${{ secrets.DOCKER_IMAGE_NAME }}:dev
-            
-            echo "=== Cleaning up ==="
-            rm -rf /tmp/tgdex-monorepo-microservices/
+              --name ${{ env.CONTAINER_NAME }} \
+              -p 8092:5000 \
+              --env-file /root/tgdex-monorepo-microservices/temp/.env.production \
+              --restart unless-stopped \
+              ${{ env.DOCKER_IMAGE_NAME }}:0-1-dev
             
             echo "=== Verifying deployment ==="
             sleep 5
-            if docker ps | grep -q ${{ secrets.CONTAINER_NAME }}; then
+            if docker ps | grep -q ${{ env.CONTAINER_NAME }}; then
               echo "Container is running"
-              docker ps | grep ${{ secrets.CONTAINER_NAME }}
+              docker ps | grep ${{ env.CONTAINER_NAME }}
               echo ""
               echo "=== Recent Logs ==="
-              docker logs --tail 20 ${{ secrets.CONTAINER_NAME }}
+              docker logs --tail 20 ${{ env.CONTAINER_NAME }}
             else
               echo "Container failed to start"
-              docker logs ${{ secrets.CONTAINER_NAME }}
+              docker logs ${{ env.CONTAINER_NAME }}
               exit 1
             fi
             
             echo ""
             echo "=== Deployment Complete ==="
-            echo "API URL: http://tgdex-monorepo-microservices-dev.sirpi.co.in"
-            echo "Docs: http://tgdex-monorepo-microservices-dev.sirpi.co.in/docs"
+            echo "API URL: http://tgdex-monorepo-microservices-dev-temp.sirpi.co.in"
+            echo "Docs: http://tgdex-monorepo-microservices-dev-temp.sirpi.co.in/docs"

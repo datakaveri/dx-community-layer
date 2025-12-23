@@ -1,11 +1,12 @@
 import uuid
 from datetime import datetime, date
 from pydantic import BaseModel
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from ..default_schemas import (
     BadRequestErrorResponse,
     SuccessfulResponse,
+    CreatedResponse,
     UnauthorizedErrorResponse,
     ForbiddenErrorResponse,
     NotFoundErrorResponse,
@@ -13,6 +14,7 @@ from ..default_schemas import (
     BackendErrorResponse,
     ValidationErrorResponse,
 )
+from ...database.challenge.enums import SubmissionAttachmentSchema
 from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 
 
@@ -39,11 +41,11 @@ class UserSubmissionsSchema(BaseModel):
     description: str
     user: UserSchema
     competition: UserSubmissionCompetitionSchema
-    attachments: Optional[List]
+    attachments: Optional[Dict[str, SubmissionAttachmentSchema]]
     is_disqualified: bool
     score: Optional[float]
     evaluation_comment: Optional[str]
-    evaluation_attachments: Optional[List]
+    evaluation_attachments: Optional[Dict[str, SubmissionAttachmentSchema]]
     created_at: datetime
     updated_at: datetime
 
@@ -83,6 +85,21 @@ RETRIEVE_USER_SUBMISSIONS_RESPONSE_MODEL = {
     401: {"model": UnauthorizedErrorResponse},
     422: {"model": ValidationErrorResponse},
     500: {"model": RetrieveUserSubmissionsBackendErrorResponse},
+}
+
+
+class CreateUserSubmissionsCreatedResponse(CreatedResponse):
+    message: Literal["User submission created successfully"]
+
+
+CREATE_USER_SUBMISSION_RESPONSE_MODEL = {
+    201: {"model": SuccessfulResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    403: {"model": ForbiddenErrorResponse},
+    404: {"model": NotFoundErrorResponse},
+    409: {"model": ConflictErrorResponse},
+    500: {"model": BackendErrorResponse},
 }
 
 

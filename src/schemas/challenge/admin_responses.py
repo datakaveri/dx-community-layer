@@ -1,12 +1,54 @@
-from datetime import datetime
 import uuid
-from typing import List, Optional
+from datetime import datetime
 from pydantic import BaseModel
+from typing import Dict, List, Literal, Optional, Union
 
+from ...schemas.default_schemas import (
+    BackendErrorResponse,
+    BadRequestErrorResponse,
+    ConflictErrorResponse,
+    CreatedResponse,
+    ForbiddenErrorResponse,
+    UnauthorizedErrorResponse,
+)
 from ..discussion.discussion_responses import UserSchema
 from .submission_responses import CompetitionTimelinesSchema
-from .competition_responses import CompetitionPrizePoolSchema
-from ...database.challenge.enums import CompetitionStatusEnum
+from .competition_responses import (
+    ComepetitionDatasetsSchema,
+    CompetitionEvaluationSchema,
+    CompetitionPrizePoolSchema,
+)
+from ...database.challenge.enums import (
+    CompetitionStatusEnum,
+    RulesAndGuidelinesSchema,
+    SubmissionAttachmentSchema,
+)
+
+
+class AdminRetrieveChanllengeByIDSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    subtitle: Optional[str]
+    overview: Optional[str]
+    detailed_description: Optional[str]
+    status: CompetitionStatusEnum
+    image_url: Optional[str]
+    updated_at: datetime
+    published_at: Optional[datetime]
+    scheduled_publish_at: Optional[datetime]
+    constraints: Optional[str]
+    rules_and_guidelines: Optional[RulesAndGuidelinesSchema]
+    other_resources: Optional[str]
+    results_announced_at: Optional[datetime]
+    creator: UserSchema
+    prize_pools: Optional[CompetitionPrizePoolSchema]
+    timelines: Optional[CompetitionTimelinesSchema]
+    evaluations: Optional[CompetitionEvaluationSchema]
+    datasets: Optional[ComepetitionDatasetsSchema]
+    participant_count: Optional[int] = 0
+    submission_count: Optional[int] = 0
+
+    model_config = {"from_attributes": True}
 
 
 class AdminRetrieveCompetitionsSchema(BaseModel):
@@ -37,12 +79,12 @@ class AdminRetrieveCompetitionSubmissionSchema(BaseModel):
     title: str
     description: str
     user: UserSchema
-    attachments: Optional[List]
+    attachments: Optional[Dict[str, SubmissionAttachmentSchema]]
     is_disqualified: bool
     score: Optional[float]
     submission_count: int
     evaluation_comment: Optional[str]
-    evaluation_attachments: Optional[List]
+    evaluation_attachments: Optional[Dict[str, SubmissionAttachmentSchema]]
     created_at: datetime
     updated_at: datetime
 
@@ -57,3 +99,52 @@ class AdminRetrieveCompetitionSubmissionCompetitionSchema(BaseModel):
     results_announced_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+class AdminCreateCompetitionCreatedData(BaseModel):
+    competition_id: uuid.UUID
+    status: CompetitionStatusEnum
+
+
+class AdminCreateCompetitionCreatedResponse(CreatedResponse):
+    message: Literal["Competition created successfully"]
+    data: AdminCreateCompetitionCreatedData
+
+
+class AdminCreateCompetitionConflictError(BaseModel):
+    code: Literal["CONFLICT"]
+    details: Literal[
+        "A competition with the same title already exists. Please use a different title."
+    ]
+
+
+class AdminCreateCompetitionConflictErrorResponse(ConflictErrorResponse):
+    message: Literal["Competition already exists"]
+    error: AdminCreateCompetitionConflictError
+
+
+class AdminCreateCompetitionBackendError(BaseModel):
+    code: Literal["INTERNAL_SERVER_ERROR"]
+    details: Union[
+        Literal[
+            "Failed to authorize user. Please contact developers if the issue persists."
+        ],
+        Literal[
+            "An error occurred while creating the competition. Please contact developers if the issue persists."
+        ],
+    ]
+
+
+class AdminCreateCompetitionBackendErrorResponse(BackendErrorResponse):
+    message: Literal["Competition creation failed"]
+    error: AdminCreateCompetitionBackendError
+
+
+ADMIN_CREATE_COMPETITION_RESPONSE_MODEL = {
+    201: {"model": AdminCreateCompetitionCreatedResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    403: {"model": ForbiddenErrorResponse},
+    409: {"model": AdminCreateCompetitionConflictErrorResponse},
+    500: {"model": AdminCreateCompetitionBackendErrorResponse},
+}

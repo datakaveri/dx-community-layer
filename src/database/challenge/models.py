@@ -2,16 +2,18 @@ import uuid
 from sqlalchemy import (
     JSON,
     Computed,
+    Float,
     ForeignKey,
     Index,
     String,
     Text,
     Boolean,
     DateTime,
+    Date,
     func,
     Date,
 )
-from typing import Any, Optional, List
+from typing import Dict, Optional, List
 from sqlalchemy.schema import MetaData
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import TSVECTOR
@@ -19,7 +21,14 @@ from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ...configs.env_config import env_config
-from .enums import CompetitionStatusEnum, PrizeTypeEnum
+from .enums import (
+    CompetitionStatusEnum,
+    PrizeTypeEnum,
+    AdditionalAttachmentSchema,
+    Datasets,
+    RulesAndGuidelinesSchema,
+    SubmissionAttachmentSchema,
+)
 
 
 class Base(DeclarativeBase):
@@ -97,7 +106,9 @@ class Competition(Base):
     )
     image_url: Mapped[Optional[str]] = mapped_column(String(300))
     constraints: Mapped[Optional[str]] = mapped_column(Text)
-    rules_and_guidelines: Mapped[Optional[str]] = mapped_column(String(300))
+    rules_and_guidelines: Mapped[Optional[RulesAndGuidelinesSchema]] = mapped_column(
+        JSON, nullable=True
+    )
     other_resources: Mapped[Optional[str]] = mapped_column(Text)
     results_announced_at: Mapped[Optional[DateTime]] = mapped_column(
         DateTime(timezone=True)
@@ -125,10 +136,10 @@ class Competition(Base):
     participants: Mapped[List["CompetitionParticipant"]] = relationship(
         back_populates="competition", cascade="all, delete-orphan"
     )
-    evaluations: Mapped[List["CompetitionEvaluation"]] = relationship(
+    evaluations: Mapped["CompetitionEvaluation"] = relationship(
         back_populates="competition", cascade="all, delete-orphan"
     )
-    datasets: Mapped[List["CompetitionDataset"]] = relationship(
+    datasets: Mapped["CompetitionDataset"] = relationship(
         back_populates="competition", cascade="all, delete-orphan"
     )
     bookmarked_competitions: Mapped[List["BookmarkedCompetition"]] = relationship(
@@ -160,13 +171,9 @@ class CompetitionTimeline(Base):
         nullable=False,
         index=True,
     )
-    submission_starts_at: Mapped[Date] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    submission_ends_at: Mapped[Date] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    evaluation_ends_at: Mapped[Optional[Date]] = mapped_column(DateTime(timezone=True))
+    submission_starts_at: Mapped[Optional[Date]] = mapped_column(Date, nullable=True)
+    submission_ends_at: Mapped[Optional[Date]] = mapped_column(Date, nullable=True)
+    evaluation_ends_at: Mapped[Optional[Date]] = mapped_column(Date, nullable=True)
 
     competition: Mapped["Competition"] = relationship(back_populates="timelines")
 
@@ -197,9 +204,11 @@ class CompetitionSubmission(Base):
     )
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    attachments: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    attachments: Mapped[Optional[Dict[str, SubmissionAttachmentSchema]]] = (
+        mapped_column(JSON, nullable=True)
+    )
     is_disqualified: Mapped[bool] = mapped_column(Boolean, default=False)
-    score: Mapped[Optional[float]] = mapped_column()
+    score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     evaluation_comment: Mapped[Optional[str]] = mapped_column(Text)
     submission_count: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[DateTime] = mapped_column(
@@ -208,8 +217,8 @@ class CompetitionSubmission(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
-    evaluation_attachments: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JSON, nullable=True
+    evaluation_attachments: Mapped[Optional[Dict[str, SubmissionAttachmentSchema]]] = (
+        mapped_column(JSON, nullable=True)
     )
 
     # Full-text search
@@ -259,10 +268,10 @@ class CompetitionPrizePool(Base):
             schema=env_config.CHALLENGE_DB_SCHEMA,
             create_type=False,
         ),
-        default=PrizeTypeEnum.CASH,
+        default=PrizeTypeEnum.NO_CASH,
         nullable=False,
     )
-    total_pool_amount: Mapped[Optional[float]] = mapped_column(default=0.00)
+    total_pool_amount: Mapped[Optional[float]] = mapped_column(Float, default=0.00)
     currency: Mapped[Optional[str]] = mapped_column(String(3), default="INR")
     prize_description: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -381,9 +390,11 @@ class CompetitionDataset(Base):
         index=True,
     )
     description: Mapped[Optional[str]] = mapped_column(Text)
-    datasets: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
-    ai_models: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
-    additional_assets: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    datasets: Mapped[Optional[List[Datasets]]] = mapped_column(JSON)
+    ai_models: Mapped[Optional[List[Datasets]]] = mapped_column(JSON)
+    additional_assets: Mapped[Optional[Dict[str, AdditionalAttachmentSchema]]] = (
+        mapped_column(JSON, nullable=True, index=True)
+    )
 
     competition: Mapped["Competition"] = relationship(back_populates="datasets")
 
