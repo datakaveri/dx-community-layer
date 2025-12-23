@@ -125,21 +125,21 @@ async def retrieve_challenge_by_id_handler(
 
         serialized_challenge["is_joined"] = any(
             [
-                participant.user_id == authorized_user["id"]
+                participant.user_id == authorized_user["user_id"]
                 for participant in chanllenge.participants
             ]
         )
 
         serialized_challenge["is_drafted"] = any(
             [
-                submission.user_id == authorized_user["id"]
+                submission.user_id == authorized_user["user_id"]
                 for submission in chanllenge.submissions
             ]
         )
 
         serialized_challenge["is_bookmarked"] = any(
             [
-                bookmark.user_id == authorized_user["id"]
+                bookmark.user_id == authorized_user["user_id"]
                 for bookmark in chanllenge.bookmarked_competitions
             ]
         )
