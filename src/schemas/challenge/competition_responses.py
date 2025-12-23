@@ -1,10 +1,16 @@
-from datetime import datetime
-from typing import List, Literal, Optional, Union
 import uuid
+from datetime import datetime
 from pydantic import BaseModel
+from typing import Dict, List, Literal, Optional, Union
 
 from .submission_responses import CompetitionTimelinesSchema
-from ...database.challenge.enums import CompetitionStatusEnum, PrizeTypeEnum
+from ...database.challenge.enums import (
+    AdditionalAttachmentSchema,
+    CompetitionStatusEnum,
+    Datasets,
+    PrizeTypeEnum,
+    RulesAndGuidelinesSchema,
+)
 from ..discussion.discussion_responses import PaginatedResponseMeta, UserSchema
 from ..default_schemas import (
     SuccessfulResponse,
@@ -15,12 +21,59 @@ from ..default_schemas import (
 )
 
 
+class CompetitionEvaluationSchema(BaseModel):
+    id: uuid.UUID
+    evaluation_criteria: Optional[str]
+    submission_criteria: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+class ComepetitionDatasetsSchema(BaseModel):
+    id: uuid.UUID
+    description: Optional[str]
+    datasets: Optional[List[Datasets]]
+    ai_models: Optional[List[Datasets]]
+    additional_assets: Optional[Dict[str, AdditionalAttachmentSchema]]
+
+    model_config = {"from_attributes": True}
+
+
 class CompetitionPrizePoolSchema(BaseModel):
     id: uuid.UUID
     prize_type: PrizeTypeEnum
     total_pool_amount: Optional[float]
     currency: Optional[str]
     prize_description: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+class RetrieveChanllengeByIDSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    subtitle: Optional[str]
+    overview: Optional[str]
+    detailed_description: Optional[str]
+    status: CompetitionStatusEnum
+    image_url: Optional[str]
+    updated_at: datetime
+    published_at: Optional[datetime]
+    scheduled_publish_at: Optional[datetime]
+    constraints: Optional[str]
+    rules_and_guidelines: Optional[RulesAndGuidelinesSchema]
+    other_resources: Optional[str]
+    results_announced_at: Optional[datetime]
+    creator: UserSchema
+    prize_pools: Optional[CompetitionPrizePoolSchema]
+    timelines: Optional[CompetitionTimelinesSchema]
+    evaluations: Optional[CompetitionEvaluationSchema]
+    datasets: Optional[ComepetitionDatasetsSchema]
+    participant_count: Optional[int] = 0
+    submission_count: Optional[int] = 0
+    is_joined: Optional[bool] = False
+    is_drafted: Optional[bool] = False
+    is_bookmarked: Optional[bool] = False
 
     model_config = {"from_attributes": True}
 

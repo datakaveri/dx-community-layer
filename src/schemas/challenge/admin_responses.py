@@ -13,32 +13,16 @@ from ...schemas.default_schemas import (
 )
 from ..discussion.discussion_responses import UserSchema
 from .submission_responses import CompetitionTimelinesSchema
-from .competition_responses import CompetitionPrizePoolSchema
+from .competition_responses import (
+    ComepetitionDatasetsSchema,
+    CompetitionEvaluationSchema,
+    CompetitionPrizePoolSchema,
+)
 from ...database.challenge.enums import (
-    AdditionalAttachmentSchema,
     CompetitionStatusEnum,
-    Datasets,
     RulesAndGuidelinesSchema,
     SubmissionAttachmentSchema,
 )
-
-
-class CompetitionEvaluationSchema(BaseModel):
-    id: uuid.UUID
-    evaluation_criteria: Optional[str]
-    submission_criteria: Optional[str]
-
-    model_config = {"from_attributes": True}
-
-
-class ComepetitionDatasetsSchema(BaseModel):
-    id: uuid.UUID
-    description: Optional[str]
-    datasets: Optional[List[Datasets]]
-    ai_models: Optional[List[Datasets]]
-    additional_assets: Optional[Dict[str, AdditionalAttachmentSchema]]
-
-    model_config = {"from_attributes": True}
 
 
 class AdminRetrieveChanllengeByIDSchema(BaseModel):
