@@ -15,9 +15,56 @@ from ..discussion.discussion_responses import UserSchema
 from .submission_responses import CompetitionTimelinesSchema
 from .competition_responses import CompetitionPrizePoolSchema
 from ...database.challenge.enums import (
+    AdditionalAttachmentSchema,
     CompetitionStatusEnum,
+    Datasets,
+    RulesAndGuidelinesSchema,
     SubmissionAttachmentSchema,
 )
+
+
+class CompetitionEvaluationSchema(BaseModel):
+    id: uuid.UUID
+    evaluation_criteria: Optional[str]
+    submission_criteria: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+class ComepetitionDatasetsSchema(BaseModel):
+    id: uuid.UUID
+    description: Optional[str]
+    datasets: Optional[List[Datasets]]
+    ai_models: Optional[List[Datasets]]
+    additional_assets: Optional[Dict[str, AdditionalAttachmentSchema]]
+
+    model_config = {"from_attributes": True}
+
+
+class AdminRetrieveChanllengeByIDSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    subtitle: Optional[str]
+    overview: Optional[str]
+    detailed_description: Optional[str]
+    status: CompetitionStatusEnum
+    image_url: Optional[str]
+    updated_at: datetime
+    published_at: Optional[datetime]
+    scheduled_publish_at: Optional[datetime]
+    constraints: Optional[str]
+    rules_and_guidelines: Optional[RulesAndGuidelinesSchema]
+    other_resources: Optional[str]
+    results_announced_at: Optional[datetime]
+    creator: UserSchema
+    prize_pools: Optional[CompetitionPrizePoolSchema]
+    timelines: Optional[CompetitionTimelinesSchema]
+    evaluations: Optional[CompetitionEvaluationSchema]
+    datasets: Optional[ComepetitionDatasetsSchema]
+    participant_count: Optional[int] = 0
+    submission_count: Optional[int] = 0
+
+    model_config = {"from_attributes": True}
 
 
 class AdminRetrieveCompetitionsSchema(BaseModel):

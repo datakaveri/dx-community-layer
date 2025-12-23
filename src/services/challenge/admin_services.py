@@ -18,6 +18,7 @@ from ...schemas.challenge.submission_requests import SortOrder
 from ...services.challenge.submission_services import get_s3_file_metadata
 from ...schemas.custom_responses import CustomBackendError, CustomJSONResponse
 from ...schemas.challenge.admin_responses import (
+    AdminRetrieveChanllengeByIDSchema,
     AdminRetrieveCompetitionSubmissionCompetitionSchema,
     AdminRetrieveCompetitionSubmissionSchema,
     AdminRetrieveCompetitionsSchema,
@@ -630,179 +631,76 @@ async def admin_retrieve_challenge_by_id_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves a single challenge with full details for the admin panel.
-
-    This includes:
-    - Core challenge details
-    - Timeline (submission / evaluation dates)
-    - Prize pool info
-    - Evaluation criteria
-    - Dataset (models, data, additional assets)
-    - Participants and submissions count
-    - Draft status flag
+    Retrieves a single challenge by ID with full details.
 
     Args:
-        challenge_id: ID of the challenge to retrieve.
-        authorized_user: Authenticated admin user data.
-        db_session: Active async DB session.
+        competition_id(UUID): The ID of the challenge to retrieve.
+        authorized_user(AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session(AsyncSession): The database session for accessing the primary database.
 
     Returns:
         CustomJSONResponse: Challenge details or 404 if not found.
     """
-    logger.info(
-        f"{authorized_user['email']} - Admin Retrieve Challenge by ID handler started"
-    )
+    logger.info(f"{authorized_user['email']} - Execution started")
 
-    participants_count_sq = (
-        select(
-            CompetitionParticipant.competition_id.label("c_id"),
-            func.count(CompetitionParticipant.id).label("participants_count"),
-        )
-        .group_by(CompetitionParticipant.competition_id)
-        .subquery()
-    )
+    try:
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = select(Competition).where(Competition.id == competition_id)
 
-    submission_count_sq = (
-        select(
-            CompetitionSubmission.competition_id.label("c_id"),
-            func.count(CompetitionSubmission.id).label("submission_count"),
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(Competition.creator),
+            selectinload(Competition.prize_pools),
+            selectinload(Competition.timelines),
+            selectinload(Competition.evaluations),
+            selectinload(Competition.datasets),
+            selectinload(Competition.participants),
+            selectinload(Competition.submissions),
         )
-        .group_by(CompetitionSubmission.competition_id)
-        .subquery()
-    )
+        result = await db_session.execute(stmt)
+        chanllenge = result.scalars().one_or_none()
 
-    stmt = (
-        select(
-            Competition.id,
-            Competition.title,
-            Competition.subtitle,
-            Competition.overview,
-            Competition.detailed_description.label("description"),
-            Competition.image_url,
-            Competition.status,
-            Competition.published_at,
-            Competition.scheduled_publish_at,
-            Competition.updated_at,
-            Competition.created_by,
-            Competition.constraints,
-            Competition.rules_and_guidelines,
-            Competition.other_resources,
-            CompetitionTimeline.submission_starts_at,
-            CompetitionTimeline.submission_ends_at,
-            CompetitionTimeline.evaluation_ends_at,
-            CompetitionPrizePool.total_pool_amount,
-            CompetitionPrizePool.currency,
-            CompetitionPrizePool.prize_type,
-            CompetitionPrizePool.prize_description,
-            CompetitionEvaluation.evaluation_criteria,
-            CompetitionEvaluation.submission_criteria,
-            CompetitionDataset.description.label("dataset_description"),
-            CompetitionDataset.datasets,
-            CompetitionDataset.ai_models,
-            CompetitionDataset.additional_assets,
-            func.coalesce(participants_count_sq.c.participants_count, 0).label(
-                "participants_count"
-            ),
-            func.coalesce(submission_count_sq.c.submission_count, 0).label(
-                "submission_count"
-            ),
-        )
-        .join(
-            CompetitionTimeline,
-            CompetitionTimeline.competition_id == Competition.id,
-            isouter=True,
-        )
-        .join(
-            CompetitionPrizePool,
-            CompetitionPrizePool.competition_id == Competition.id,
-            isouter=True,
-        )
-        .join(
-            CompetitionEvaluation,
-            CompetitionEvaluation.competition_id == Competition.id,
-            isouter=True,
-        )
-        .join(
-            CompetitionDataset,
-            CompetitionDataset.competition_id == Competition.id,
-            isouter=True,
-        )
-        .join(
-            participants_count_sq,
-            participants_count_sq.c.c_id == Competition.id,
-            isouter=True,
-        )
-        .join(
-            submission_count_sq,
-            submission_count_sq.c.c_id == Competition.id,
-            isouter=True,
-        )
-        .where(Competition.id == competition_id)
-    )
+        if not chanllenge:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Resource not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "Challenge not found for the provided challenge id. Please check the challenge id and try again.",
+                },
+            )
 
-    result = await db_session.execute(stmt)
-    row = result.first()
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_challenge = AdminRetrieveChanllengeByIDSchema.model_validate(
+            chanllenge
+        ).model_dump(exclude={"participant_count", "submission_count"})
 
-    if not row:
+        serialized_challenge["participant_count"] = len(chanllenge.participants)
+        serialized_challenge["submission_count"] = len(chanllenge.submissions)
+
         return CustomJSONResponse(
-            success=False,
-            status_code=status.HTTP_404_NOT_FOUND,
-            message="Resource not found",
-            error={
-                "code": "NOT_FOUND",
-                "details": "Challenge not found.",
-            },
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Admin challenge retrieved successfully",
+            data=serialized_challenge,
         )
 
-    data = {
-        "id": str(row.id),
-        "title": row.title,
-        "subtitle": row.subtitle,
-        "overview": row.overview,
-        "description": row.description,
-        "image_url": row.image_url,
-        "status": row.status.value if row.status else None,
-        "constraints": row.constraints,
-        "rules_and_guidelines": row.rules_and_guidelines,
-        "prize_pool": {
-            "total_pool_amount": row.total_pool_amount or 0.0,
-            "currency": row.currency or "INR",
-            "prize_type": row.prize_type.value if row.prize_type else None,
-            "prize_description": row.prize_description,
-        },
-        "timeline": {
-            "submission_starts_at": row.submission_starts_at,
-            "submission_ends_at": row.submission_ends_at,
-            "evaluation_ends_at": row.evaluation_ends_at,
-        },
-        "dates": {
-            "published_at": row.published_at,
-            "scheduled_publish_at": row.scheduled_publish_at,
-            "updated_at": row.updated_at,
-        },
-        "evaluation": {
-            "evaluation_criteria": row.evaluation_criteria,
-            "submission_criteria": row.submission_criteria,
-        },
-        "dataset": {
-            "description": row.dataset_description,
-            "data_models": row.datasets,
-            "ai_models": row.ai_models,
-            "other_resources": row.other_resources,
-            "additional_assets": row.additional_assets,
-        },
-        "participants_count": row.participants_count,
-        "submission_count": row.submission_count,
-        "created_by": str(row.created_by),
-        "is_drafted": row.status == CompetitionStatusEnum.DRAFT,
-    }
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Admin challenge retrieval failed",
+            details="An error occurred while retrieving the admin challenge. Please contact developers if the issue persists.",
+        )
 
-    return CustomJSONResponse(
-        success=True,
-        status_code=status.HTTP_200_OK,
-        message="Resource retrieved successfully",
-        data=data,
-    )
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
 
 
 async def admin_create_competition_handler(
@@ -1324,7 +1222,7 @@ async def admin_update_competition_handler(
                 if not competition.datasets.datasets:
                     competition.datasets.datasets = []
 
-                competition.datasets.datasets.append(req_params.data_models.add)
+                competition.datasets.datasets.extend(req_params.data_models.add)
                 required_fields_map["data_models"] = True
 
         if req_params.ai_models:
@@ -1340,7 +1238,7 @@ async def admin_update_competition_handler(
                 if not competition.datasets.ai_models:
                     competition.datasets.ai_models = []
 
-                competition.datasets.ai_models.append(req_params.ai_models.add)
+                competition.datasets.ai_models.extend(req_params.ai_models.add)
                 required_fields_map["ai_models"] = True
 
         if req_params.additional_assets:
@@ -1692,20 +1590,6 @@ async def admin_evaluate_submission_handler(
                     error={
                         "code": "BAD_REQUEST",
                         "details": "Score is required for qualified submission. Please provide a score and try again.",
-                    },
-                )
-
-            if not submission.evaluation_attachments:
-                logger.error(
-                    f"{authorized_user['email']} - Evaluation attachments not provided (id={req_params.submission_id})"
-                )
-                return CustomJSONResponse(
-                    success=False,
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Evaluation attachments not provided",
-                    error={
-                        "code": "BAD_REQUEST",
-                        "details": "Evaluation attachments are required for qualified submission. Please provide evaluation attachments and try again.",
                     },
                 )
 

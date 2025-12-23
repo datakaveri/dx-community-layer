@@ -64,12 +64,12 @@ async def admin_retrieve_challenge_by_id(
     Retrieves a single challenge with full admin-level details.
 
     Args:
-        challenge_id: Challenge ID.
-        authorized_user: Authenticated admin user.
-        db_session: Active DB session.
+        competition_id (UUID): The ID of the challenge to retrieve.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
 
     Returns:
-        CustomJSONResponse with challenge details or 404 if not found.
+        CustomJSONResponse: A JSON response with the retrieved challenge and relevant metadata.
     """
     logger.info("Admin Retrieve Challenge by ID API is being called")
 
