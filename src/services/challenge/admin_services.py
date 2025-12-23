@@ -1473,6 +1473,7 @@ async def admin_update_competition_handler(
                 competition.status = CompetitionStatusEnum.SCHEDULED
 
             else:
+                competition.published_at = current_timestamp
                 competition.status = CompetitionStatusEnum.PUBLISHED
 
         competition.updated_at = current_timestamp
