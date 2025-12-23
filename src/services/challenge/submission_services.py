@@ -978,6 +978,8 @@ async def update_user_submission_handler(
     authorized_user: AuthorizationData,
     db_session: AsyncSession,
 ):
+    current_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
+
     try:
         submission_stmt = select(CompetitionSubmission).where(
             CompetitionSubmission.id == req_params.submission_id
@@ -1040,7 +1042,7 @@ async def update_user_submission_handler(
                     }
 
         if req_params.attachments.add:
-            attachment_objs: List[dict[str, Any]] = []
+            new_attachments = deepcopy(submission.attachments) or {}
 
             for source_s3_key in req_params.attachments.add:
                 file_name = source_s3_key.split("/")[-1]
@@ -1075,17 +1077,15 @@ async def update_user_submission_handler(
                         details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
                     )
 
-                attachment_objs.append(
-                    {
-                        "file_name": file_name,
-                        "metadata": metadata,
-                        "s3_key": permanent_s3_key,
-                    }
-                )
+                new_attachments[file_name] = {
+                    "metadata": metadata,
+                    "s3_key": permanent_s3_key,
+                    "uploaded_at": current_timestamp.strftime(
+                        "%Y-%m-%d %H:%M:%S +0530"
+                    ),
+                }
 
-            if attachment_objs:
-                attachment_objs.extend(submission.attachments)
-                submission.attachments = attachment_objs
+            submission.attachments = new_attachments
 
         submission.submission_count += 1
         submission.updated_at = datetime.now(pytz.timezone("Asia/Kolkata"))

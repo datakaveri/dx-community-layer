@@ -103,6 +103,36 @@ async def retrieve_bookmarked_competitions(
 
 
 @router.get(
+    path="/{competition_id}",
+    description=public_desc("Retrieves a specific challenge by ID."),
+    tags=["Challenge APIs"],
+)
+async def retrieve_challenge_by_id(
+    competition_id: UUID = Path(..., description="ID of the challenge"),
+    authorized_user: AuthorizationData = Depends(http_bearer_header_public),
+    db_session: AsyncSession = Depends(get_challenge_db_session),
+) -> CustomJSONResponse:
+    """
+    Retrieves a specific challenge by ID.
+
+    Args:
+        competition_id (UUID): The ID of the challenge to retrieve.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved challenge and relevant metadata.
+    """
+    logger.info("Retrieve Challenge API is being called")
+
+    return await retrieve_challenge_by_id_handler(
+        competition_id=competition_id,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+
+@router.get(
     path="/{choice}",
     description=public_desc(
         (
@@ -169,36 +199,6 @@ async def retrieve_competition_leaderboard(
 
     return await retrieve_competition_leaderboard_handler(
         req_params=req_params,
-        authorized_user=authorized_user,
-        db_session=db_session,
-    )
-
-
-@router.get(
-    path="/{competition_id}",
-    description=public_desc("Retrieves a specific challenge by ID."),
-    tags=["Challenge APIs"],
-)
-async def retrieve_challenge_by_id(
-    competition_id: UUID = Path(..., description="ID of the challenge"),
-    authorized_user: AuthorizationData = Depends(http_bearer_header_public),
-    db_session: AsyncSession = Depends(get_challenge_db_session),
-) -> CustomJSONResponse:
-    """
-    Retrieves a specific challenge by ID.
-
-    Args:
-        competition_id (UUID): The ID of the challenge to retrieve.
-        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
-        db_session (AsyncSession): The database session for accessing the primary database.
-
-    Returns:
-        CustomJSONResponse: A JSON response with the retrieved challenge and relevant metadata.
-    """
-    logger.info("Retrieve Challenge API is being called")
-
-    return await retrieve_challenge_by_id_handler(
-        competition_id=competition_id,
         authorized_user=authorized_user,
         db_session=db_session,
     )
