@@ -45,7 +45,7 @@ class UserSubmissionsSchema(BaseModel):
     is_disqualified: bool
     score: Optional[float]
     evaluation_comment: Optional[str]
-    evaluation_attachments: Optional[List]
+    evaluation_attachments: Optional[Dict[str, SubmissionAttachmentSchema]]
     created_at: datetime
     updated_at: datetime
 
