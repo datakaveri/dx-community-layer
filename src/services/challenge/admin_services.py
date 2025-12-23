@@ -1367,7 +1367,7 @@ async def admin_update_competition_handler(
                 )
 
             if req_params.publish_schedule:
-                competition.publish_schedule = req_params.publish_schedule
+                competition.scheduled_publish_at = req_params.publish_schedule
                 competition.status = CompetitionStatusEnum.SCHEDULED
 
             else:
