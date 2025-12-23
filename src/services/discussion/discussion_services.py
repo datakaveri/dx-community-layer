@@ -1541,7 +1541,7 @@ async def recent_bookmarked_discussions_handler(
                 BookmarkedDiscussion.discussion_id == Discussion.id,
             )
             .where(
-                BookmarkedDiscussion.user_id == authorized_user["id"],
+                BookmarkedDiscussion.user_id == authorized_user["user_id"],
                 BookmarkedDiscussion.is_active.is_(True),
             )
             .order_by(BookmarkedDiscussion.created_at.desc())
@@ -1549,7 +1549,7 @@ async def recent_bookmarked_discussions_handler(
         )
 
         result = await db_session.execute(stmt)
-        bookmarked_discussions = result.all()
+        bookmarked_discussions = result.scalars().all()
 
         serialized_bookmarked_discussions = [
             RecentBookmarkedDiscussion.model_validate(discussion).model_dump()
