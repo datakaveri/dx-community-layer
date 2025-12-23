@@ -1551,13 +1551,14 @@ async def admin_evaluate_submission_handler(
             submission.is_disqualified = True
             submission.score = None
 
-            for attachment in submission.evaluation_attachments.values():
-                s3_client.delete_object(
-                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
-                    Key=attachment["s3_key"],
-                )
+            if submission.evaluation_attachments:
+                for attachment in submission.evaluation_attachments.values():
+                    s3_client.delete_object(
+                        Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                        Key=attachment["s3_key"],
+                    )
 
-            submission.evaluation_attachments = None
+                submission.evaluation_attachments = None
 
         else:
             submission.is_disqualified = False
@@ -1568,6 +1569,9 @@ async def admin_evaluate_submission_handler(
             if req_params.attachments:
                 if req_params.attachments.remove:
                     new_attachments = deepcopy(submission.attachments) or {}
+
+                    if not submission.evaluation_attachments:
+                        submission.evaluation_attachments = {}
 
                     for key, value in submission.evaluation_attachments.items():
                         if value["s3_key"] in req_params.attachments.remove:
