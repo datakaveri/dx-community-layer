@@ -1137,7 +1137,6 @@ async def admin_update_competition_handler(
             "evaluation_ends_at": bool(competition.timelines.evaluation_ends_at),
             "rules_and_guidelines": bool(competition.rules_and_guidelines),
             "dataset_description": bool(competition.datasets.description),
-            "data_models": bool(competition.datasets.datasets),
         }
 
         # Update the competition
@@ -1416,7 +1415,7 @@ async def admin_update_competition_handler(
                 ]
                 await db_session.rollback()
                 logger.error(
-                    f"{authorized_user['email']} - Missing required fields: {missing_fields.join(', ')}"
+                    f"{authorized_user['email']} - Missing required fields: {", ".join(missing_fields)}"
                 )
                 return CustomJSONResponse(
                     success=False,
@@ -1424,7 +1423,7 @@ async def admin_update_competition_handler(
                     message="Missing required fields",
                     error={
                         "code": "BAD_REQUEST",
-                        "details": f"Missing required fields: {missing_fields.join(', ')}",
+                        "details": f"Missing required fields: {", ".join(missing_fields)}",
                     },
                 )
 
@@ -1453,6 +1452,21 @@ async def admin_update_competition_handler(
                             "details": f"Missing required fields: {', '.join(missing_fields)}",
                         },
                     )
+
+            if not competition.datasets.datasets and not competition.datasets.ai_models:
+                await db_session.rollback()
+                logger.error(
+                    f"{authorized_user['email']} - Missing required fields: datasets"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Missing required fields",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "Missing required fields: data_models/ai_models",
+                    },
+                )
 
             if req_params.publish_schedule:
                 competition.publish_schedule = req_params.publish_schedule
