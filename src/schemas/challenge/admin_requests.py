@@ -1,6 +1,6 @@
 from datetime import date, datetime
 import enum
-from typing import List, Optional, TypedDict
+from typing import Dict, List, Optional, TypedDict
 import uuid
 from fastapi import Body, Path, Query
 from fastapi.exceptions import RequestValidationError
@@ -289,6 +289,10 @@ class UpdateAttachmetsSchema(BaseModel):
     remove: Optional[List[str]] = Field(
         default=None,
         description="Optional attachment metadata (S3 keys) to remove",
+    )
+    updated_descriptions: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Optional attachment metadata (file_name, description) to update",
     )
 
 

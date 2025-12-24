@@ -1242,6 +1242,12 @@ async def admin_update_competition_handler(
                 required_fields_map["ai_models"] = True
 
         if req_params.additional_assets:
+            if req_params.additional_assets.updated_descriptions and competition.datasets.additional_assets:
+                for description in req_params.additional_assets.updated_descriptions:
+                    for file_name, value in competition.datasets.additional_assets.items():
+                        if file_name == description["file_name"]:
+                            value["description"] = description["description"]
+
             if (
                 req_params.additional_assets.remove
                 and competition.datasets.additional_assets

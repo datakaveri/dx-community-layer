@@ -18,6 +18,7 @@ from ...database.discussion.models import (
 )
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
+    AdminRetrieveDiscussionsChoices,
     AdminReviewDiscussionParams,
     AdminRetrievePendingCommentsParams,
     AdminReviewCommentParams,
@@ -124,10 +125,10 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         # Review history filter
         # -----------------------
-        if getattr(req_params, "choice", None) == "review_history":
+        if req_params.choice == AdminRetrieveDiscussionsChoices.REVIEW_HISTORY:
             reviewer_filter = exists().where(
                 (DiscussionReview.discussion_id == Discussion.id)
-                & (DiscussionReview.reviewer_id == authorized_user["id"])
+                & (DiscussionReview.reviewer_id == authorized_user["user_id"])
             )
             stmt = stmt.where(reviewer_filter)
 
