@@ -1243,8 +1243,12 @@ async def admin_update_competition_handler(
 
         if req_params.additional_assets:
             if req_params.additional_assets.updated_descriptions and competition.datasets.additional_assets:
+                updated_assets = deepcopy(competition.datasets.additional_assets)
+
                 for key, value in req_params.additional_assets.updated_descriptions.items():
-                    competition.datasets.additional_assets[key]["description"] = value
+                    updated_assets[key]["description"] = value
+                
+                competition.datasets.additional_assets = updated_assets
 
             if (
                 req_params.additional_assets.remove
