@@ -108,7 +108,7 @@ async def admin_retrieve_discussions_handler(
                     tzinfo=pytz.UTC
                 ) + timedelta(days=1)
                 stmt = stmt.where(
-                    Discussion.created_at >= start_dt, Discussion.created_at < end_dt
+                    Discussion.updated_at >= start_dt, Discussion.updated_at < end_dt
                 )
 
         # -----------------------
