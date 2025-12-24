@@ -1243,10 +1243,8 @@ async def admin_update_competition_handler(
 
         if req_params.additional_assets:
             if req_params.additional_assets.updated_descriptions and competition.datasets.additional_assets:
-                for description in req_params.additional_assets.updated_descriptions:
-                    for file_name, value in competition.datasets.additional_assets.items():
-                        if file_name == description["file_name"]:
-                            value["description"] = description["description"]
+                for key, value in req_params.additional_assets.updated_descriptions.items():
+                    competition.datasets.additional_assets[key]["description"] = value
 
             if (
                 req_params.additional_assets.remove

@@ -290,7 +290,7 @@ class UpdateAttachmetsSchema(BaseModel):
         default=None,
         description="Optional attachment metadata (S3 keys) to remove",
     )
-    updated_descriptions: Optional[List[Dict[str, str]]] = Field(
+    updated_descriptions: Optional[Dict[str, str]] = Field(
         default=None,
         description="Optional attachment metadata (file_name, description) to update",
     )
