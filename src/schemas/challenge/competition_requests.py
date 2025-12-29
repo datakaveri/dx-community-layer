@@ -231,6 +231,19 @@ class CreateCompetitionParams:
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail="submission_ends_at is required when is_drafted is false",
                 )
+            
+        # ---- Challenge start date validation ----
+        if not is_drafted and submission_starts_at:
+            if publish_schedule:
+                challenge_start_date = publish_schedule.date()
+            else:
+                challenge_start_date = date.today()
+
+            if submission_starts_at < challenge_start_date:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Submission start date cannot be earlier than the challenge start date."
+                )
 
         # Validate and normalize currency
         if currency:

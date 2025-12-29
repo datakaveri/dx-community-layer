@@ -2,7 +2,7 @@ from copy import deepcopy
 from datetime import datetime
 import math
 from uuid import UUID
-from fastapi import status
+from fastapi import status, HTTPException
 import pytz
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -939,6 +939,9 @@ async def admin_create_competition_handler(
             },
         )
 
+    except HTTPException:
+        await db_session.rollback()
+        raise
     except Exception as e:
         await db_session.rollback()
 
@@ -947,6 +950,7 @@ async def admin_create_competition_handler(
             message="Competition creation failed",
             details="An error occurred while creating the competition. Please contact developers if the issue persists.",
         )
+
 
     finally:
         logger.info(f"{authorized_user['email']} - Execution completed")
@@ -1036,6 +1040,30 @@ async def admin_update_competition_handler(
             "rules_and_guidelines": bool(competition.rules_and_guidelines),
             "dataset_description": bool(competition.datasets.description),
         }
+
+        # ---- Submission start vs challenge start validation ----
+        if req_params.submission_starts_at:
+            challenge_start_date = (
+                req_params.publish_schedule.date()
+                if req_params.publish_schedule
+                else (
+                    competition.published_at.date()
+                    if competition.published_at
+                    else competition.scheduled_publish_at.date()
+                )
+            )
+
+            if req_params.submission_starts_at < challenge_start_date:
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    message="Submission start date cannot be earlier than the challenge start date.",
+                    error={
+                        "code": "INVALID_DATE",
+                        "details": "Submission start date cannot be earlier than the challenge start date.",
+                    },
+                )
+
 
         # Update the competition
         if req_params.title and req_params.title != competition.title:
