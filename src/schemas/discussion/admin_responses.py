@@ -28,6 +28,7 @@ class AdminRetrieveDiscussionsResponseDiscussion(BaseModel):
     category: DiscussionsCategoryEnum
     sub_category: str
     status: DiscussionsStatusEnum
+    reviewed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

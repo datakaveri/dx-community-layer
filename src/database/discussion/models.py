@@ -22,7 +22,7 @@ from .enums import (
     DiscussionsTypeEnum,
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
-    CommentsStatusEnum
+    CommentsStatusEnum,
 )
 
 
@@ -591,7 +591,6 @@ class Comment(Base):
         server_default=func.current_timestamp(),
         nullable=False,
     )
-
 
     # Relationships
     discussion: Mapped["Discussion"] = relationship(

@@ -59,6 +59,7 @@ async def admin_retrieve_discussions_handler(
             selectinload(Discussion.discussion_tags).selectinload(
                 Discussion.discussion_tags.property.mapper.class_.tag
             ),
+            selectinload(Discussion.discussion_reviews),
         )
 
         # -----------------------
@@ -167,12 +168,29 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         # Serialize
         # -----------------------
-        serialized_discussions = [
-            AdminRetrieveDiscussionsResponseDiscussion.model_validate(
-                discussion
-            ).model_dump()
-            for discussion in discussions
-        ]
+        # serialized_discussions = [
+        #     AdminRetrieveDiscussionsResponseDiscussion.model_validate(
+        #         discussion
+        #     ).model_dump(exclude={"reviewed_at"})
+        #     for discussion in discussions
+        # ]
+
+        serialized_discussions = []
+
+        for discussion in discussions:
+            serialized_discussion = (
+                AdminRetrieveDiscussionsResponseDiscussion.model_validate(
+                    discussion
+                ).model_dump(exclude={"reviewed_at"})
+            )
+
+            serialized_discussion["reviewed_at"] = (
+                max(review.created_at for review in discussion.discussion_reviews)
+                if discussion.discussion_reviews
+                else None
+            )
+
+            serialized_discussions.append(serialized_discussion)
 
         return CustomJSONResponse(
             success=True,
