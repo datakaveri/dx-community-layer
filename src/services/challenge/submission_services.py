@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import status
 from typing import Any, List
 from datetime import datetime
-from sqlalchemy import func, select
+from sqlalchemy import func, select, exists, and_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1199,6 +1199,12 @@ async def get_submission_interests_handler(
             )
             .where(
                 CompetitionParticipant.user_id == authorized_user["user_id"],
+                ~exists().where(
+                    and_(
+                        CompetitionSubmission.competition_id == Competition.id,
+                        CompetitionSubmission.user_id == authorized_user["user_id"],
+                    )
+                )
             )
         )
 
