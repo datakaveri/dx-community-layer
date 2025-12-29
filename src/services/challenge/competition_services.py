@@ -513,6 +513,17 @@ async def retrieve_participated_competitions_handler(
         # -----------------------
         # Base selectable
         # -----------------------
+        user_submission_exists = (
+            exists()
+            .where(
+                and_(
+                    CompetitionSubmission.competition_id == Competition.id,
+                    CompetitionSubmission.user_id == authorized_user["user_id"],
+                )
+            )
+            .correlate(Competition)
+        )
+
         stmt = (
             select(Competition)
             .join(
@@ -529,14 +540,10 @@ async def retrieve_participated_competitions_handler(
             )
             .where(
                 CompetitionParticipant.user_id == authorized_user["user_id"],
-                Competition.status.not_in(
-                    [CompetitionStatusEnum.EVALUATION, CompetitionStatusEnum.COMPLETED]
-                ),
-                ~exists().where(
-                    and_(
-                        CompetitionSubmission.competition_id == Competition.id,
-                        CompetitionSubmission.user_id == authorized_user["user_id"],
-                    )
+                Competition.status != CompetitionStatusEnum.COMPLETED,
+                ~and_(
+                    Competition.status == CompetitionStatusEnum.EVALUATION,
+                    user_submission_exists,
                 ),
             )
         )

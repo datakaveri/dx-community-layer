@@ -81,6 +81,7 @@ class RetrieveChanllengeByIDSchema(BaseModel):
 class ParticipatedCompetitionsSchema(BaseModel):
     id: uuid.UUID
     title: str
+    status: CompetitionStatusEnum
     prize_pools: CompetitionPrizePoolSchema
     timelines: CompetitionTimelinesSchema
 
