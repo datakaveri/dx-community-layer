@@ -19,6 +19,7 @@ from ...database.discussion.models import (
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminRetrieveDiscussionsChoices,
+    AdminRetrieveDiscussionsSortByEnum,
     AdminReviewDiscussionParams,
     AdminRetrievePendingCommentsParams,
     AdminReviewCommentParams,
@@ -54,12 +55,10 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         # Base selectable
         # -----------------------
-        stmt = select(Discussion).options(
-            selectinload(Discussion.user),
-            selectinload(Discussion.discussion_tags).selectinload(
-                Discussion.discussion_tags.property.mapper.class_.tag
-            ),
-            selectinload(Discussion.discussion_reviews),
+        stmt = select(Discussion).join(
+            DiscussionReview,
+            DiscussionReview.discussion_id == Discussion.id,
+            isouter=True,
         )
 
         # -----------------------
@@ -127,11 +126,15 @@ async def admin_retrieve_discussions_handler(
         # Review history filter
         # -----------------------
         if req_params.choice == AdminRetrieveDiscussionsChoices.REVIEW_HISTORY:
-            reviewer_filter = exists().where(
-                (DiscussionReview.discussion_id == Discussion.id)
-                & (DiscussionReview.reviewer_id == authorized_user["user_id"])
+            # reviewer_filter = exists().where(
+            #     (DiscussionReview.discussion_id == Discussion.id)
+            #     & (DiscussionReview.reviewer_id == authorized_user["user_id"])
+            # )
+            # stmt = stmt.where(reviewer_filter)
+            stmt = stmt.where(
+                DiscussionReview.discussion_id == Discussion.id,
+                DiscussionReview.reviewer_id == authorized_user["user_id"],
             )
-            stmt = stmt.where(reviewer_filter)
 
         # -----------------------
         # Total count
@@ -145,12 +148,23 @@ async def admin_retrieve_discussions_handler(
         # Sorting
         # -----------------------
         if req_params.sort_by and req_params.sort_order:
-            if hasattr(Discussion, req_params.sort_by.value):
-                sort_column = getattr(Discussion, req_params.sort_by.value)
+            if req_params.sort_by == AdminRetrieveDiscussionsSortByEnum.reviewed_at:
                 stmt = stmt.order_by(
-                    sort_column.asc()
+                    DiscussionReview.created_at.asc()
                     if req_params.sort_order == "asc"
-                    else sort_column.desc()
+                    else DiscussionReview.created_at.desc()
+                )
+            elif req_params.sort_by == AdminRetrieveDiscussionsSortByEnum.created_at:
+                stmt = stmt.order_by(
+                    Discussion.created_at.asc()
+                    if req_params.sort_order == "asc"
+                    else Discussion.created_at.desc()
+                )
+            elif req_params.sort_by == AdminRetrieveDiscussionsSortByEnum.updated_at:
+                stmt = stmt.order_by(
+                    Discussion.updated_at.asc()
+                    if req_params.sort_order == "asc"
+                    else Discussion.updated_at.desc()
                 )
 
         # -----------------------
@@ -162,19 +176,19 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         # Execute and fetch
         # -----------------------
+        stmt = stmt.options(
+            selectinload(Discussion.user),
+            selectinload(Discussion.discussion_tags).selectinload(
+                Discussion.discussion_tags.property.mapper.class_.tag
+            ),
+            selectinload(Discussion.discussion_reviews),
+        )
         result = await db_session.execute(stmt)
         discussions = result.scalars().unique().all()
 
         # -----------------------
         # Serialize
         # -----------------------
-        # serialized_discussions = [
-        #     AdminRetrieveDiscussionsResponseDiscussion.model_validate(
-        #         discussion
-        #     ).model_dump(exclude={"reviewed_at"})
-        #     for discussion in discussions
-        # ]
-
         serialized_discussions = []
 
         for discussion in discussions:

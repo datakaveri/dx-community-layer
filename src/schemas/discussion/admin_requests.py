@@ -41,6 +41,7 @@ class AdminRetrieveDiscussionsChoices(enum.Enum):
 class AdminRetrieveDiscussionsSortByEnum(enum.Enum):
     created_at = "created_at"
     updated_at = "updated_at"
+    reviewed_at = "reviewed_at"
 
 
 class AdminRetrieveDiscussionParams:
