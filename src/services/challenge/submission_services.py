@@ -81,6 +81,12 @@ async def retrieve_user_submissions_handler(
 
             elif req_params.choice == RetrieveUserSubmissionsChoice.COMPLETED:
                 stmt = stmt.where(Competition.status == CompetitionStatusEnum.COMPLETED)
+        else:
+            stmt = stmt.where(
+                Competition.status.notin_(
+                    [CompetitionStatusEnum.EVALUATION, CompetitionStatusEnum.COMPLETED]
+                )
+            )
 
         # -----------------------
         # Search Query
