@@ -541,6 +541,12 @@ async def retrieve_participated_competitions_handler(
             .where(
                 CompetitionParticipant.user_id == authorized_user["user_id"],
                 Competition.status != CompetitionStatusEnum.COMPLETED,
+                ~exists().where(
+                    and_(
+                        CompetitionSubmission.competition_id == Competition.id,
+                        CompetitionSubmission.user_id == authorized_user["user_id"],
+                    )
+                ),
                 ~and_(
                     Competition.status == CompetitionStatusEnum.EVALUATION,
                     user_submission_exists,
