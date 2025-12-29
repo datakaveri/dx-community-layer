@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import status
 from typing import Any, List
 from datetime import datetime
-from sqlalchemy import func, select
+from sqlalchemy import and_, exists, func, select
 from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -226,7 +226,7 @@ async def retrieve_competitions_handler(
 
         elif req_params.choice == RetrieveCompetitionChoices.EVALUATION:
             stmt = stmt.where(Competition.status == CompetitionStatusEnum.EVALUATION)
-            
+
         else:
             stmt = stmt.where(Competition.status == CompetitionStatusEnum.PUBLISHED)
 
@@ -529,6 +529,15 @@ async def retrieve_participated_competitions_handler(
             )
             .where(
                 CompetitionParticipant.user_id == authorized_user["user_id"],
+                Competition.status.not_in(
+                    [CompetitionStatusEnum.EVALUATION, CompetitionStatusEnum.COMPLETED]
+                ),
+                ~exists().where(
+                    and_(
+                        CompetitionSubmission.competition_id == Competition.id,
+                        CompetitionSubmission.user_id == authorized_user["user_id"],
+                    )
+                ),
             )
         )
 

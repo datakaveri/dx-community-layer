@@ -412,18 +412,3 @@ async def users_download_submission(
         authorized_user=authorized_user,
         db_session=db_session,
     )
-
-
-@router.get(
-    path="/challenges/{competition_id}/submissions/interests",
-    description="Endpoint for authenticated users to get all their submissions across challenges with interests.",
-)
-async def users_get_submission_interests(
-    authorized_user: AuthorizationData = Depends(http_bearer_header),
-    db_session: AsyncSession = Depends(get_challenge_db_session),
-) -> CustomJSONResponse:
-    logger.info("User Get Submission Interests API is being called")
-    return await get_submission_interests_handler(
-        authorized_user=authorized_user,
-        db_session=db_session,
-    )
