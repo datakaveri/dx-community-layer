@@ -1395,7 +1395,7 @@ async def admin_update_competition_handler(
                 competition.published_at = current_timestamp
                 competition.status = CompetitionStatusEnum.PUBLISHED
 
-            if competition.timelines.submission_starts_at <= publish_timestamp.date():
+            if competition.timelines.submission_starts_at < publish_timestamp.date():
                 await db_session.rollback()
                 logger.error(
                     f"{authorized_user['email']} - Submission start date must be before publish date"
