@@ -951,7 +951,6 @@ async def admin_create_competition_handler(
             details="An error occurred while creating the competition. Please contact developers if the issue persists.",
         )
 
-
     finally:
         logger.info(f"{authorized_user['email']} - Execution completed")
 
@@ -1040,30 +1039,6 @@ async def admin_update_competition_handler(
             "rules_and_guidelines": bool(competition.rules_and_guidelines),
             "dataset_description": bool(competition.datasets.description),
         }
-
-        # ---- Submission start vs challenge start validation ----
-        if req_params.submission_starts_at:
-            challenge_start_date = (
-                req_params.publish_schedule.date()
-                if req_params.publish_schedule
-                else (
-                    competition.published_at.date()
-                    if competition.published_at
-                    else competition.scheduled_publish_at.date()
-                )
-            )
-
-            if req_params.submission_starts_at < challenge_start_date:
-                return CustomJSONResponse(
-                    success=False,
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    message="Submission start date cannot be earlier than the challenge start date.",
-                    error={
-                        "code": "INVALID_DATE",
-                        "details": "Submission start date cannot be earlier than the challenge start date.",
-                    },
-                )
-
 
         # Update the competition
         if req_params.title and req_params.title != competition.title:
@@ -1270,12 +1245,18 @@ async def admin_update_competition_handler(
                 required_fields_map["ai_models"] = True
 
         if req_params.additional_assets:
-            if req_params.additional_assets.updated_descriptions and competition.datasets.additional_assets:
+            if (
+                req_params.additional_assets.updated_descriptions
+                and competition.datasets.additional_assets
+            ):
                 updated_assets = deepcopy(competition.datasets.additional_assets)
 
-                for key, value in req_params.additional_assets.updated_descriptions.items():
+                for (
+                    key,
+                    value,
+                ) in req_params.additional_assets.updated_descriptions.items():
                     updated_assets[key]["description"] = value
-                
+
                 competition.datasets.additional_assets = updated_assets
 
             if (
@@ -1402,13 +1383,68 @@ async def admin_update_competition_handler(
                     },
                 )
 
+            publish_timestamp = None
+
             if req_params.publish_schedule:
+                publish_timestamp = req_params.publish_schedule
                 competition.scheduled_publish_at = req_params.publish_schedule
                 competition.status = CompetitionStatusEnum.SCHEDULED
 
             else:
+                publish_timestamp = current_timestamp
                 competition.published_at = current_timestamp
                 competition.status = CompetitionStatusEnum.PUBLISHED
+
+            if competition.timelines.submission_starts_at <= publish_timestamp:
+                await db_session.rollback()
+                logger.error(
+                    f"{authorized_user['email']} - Submission start date must be before publish date"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Submission start date must be before publish date",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "Submission start date must be before publish date",
+                    },
+                )
+
+            if (
+                competition.timelines.submission_ends_at
+                <= competition.timelines.submission_starts_at
+            ):
+                await db_session.rollback()
+                logger.error(
+                    f"{authorized_user['email']} - Submission end date must be after start date"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Submission end date must be after start date",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "Submission end date must be after start date",
+                    },
+                )
+
+            if (
+                competition.timelines.evaluation_ends_at
+                <= competition.timelines.submission_ends_at
+            ):
+                await db_session.rollback()
+                logger.error(
+                    f"{authorized_user['email']} - Evaluation end date must be after submission end date"
+                )
+                return CustomJSONResponse(
+                    success=False,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Evaluation end date must be after submission end date",
+                    error={
+                        "code": "BAD_REQUEST",
+                        "details": "Evaluation end date must be after submission end date",
+                    },
+                )
 
         competition.updated_at = current_timestamp
 
