@@ -1403,7 +1403,7 @@ async def admin_update_competition_handler(
                 return CustomJSONResponse(
                     success=False,
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Submission start date must be before publish date",
+                    message="Invalid submission start date",
                     error={
                         "code": "BAD_REQUEST",
                         "details": "Submission start date must be before publish date",
@@ -1421,7 +1421,7 @@ async def admin_update_competition_handler(
                 return CustomJSONResponse(
                     success=False,
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Submission end date must be after start date",
+                    message="Invalid submission end date",
                     error={
                         "code": "BAD_REQUEST",
                         "details": "Submission end date must be after start date",
@@ -1439,7 +1439,7 @@ async def admin_update_competition_handler(
                 return CustomJSONResponse(
                     success=False,
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Evaluation end date must be after submission end date",
+                    message="Invalid evaluation end date",
                     error={
                         "code": "BAD_REQUEST",
                         "details": "Evaluation end date must be after submission end date",
