@@ -99,8 +99,8 @@ async def retrieve_discussion_by_id_handler(
             selectinload(Discussion.bookmarked_discussions),
             selectinload(Discussion.pinned_discussions),
             selectinload(Discussion.discussion_votes),
-            selectinload(Discussion.discussion_review).selectinload(
-                Discussion.discussion_review.property.mapper.class_.reviewer
+            selectinload(Discussion.discussion_reviews).selectinload(
+                Discussion.discussion_reviews.property.mapper.class_.reviewer
             ),
             selectinload(Discussion.discussion_reactions).selectinload(
                 Discussion.discussion_reactions.property.mapper.class_.user
