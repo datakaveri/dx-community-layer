@@ -180,3 +180,80 @@ class DisqualifySubmissionResponse(BaseModel):
     submission_id: str
     is_disqualified: bool
     message: str
+
+
+# =====================================================================
+# UPDATE SUBMISSION RESPONSE MODELS
+# =====================================================================
+class UpdateSubmissionSuccessResponse(SuccessfulResponse):
+    message: Literal["Submission updated successfully"]
+    data: SubmissionData
+    error: None = None
+    meta: None = None
+
+
+class UpdateSubmissionBackendError(BaseModel):
+    code: Literal["INTERNAL_SERVER_ERROR"]
+    details: Union[
+        Literal[
+            "Failed to authorize user. Please contact developers if the issue persists."
+        ],
+        Literal[
+            "An error occurred while updating the submission. Please contact developers if the issue persists."
+        ],
+    ]
+
+
+class UpdateSubmissionBackendErrorResponse(BackendErrorResponse):
+    message: Literal["Submission update failed"]
+    error: UpdateSubmissionBackendError
+
+
+UPDATE_SUBMISSION_RESPONSE_MODEL = {
+    200: {"model": UpdateSubmissionSuccessResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    403: {"model": ForbiddenErrorResponse},
+    404: {"model": NotFoundErrorResponse},
+    500: {"model": UpdateSubmissionBackendErrorResponse},
+}
+
+
+# =====================================================================
+# DOWNLOAD SUBMISSION RESPONSE MODELS
+# =====================================================================
+class DownloadSubmissionData(BaseModel):
+    presigned_urls: Dict[str, str]
+
+
+class DownloadSubmissionSuccessResponse(SuccessfulResponse):
+    message: Literal["Download URLs generated successfully"]
+    data: DownloadSubmissionData
+    error: None = None
+    meta: None = None
+
+
+class DownloadSubmissionBackendError(BaseModel):
+    code: Literal["INTERNAL_SERVER_ERROR"]
+    details: Union[
+        Literal[
+            "Failed to authorize user. Please contact developers if the issue persists."
+        ],
+        Literal[
+            "An error occurred while generating download URLs. Please contact developers if the issue persists."
+        ],
+    ]
+
+
+class DownloadSubmissionBackendErrorResponse(BackendErrorResponse):
+    message: Literal["Download URL generation failed"]
+    error: DownloadSubmissionBackendError
+
+
+DOWNLOAD_SUBMISSION_RESPONSE_MODEL = {
+    200: {"model": DownloadSubmissionSuccessResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    403: {"model": ForbiddenErrorResponse},
+    404: {"model": NotFoundErrorResponse},
+    500: {"model": DownloadSubmissionBackendErrorResponse},
+}

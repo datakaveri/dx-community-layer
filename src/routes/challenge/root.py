@@ -17,6 +17,11 @@ from ...schemas.challenge.competition_requests import (
 from ...schemas.challenge.competition_responses import (
     RETRIEVE_COMPETITION_LEADERBOARD_RESPONSE_MODEL,
     RETRIEVE_PARTICIPATED_COMPETITIONS_RESPONSE_MODEL,
+    RETRIEVE_CHALLENGE_BY_ID_RESPONSE_MODEL,
+    RETRIEVE_COMPETITIONS_RESPONSE_MODEL,
+)
+from ...schemas.challenge.bookmark_responses import (
+    RETRIEVE_BOOKMARKED_COMPETITIONS_RESPONSE_MODEL,
 )
 from ...services.challenge.competition_services import (
     retrieve_bookmarked_competitions_handler,
@@ -76,6 +81,7 @@ async def retrieve_participated_competitions(
 @router.get(
     path="/bookmarked",
     description="Returns all challenges that the user has bookmarked.",
+    responses=RETRIEVE_BOOKMARKED_COMPETITIONS_RESPONSE_MODEL,
 )
 async def retrieve_bookmarked_competitions(
     req_params: RetrieveBookmarkedCompetitionsParams = Depends(),
@@ -105,6 +111,7 @@ async def retrieve_bookmarked_competitions(
 @router.get(
     path="/by_id/{competition_id}",
     description=public_desc("Retrieves a specific challenge by ID."),
+    responses=RETRIEVE_CHALLENGE_BY_ID_RESPONSE_MODEL,
     tags=["Challenge APIs"],
 )
 async def retrieve_challenge_by_id(
@@ -141,6 +148,7 @@ async def retrieve_challenge_by_id(
             "`Note: Authentication required for joined challenges.`"
         )
     ),
+    responses=RETRIEVE_COMPETITIONS_RESPONSE_MODEL,
     tags=["Challenge APIs"],
 )
 async def retrieve_competitions(

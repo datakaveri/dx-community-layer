@@ -15,6 +15,7 @@ from ...schemas.challenge.submission_requests import (
 from ...schemas.challenge.submission_responses import (
     CREATE_USER_SUBMISSION_RESPONSE_MODEL,
     RETRIEVE_USER_SUBMISSIONS_RESPONSE_MODEL,
+    UPDATE_SUBMISSION_RESPONSE_MODEL,
 )
 from ...services.challenge.submission_services import (
     create_user_submission_handler,
@@ -89,6 +90,7 @@ async def create_user_submission(
 @router.put(
     path="/submission/{submission_id}",
     description="Updates a submission for a specific challenge for an authenticated user.",
+    responses=UPDATE_SUBMISSION_RESPONSE_MODEL,
 )
 async def update_user_submission(
     req_params: UpdateUserSubmissionsParams = Depends(),
