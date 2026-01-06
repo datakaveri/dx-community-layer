@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from .discussion_requests import RetrieveDiscussionChoices
 from ...database.discussion.enums import DiscussionsTypeEnum
+from ...middlewares.search_validation import validate_search_query
 
 
 class SearchDiscussionsFilters(BaseModel):
@@ -44,6 +45,7 @@ class SearchDiscussionsParams:
             ),
         ),
     ):
+        validate_search_query(query)
         self.choice = choice
         self.query = query
         self.page = page
@@ -76,6 +78,7 @@ class SearchParams:
         page: int = Query(1, gt=0, description="The page number for pagination"),
         limit: int = Query(10, gt=0, description="The number of discussions per page"),
     ):
+        validate_search_query(query)
         self.query = query
         self.page = page
         self.limit = limit

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from .submission_requests import SortOrder, UpdateSubmissionAttachmetsSchema
 from ...database.challenge.enums import CompetitionStatusEnum, Datasets, PrizeTypeEnum
+from ...middlewares.search_validation import validate_search_query
 
 
 class AdminRetreiveCompetitionsSortBy(enum.Enum):
@@ -54,6 +55,7 @@ class AdminRetrieveCompetitionsParams:
             description="The order to sort by",
         ),
     ):
+        validate_search_query(query)
         self.choice: CompetitionStatusEnum = self.STATUS_MAP[choice.value]
         self.query = query
         self.page = page
@@ -84,6 +86,7 @@ class AdminRetrieveCompetitionSubmissionsParams:
             description="The order to sort by",
         ),
     ):
+        validate_search_query(query)
         self.competition_id = competition_id
         self.query = query
         self.page = page
