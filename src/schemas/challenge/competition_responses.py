@@ -242,24 +242,69 @@ CREATE_COMPETITION_RESPONSE_MODEL = {
 }
 
 
-class CreateCompetitionData(BaseModel):
-    competition_id: str
-    status: str
-
-
-class CreateCompetitionSuccessResponse(BaseModel):
-    success: bool = True
-    status_code: int = 201
-    message: str = "Resource created successfully"
-    data: CreateCompetitionData
+# =====================================================================
+# RETRIEVE CHALLENGE BY ID RESPONSE MODELS
+# =====================================================================
+class RetrieveChallengeByIDSuccessResponse(SuccessfulResponse):
+    message: Literal["Challenge retrieved successfully"]
+    data: RetrieveChanllengeByIDSchema
     error: None = None
     meta: None = None
 
 
-CREATE_COMPETITION_RESPONSE_MODEL = {
-    201: {"model": CreateCompetitionSuccessResponse},
+RETRIEVE_CHALLENGE_BY_ID_RESPONSE_MODEL = {
+    200: {"model": RetrieveChallengeByIDSuccessResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    404: {"model": BadRequestErrorResponse},
+    500: {"model": BackendErrorResponse},
+}
+
+
+# =====================================================================
+# RETRIEVE ALL COMPETITIONS RESPONSE MODELS
+# =====================================================================
+class RetrieveCompetitionsSuccessResponse(SuccessfulResponse):
+    message: Literal["Challenges retrieved successfully"]
+    data: RetrieveCompetitionsData
+    meta: PaginatedResponseMeta
+
+
+RETRIEVE_COMPETITIONS_RESPONSE_MODEL = {
+    200: {"model": RetrieveCompetitionsSuccessResponse},
     400: {"model": BadRequestErrorResponse},
     401: {"model": UnauthorizedErrorResponse},
-    403: {"model": ForbiddenErrorResponse},
+    500: {"model": BackendErrorResponse},
+}
+
+
+# =====================================================================
+# USERS LIST CHALLENGES RESPONSE MODELS
+# =====================================================================
+class UserListChallengesCompetitionSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    image_url: Optional[str]
+    status: CompetitionStatusEnum
+    prize_pools: Optional[CompetitionPrizePoolSchema]
+    timelines: Optional[CompetitionTimelinesSchema]
+    participant_count: Optional[int] = 0
+    submission_count: Optional[int] = 0
+
+    model_config = {"from_attributes": True}
+
+
+class UserListChallengesData(BaseModel):
+    competitions: List[UserListChallengesCompetitionSchema]
+
+
+class UserListChallengesSuccessResponse(SuccessfulResponse):
+    message: Literal["Published challenges retrieved successfully"]
+    data: UserListChallengesData
+    meta: PaginatedResponseMeta
+
+
+USERS_LIST_CHALLENGES_RESPONSE_MODEL = {
+    200: {"model": UserListChallengesSuccessResponse},
+    400: {"model": BadRequestErrorResponse},
     500: {"model": BackendErrorResponse},
 }

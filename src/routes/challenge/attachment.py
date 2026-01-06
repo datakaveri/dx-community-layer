@@ -10,6 +10,7 @@ from ...schemas.default_schemas import AuthorizationData
 from ...schemas.challenge.attachment_responses import (
     GENERATE_PRESIGNED_URL_RESPONSE_MODEL,
     DELETE_ATTACHMENTS_RESPONSE_MODEL,
+    DOWNLOAD_PRESIGNED_URL_RESPONSE_MODEL,
 )
 from ...schemas.challenge.attachment_requests import (
     DownloadSubmissionAttachmentsParams,
@@ -87,6 +88,7 @@ async def delete_temporary_attachment(
     description=public_desc(
         "Generates a presigned URL for downloading rules and guidelines from S3 for a specific competition."
     ),
+    responses=DOWNLOAD_PRESIGNED_URL_RESPONSE_MODEL,
 )
 async def download_rules_and_guidelines(
     competition_id: uuid.UUID = Path(..., description="ID of the competition"),
@@ -115,6 +117,7 @@ async def download_rules_and_guidelines(
 
 @router.get(
     path="/download/additional_assets/{competition_id}",
+    responses=DOWNLOAD_PRESIGNED_URL_RESPONSE_MODEL,
     description="Generates a presigned URL for downloading additional assets from S3 for a specific competition.",
 )
 async def download_additional_assets(
@@ -147,6 +150,7 @@ async def download_additional_assets(
 
 @router.get(
     path="/download/submission/{submission_id}/{choice}",
+    responses=DOWNLOAD_PRESIGNED_URL_RESPONSE_MODEL,
     description="Generates a presigned URL for downloading submissions from S3",
 )
 async def download_submission_attachments(

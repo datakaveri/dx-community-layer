@@ -8,6 +8,7 @@ from ..default_schemas import (
     NotFoundErrorResponse,
     ConflictErrorResponse,
     BackendErrorResponse,
+    SuccessfulResponse,
 )
 
 
@@ -100,6 +101,23 @@ BOOKMARKED_COMPETITIONS_RESPONSE_MODEL = {
     401: {"model": UnauthorizedErrorResponse},
     403: {"model": ForbiddenErrorResponse},
     404: {"model": NotFoundErrorResponse},
+    500: {"model": BackendErrorResponse},
+}
+
+
+# =====================================================================
+# RETRIEVE BOOKMARKED COMPETITIONS RESPONSE MODELS
+# =====================================================================
+class RetrieveBookmarkedCompetitionsSuccessResponse(SuccessfulResponse):
+    message: Literal["Bookmarked challenges retrieved successfully"]
+    data: BookmarkedCompetitionsData
+    meta: BookmarkedCompetitionsMeta
+
+
+RETRIEVE_BOOKMARKED_COMPETITIONS_RESPONSE_MODEL = {
+    200: {"model": RetrieveBookmarkedCompetitionsSuccessResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    403: {"model": ForbiddenErrorResponse},
     500: {"model": BackendErrorResponse},
 }
 

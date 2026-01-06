@@ -68,3 +68,42 @@ DELETE_ATTACHMENTS_RESPONSE_MODEL = {
     403: {"model": ForbiddenErrorResponse},
     500: {"model": BackendErrorResponse},
 }
+
+
+# =====================================================================
+# DOWNLOAD PRESIGNED URL RESPONSE MODELS
+# =====================================================================
+class DownloadPresignedURLData(BaseModel):
+    presigned_url: AnyUrl
+
+
+class DownloadPresignedURLSuccessResponse(SuccessfulResponse):
+    message: Literal["Download URL generated successfully"]
+    data: DownloadPresignedURLData
+    error: None = None
+    meta: None = None
+
+
+class DownloadPresignedURLBackendError(BaseModel):
+    code: Literal["INTERNAL_SERVER_ERROR"]
+    details: Union[
+        Literal[
+            "Failed to authorize user. Please contact developers if the issue persists."
+        ],
+        Literal[
+            "An error occurred while generating the download URL. Please contact developers if the issue persists."
+        ],
+    ]
+
+
+class DownloadPresignedURLBackendErrorResponse(BackendErrorResponse):
+    message: Literal["Download URL generation failed"]
+    error: DownloadPresignedURLBackendError
+
+
+DOWNLOAD_PRESIGNED_URL_RESPONSE_MODEL = {
+    200: {"model": DownloadPresignedURLSuccessResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    404: {"model": BadRequestErrorResponse},
+    500: {"model": DownloadPresignedURLBackendErrorResponse},
+}

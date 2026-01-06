@@ -1,9 +1,18 @@
 from uuid import UUID
-from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Body, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 
-from ...schemas.challenge.admin_responses import ADMIN_CREATE_COMPETITION_RESPONSE_MODEL
+from ...schemas.challenge.admin_responses import (
+    ADMIN_CREATE_COMPETITION_RESPONSE_MODEL,
+    ADMIN_RETRIEVE_CHALLENGE_BY_ID_RESPONSE_MODEL,
+    ADMIN_RETRIEVE_COMPETITIONS_RESPONSE_MODEL,
+    ADMIN_UPDATE_COMPETITION_RESPONSE_MODEL,
+    ADMIN_RETRIEVE_CHALLENGE_DATASET_RESPONSE_MODEL,
+    ADMIN_RETRIEVE_COMPETITION_SUBMISSIONS_RESPONSE_MODEL,
+    ADMIN_DELETE_CHALLENGE_RESPONSE_MODEL,
+    ADMIN_EVALUATE_SUBMISSION_RESPONSE_MODEL,
+    ADMIN_ANNOUNCE_COMPETITION_RESULT_RESPONSE_MODEL,
+)
 from ...schemas.challenge.admin_requests import (
     AdminCreateCompetitionParams,
     AdminEvaluateSubmissionParams,
@@ -16,26 +25,9 @@ from ...configs.db_config import get_challenge_db_session
 from ...schemas.custom_responses import CustomJSONResponse
 from ...middlewares.authorization import http_bearer_header
 from ...schemas.default_schemas import AuthorizationData, UserRole
-from ...schemas.challenge.competition_requests import (
-    UpdateCompetitionParams,
-)
-from ...schemas.challenge.submission_requests import (
-    PublishSubmissionParams,
-    AdminEditSubmissionParams,
-)
-from ...schemas.challenge.submission_responses import (
-    LIST_SUBMISSIONS_RESPONSE_MODEL,
-    DisqualifySubmissionResponse,
-)
 from ...services.challenge.competition_services import (
     admin_announce_competition_result_handler,
-    update_competition_handler,
     delete_competition_handler,
-)
-from ...services.challenge.submission_services import (
-    publish_submission_service,
-    admin_edit_submission_evaluation_service,
-    disqualify_submission_service,
 )
 from ...services.challenge.admin_services import (
     admin_create_competition_handler,
@@ -54,6 +46,7 @@ router = APIRouter(prefix="/admin", tags=["Challenge - Admin APIs"])
 @router.get(
     path="/challenge/{competition_id}",
     description="Retrieves a single challenge by ID with all details. Only COS_ADMIN can access.",
+    responses=ADMIN_RETRIEVE_CHALLENGE_BY_ID_RESPONSE_MODEL,
 )
 async def admin_retrieve_challenge_by_id(
     competition_id: UUID = Path(..., description="ID of the challenge to retrieve"),
@@ -100,6 +93,7 @@ async def admin_retrieve_challenge_by_id(
         "Retrieves challenges for admin with pagination, filters, and sorting. "
         "Only COS_ADMIN can access."
     ),
+    responses=ADMIN_RETRIEVE_COMPETITIONS_RESPONSE_MODEL,
 )
 async def admin_retrieve_competitions(
     req_params: AdminRetrieveCompetitionsParams = Depends(),
@@ -187,6 +181,7 @@ async def admin_create_competition(
 @router.put(
     path="/challenge/{competition_id}",
     description="Updates an existing challenge (competition) from the admin panel. Only COS_ADMIN can access.",
+    responses=ADMIN_UPDATE_COMPETITION_RESPONSE_MODEL,
 )
 async def admin_update_competition(
     req_params: AdminUpdateCompetitionParams = Depends(),
@@ -236,6 +231,7 @@ async def admin_update_competition(
         "Retrieves dataset (databanks and AI models) for a challenge. "
         "Only COS_ADMIN can access."
     ),
+    responses=ADMIN_RETRIEVE_CHALLENGE_DATASET_RESPONSE_MODEL,
 )
 async def admin_retrieve_challenge_dataset(
     competition_id: UUID = Path(
@@ -284,7 +280,7 @@ async def admin_retrieve_challenge_dataset(
 @router.get(
     path="/challenges/{competition_id}/submissions",
     description="Retrieves all submissions for a challenge. Only COS_ADMIN can access.",
-    responses=LIST_SUBMISSIONS_RESPONSE_MODEL,
+    responses=ADMIN_RETRIEVE_COMPETITION_SUBMISSIONS_RESPONSE_MODEL,
 )
 async def admin_retrieve_competition_submissions(
     req_params: AdminRetrieveCompetitionSubmissionsParams = Depends(),
@@ -331,6 +327,7 @@ async def admin_retrieve_competition_submissions(
 @router.delete(
     path="/challenges/{competition_id}",
     description="Deletes an existing challenge draft or scheduled challenge. Only COS_ADMIN can access.",
+    responses=ADMIN_DELETE_CHALLENGE_RESPONSE_MODEL,
 )
 async def admin_delete_challenge(
     competition_id: UUID = Path(..., description="ID of the challenge to delete"),
@@ -374,6 +371,7 @@ async def admin_delete_challenge(
 @router.put(
     path="/submission/{submission_id}/evaluate",
     description="Evaluates a submission inside a competition. Only COS_ADMIN can access.",
+    responses=ADMIN_EVALUATE_SUBMISSION_RESPONSE_MODEL,
 )
 async def admin_evaluate_submission(
     req_params: AdminEvaluateSubmissionParams = Depends(),
@@ -406,6 +404,7 @@ async def admin_evaluate_submission(
 @router.post(
     path="/challenges/announce-result",
     description="Announce challenge result. Only COS_ADMIN can access.",
+    responses=ADMIN_ANNOUNCE_COMPETITION_RESULT_RESPONSE_MODEL,
 )
 async def admin_announce_competition_result(
     competition_id: UUID = Query(..., description="Challenge ID"),

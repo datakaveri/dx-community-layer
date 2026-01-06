@@ -39,6 +39,11 @@ from ...schemas.challenge.submission_requests import (
 from ...schemas.challenge.submission_responses import (
     CREATE_SUBMISSION_RESPONSE_MODEL,
     LIST_SUBMISSIONS_RESPONSE_MODEL,
+    UPDATE_SUBMISSION_RESPONSE_MODEL,
+    DOWNLOAD_SUBMISSION_RESPONSE_MODEL,
+)
+from ...schemas.challenge.competition_responses import (
+    USERS_LIST_CHALLENGES_RESPONSE_MODEL,
 )
 from ...services.challenge.competition_participant_services import (
     user_join_competition_handler,
@@ -66,6 +71,7 @@ router = APIRouter(prefix="/users")
         "Public endpoint for users to retrieve all published challenges with a lightweight payload. "
         "Returns only basic challenge details for faster responses. Supports pagination."
     ),
+    responses=USERS_LIST_CHALLENGES_RESPONSE_MODEL,
 )
 async def users_list_challenges(
     status_filter: CompetitionStatusEnum | None = Query(
@@ -383,6 +389,7 @@ async def users_list_competition_submissions(
 @router.put(
     path="/submissions/{submission_id}",
     description="Endpoint for authenticated users to update their submission for a specific challenge.",
+    responses=UPDATE_SUBMISSION_RESPONSE_MODEL,
 )
 async def users_update_submission(
     req_params: UpdateSubmissionParams = Depends(),
@@ -400,6 +407,7 @@ async def users_update_submission(
 @router.post(
     path="/submission/{submission_id}/downloads",
     description="Endpoint for authenticated users to download the submissions for a specific challenge.",
+    responses=DOWNLOAD_SUBMISSION_RESPONSE_MODEL,
 )
 async def users_download_submission(
     req_params: DownloadSubmissionParams = Depends(),
