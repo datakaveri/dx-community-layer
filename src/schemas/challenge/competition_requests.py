@@ -6,6 +6,7 @@ from fastapi import Body, HTTPException, Path, Query, status
 
 from .submission_requests import SortOrder
 from ...database.challenge.enums import PrizeTypeEnum
+from ...middlewares.search_validation import validate_search_query
 
 
 class CompetitionsSortByEnum(enum.Enum):
@@ -36,6 +37,7 @@ class RetrieveCompetitonsParams:
             description="The field to sort by",
         ),
     ):
+        validate_search_query(query)
         self.choice = choice
         self.query = query
         self.page = page
@@ -66,6 +68,7 @@ class RetrieveCompetitionLeaderboardParams:
             description="The order to sort by",
         ),
     ):
+        validate_search_query(query)
         self.competition_id = competition_id
         self.query = query
         self.page = page
@@ -107,6 +110,7 @@ class RetrieveParticipatedCompetitionsParams:
             description="The order to sort by",
         ),
     ):
+        validate_search_query(query)
         self.query = query
         self.page = page
         self.limit = limit
@@ -125,6 +129,7 @@ class RetrieveBookmarkedCompetitionsParams:
             description="The field to sort by",
         ),
     ):
+        validate_search_query(query)
         self.query = query
         self.page = page
         self.limit = limit

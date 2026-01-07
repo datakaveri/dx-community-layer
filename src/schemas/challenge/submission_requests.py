@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import Body, Path, Query
 from pydantic import BaseModel, Field
 from fastapi.exceptions import RequestValidationError
+from ...middlewares.search_validation import validate_search_query
 
 
 class RetrieveUserSubmissionsChoice(enum.Enum):
@@ -44,6 +45,7 @@ class RetrieveUserSubmissionsParams:
             description="The order to sort by",
         ),
     ):
+        validate_search_query(query)
         self.choice = choice
         self.query = query
         self.page = page
