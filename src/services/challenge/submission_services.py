@@ -113,21 +113,21 @@ async def retrieve_user_submissions_handler(
         # -----------------------
         if req_params.sort_by == RetrieveUserSubmissionsSortByEnum.COMPETITION_TITLE:
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(Competition.title.asc())
+                stmt = stmt.order_by(func.lower(Competition.title).asc())
             else:
-                stmt = stmt.order_by(Competition.title.desc())
+                stmt = stmt.order_by(func.lower(Competition.title).desc())
 
         elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.TITLE:
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(CompetitionSubmission.title.asc())
+                stmt = stmt.order_by(func.lower(CompetitionSubmission.title).asc())
             else:
-                stmt = stmt.order_by(CompetitionSubmission.title.desc())
+                stmt = stmt.order_by(func.lower(CompetitionSubmission.title).desc())
 
         elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.DESCRIPTION:
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(CompetitionSubmission.description.asc())
+                stmt = stmt.order_by(func.lower(CompetitionSubmission.description).asc())
             else:
-                stmt = stmt.order_by(CompetitionSubmission.description.desc())
+                stmt = stmt.order_by(func.lower(CompetitionSubmission.description).desc())
 
         elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.CREATED_AT:
             if req_params.sort_order == SortOrder.ASC:

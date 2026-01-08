@@ -412,18 +412,18 @@ async def retrieve_competition_leaderboard_handler(
             == RetrieveCompetitionLeaderboardSortByEnum.PARTICIPANT_NAME
         ):
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(User.name.asc())
+                stmt = stmt.order_by(func.lower(User.name).asc())
             else:
-                stmt = stmt.order_by(User.name.desc())
+                stmt = stmt.order_by(func.lower(User.name).desc())
 
         elif (
             req_params.sort_by
             == RetrieveCompetitionLeaderboardSortByEnum.SUBMISSION_TITLE
         ):
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(CompetitionSubmission.title.asc())
+                stmt = stmt.order_by(func.lower(CompetitionSubmission.title).asc())
             else:
-                stmt = stmt.order_by(CompetitionSubmission.title.desc())
+                stmt = stmt.order_by(func.lower(CompetitionSubmission.title).desc())
 
         elif req_params.sort_by == RetrieveCompetitionLeaderboardSortByEnum.SCORE:
             if req_params.sort_order == SortOrder.ASC:
@@ -576,9 +576,9 @@ async def retrieve_participated_competitions_handler(
         # -----------------------
         if req_params.sort_by == RetrieveParticipatedCompetitionsSortByEnum.TITLE:
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(Competition.title.asc())
+                stmt = stmt.order_by(func.lower(Competition.title).asc())
             else:
-                stmt = stmt.order_by(Competition.title.desc())
+                stmt = stmt.order_by(func.lower(Competition.title).desc())
 
         elif (
             req_params.sort_by
