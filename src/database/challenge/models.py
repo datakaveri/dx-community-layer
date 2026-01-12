@@ -51,7 +51,7 @@ class User(Base):
     # full-text search vector for user name
     name_vector: Mapped[Optional[str]] = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('english', COALESCE(name, ''))", persisted=True),
+        Computed("to_tsvector('simple', COALESCE(name, ''))", persisted=True),
         nullable=True,
         index=True,
     )
@@ -117,7 +117,7 @@ class Competition(Base):
     # Full-text search
     title_vector: Mapped[str] = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('english', COALESCE(title, ''))", persisted=True),
+        Computed("to_tsvector('simple', COALESCE(title, ''))", persisted=True),
         nullable=True,
         index=True,
     )

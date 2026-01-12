@@ -46,7 +46,7 @@ class User(Base):
     # Full-text search
     name_vector: Mapped[str] = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('english', COALESCE(name, ''))", persisted=True),
+        Computed("to_tsvector('simple', COALESCE(name, ''))", persisted=True),
         nullable=True,
         index=True,
     )
@@ -171,13 +171,13 @@ class Discussion(Base):
     # Full-text search
     title_vector: Mapped[str] = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('english', COALESCE(title, ''))", persisted=True),
+        Computed("to_tsvector('simple', COALESCE(title, ''))", persisted=True),
         nullable=True,
         index=True,
     )
     sub_category_vector: Mapped[str] = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('english', COALESCE(sub_category, ''))", persisted=True),
+        Computed("to_tsvector('simple', COALESCE(sub_category, ''))", persisted=True),
         nullable=True,
         index=True,
     )
@@ -398,7 +398,7 @@ class Tag(Base):
     # Full-text search
     name_vector: Mapped[str] = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('english', COALESCE(name, ''))", persisted=True),
+        Computed("to_tsvector('simple', COALESCE(name, ''))", persisted=True),
         nullable=True,
         index=True,
     )
