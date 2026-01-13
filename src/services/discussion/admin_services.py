@@ -575,6 +575,7 @@ async def admin_review_comment_handler(
             if attachment_objs:
                 db_session.add_all(attachment_objs)
 
+        comment_obj.approved_by = authorized_user["user_id"]
         comment_obj.approved_at = current_timestamp
 
         await db_session.commit()
