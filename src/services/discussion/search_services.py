@@ -53,7 +53,7 @@ async def search_discussions_handler(
 
     try:
         formatted_query = format_tsquery(req_params.query)
-        ts_query = func.to_tsquery("english", formatted_query)
+        ts_query = func.to_tsquery("simple", formatted_query)
 
         # -----------------------
         # Base Query
@@ -97,9 +97,7 @@ async def search_discussions_handler(
                 Discussion.sub_category_id == req_params.filters.sub_category_id
             )
         if req_params.filters.type:
-            stmt = stmt.filter(
-                Discussion.type == req_params.filters.type
-            )
+            stmt = stmt.filter(Discussion.type == req_params.filters.type)
 
         # -----------------------
         # Total count
@@ -197,7 +195,7 @@ async def search_tags_handler(
 
     try:
         formatted_query = format_tsquery(req_params.query)
-        ts_query = func.to_tsquery("english", formatted_query)
+        ts_query = func.to_tsquery("simple", formatted_query)
 
         # -----------------------
         # Base Query
@@ -278,7 +276,7 @@ async def search_authors_handler(
 
     try:
         formatted_query = format_tsquery(req_params.query)
-        ts_query = func.to_tsquery("english", formatted_query)
+        ts_query = func.to_tsquery("simple", formatted_query)
 
         # -----------------------
         # Base Query

@@ -114,6 +114,12 @@ class User(Base):
         foreign_keys="Comment.replied_to",
         lazy="raise",
     )
+    approved_comments: Mapped[List["Comment"]] = relationship(
+        back_populates="approved_by_user",
+        cascade="all, delete-orphan",
+        foreign_keys="Comment.approved_by",
+        lazy="raise",
+    )
 
 
 class Discussion(Base):
@@ -569,27 +575,29 @@ class Comment(Base):
         index=True,
     )
     comment: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[CommentsStatusEnum] = mapped_column(
-        Enum(
-            CommentsStatusEnum,
-            name="comments_status_enum",
-            schema=env_config.DISCUSSION_DB_SCHEMA,  # tgdex_dev
-        ),
-        nullable=False,
-        server_default=CommentsStatusEnum.PENDING.value,
-    )
-
-    # 🔹 NEW — matches DB
-    approved_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.current_timestamp(),
-        nullable=False,
-    )
-
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.current_timestamp(),
         nullable=False,
+    )
+    status: Mapped[CommentsStatusEnum] = mapped_column(
+        Enum(
+            CommentsStatusEnum,
+            name="comments_status_enum",
+            schema=env_config.DISCUSSION_DB_SCHEMA,
+        ),
+        nullable=False,
+        server_default=CommentsStatusEnum.PENDING.value,
+    )
+    approved_at: Mapped[Optional[DateTime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    approved_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
 
     # Relationships
@@ -620,6 +628,11 @@ class Comment(Base):
     replied_to_user: Mapped[Optional["User"]] = relationship(
         back_populates="replied_comments",
         foreign_keys=[replied_to],
+        lazy="raise",
+    )
+    approved_by_user: Mapped[Optional["User"]] = relationship(
+        back_populates="approved_comments",
+        foreign_keys=[approved_by],
         lazy="raise",
     )
     comment_reactions: Mapped[List["CommentReaction"]] = relationship(
@@ -654,6 +667,7 @@ class Comment(Base):
         Index("idx_comments_user_id", "user_id"),
         Index("idx_comments_parent_id", "parent_id"),
         Index("idx_comments_replied_to", "replied_to"),
+        Index("idx_comments_approved_by", "approved_by"),
     )
 
 

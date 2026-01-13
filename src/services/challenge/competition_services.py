@@ -235,7 +235,7 @@ async def retrieve_competitions_handler(
         # -----------------------
         if req_params.query:
             formatted_query = format_tsquery(req_params.query)
-            ts_query = func.to_tsquery("english", formatted_query)
+            ts_query = func.to_tsquery("simple", formatted_query)
 
             stmt = stmt.where(Competition.title_vector.op("@@")(ts_query))
 
@@ -388,7 +388,7 @@ async def retrieve_competition_leaderboard_handler(
             stmt = stmt.where(CompetitionSubmission.score == req_params.score)
         elif req_params.query:
             formatted_query = format_tsquery(req_params.query)
-            ts_query = func.to_tsquery("english", formatted_query)
+            ts_query = func.to_tsquery("simple", formatted_query)
 
             stmt = stmt.where(
                 (Competition.title_vector.op("@@")(ts_query))
@@ -559,7 +559,7 @@ async def retrieve_participated_competitions_handler(
         # -----------------------
         if req_params.query:
             formatted_query = format_tsquery(req_params.query)
-            ts_query = func.to_tsquery("english", formatted_query)
+            ts_query = func.to_tsquery("simple", formatted_query)
 
             stmt = stmt.where((Competition.title_vector.op("@@")(ts_query)))
 
@@ -708,7 +708,7 @@ async def retrieve_bookmarked_competitions_handler(
         # -----------------------
         if req_params.query:
             formatted_query = format_tsquery(req_params.query)
-            ts_query = func.to_tsquery("english", formatted_query)
+            ts_query = func.to_tsquery("simple", formatted_query)
 
             stmt = stmt.where(Competition.title_vector.op("@@")(ts_query))
 

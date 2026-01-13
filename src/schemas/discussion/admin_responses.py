@@ -144,6 +144,8 @@ class AdminPendingCommentsSchema(BaseModel):
     comment: str
     comment_attachments: Optional[List[AdminPendingCommentsCommentAttachments]]
     created_at: datetime
+    approved_at: Optional[datetime]
+    approved_by_user: Optional[UserSchema]
 
     model_config = {"from_attributes": True}
 

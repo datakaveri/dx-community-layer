@@ -15,14 +15,17 @@ from ...database.discussion.models import (
     DiscussionTag,
     Tag,
     Comment,
+    User,
 )
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminRetrieveDiscussionsChoices,
     AdminRetrieveDiscussionsSortByEnum,
     AdminReviewDiscussionParams,
-    AdminRetrievePendingCommentsParams,
+    AdminRetrieveCommentsParams,
     AdminReviewCommentParams,
+    RetrieveCommentsChoices,
+    RetrieveCommentsSortByEnum,
 )
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.discussion.admin_responses import (
@@ -66,7 +69,7 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         if req_params.query:
             formatted_query = format_tsquery(req_params.query)
-            ts_query = func.to_tsquery("english", formatted_query)
+            ts_query = func.to_tsquery("simple", formatted_query)
 
             stmt = stmt.where(
                 (Discussion.title_vector.op("@@")(ts_query))
@@ -301,13 +304,13 @@ async def admin_review_discussion_handler(
         logger.info(f"{authorized_user['email']} - Execution completed")
 
 
-async def admin_retrieve_pending_comments_handler(
-    req_params: AdminRetrievePendingCommentsParams,
+async def admin_retrieve_comments_handler(
+    req_params: AdminRetrieveCommentsParams,
     authorized_user: AuthorizationData,
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves pending comments based on the provided request parameters.
+    Retrieves comments based on the provided request parameters.
 
     Args:
         req_params (AdminRetrievePendingCommentsParams): The request body containing the request parameters.
@@ -326,12 +329,73 @@ async def admin_retrieve_pending_comments_handler(
         stmt = (
             select(Comment)
             .join(Discussion, Comment.discussion_id == Discussion.id)
-            .where(Comment.status == CommentsStatusEnum.PENDING)
-            .options(
-                selectinload(Comment.comment_attachments),
-                selectinload(Comment.discussion),
-            )
+            .join(User, Comment.user_id == User.id)
         )
+
+        # -----------------------
+        # Choice Filter
+        # -----------------------
+        if req_params.choice == RetrieveCommentsChoices.PENDING:
+            stmt = stmt.where(Comment.status == CommentsStatusEnum.PENDING)
+        else:
+            stmt = stmt.where(
+                Comment.status != CommentsStatusEnum.PENDING,
+                Comment.approved_by == authorized_user["user_id"],
+            )
+
+        # -----------------------
+        # Search Query
+        # -----------------------
+        if req_params.query:
+            formatted_query = format_tsquery(req_params.query)
+            ts_query = func.to_tsquery("simple", formatted_query)
+
+            stmt = stmt.where(
+                (Discussion.title_vector.op("@@")(ts_query))
+                | (User.name_vector.op("@@")(ts_query))
+            )
+
+        # -----------------------
+        # Filters
+        # -----------------------
+        if req_params.filters:
+            if req_params.filters.discussion_type:
+                stmt = stmt.where(
+                    Discussion.type.in_(req_params.filters.discussion_type)
+                )
+
+            if req_params.filters.time_range:
+                if (
+                    req_params.filters.time_range.start_date
+                    and req_params.filters.time_range.end_date
+                ):
+                    start_date = datetime.strptime(
+                        req_params.filters.time_range.start_date,
+                        AdminRetrieveDiscussionParams.DATE_FORMAT,
+                    ).date()
+                    end_date = datetime.strptime(
+                        req_params.filters.time_range.end_date,
+                        AdminRetrieveDiscussionParams.DATE_FORMAT,
+                    ).date()
+
+                    start_dt = datetime.combine(start_date, time.min).replace(
+                        tzinfo=pytz.UTC
+                    )
+
+                    end_dt = datetime.combine(end_date, time.min).replace(
+                        tzinfo=pytz.UTC
+                    ) + timedelta(days=1)
+
+                    if req_params.choice == RetrieveCommentsChoices.PENDING:
+                        stmt = stmt.where(
+                            Comment.created_at >= start_dt, Comment.created_at < end_dt
+                        )
+                    else:
+                        stmt = stmt.where(
+                            Comment.created_at >= start_dt,
+                            Comment.approved_at < end_dt,
+                            Comment.approved_at != None,
+                        )
 
         # -----------------------
         # Total count
@@ -344,15 +408,17 @@ async def admin_retrieve_pending_comments_handler(
         # -----------------------
         # Sorting
         # -----------------------
-        if req_params.sort_by == "discussion_title":
+        if req_params.sort_by == RetrieveCommentsSortByEnum.DISCUSSION_TITLE:
             sort_column = Discussion.title
+        elif req_params.sort_by == RetrieveCommentsSortByEnum.APPROVED_AT:
+            sort_column = Comment.approved_at
         else:
             sort_column = Comment.created_at
 
         if req_params.sort_order == "asc":
-            stmt = stmt.order_by(sort_column.asc(), Comment.id.asc())
+            stmt = stmt.order_by(sort_column.asc().nullslast(), Comment.id.asc())
         else:
-            stmt = stmt.order_by(sort_column.desc(), Comment.id.desc())
+            stmt = stmt.order_by(sort_column.desc().nullslast(), Comment.id.desc())
 
         # -----------------------
         # Pagination
@@ -364,7 +430,10 @@ async def admin_retrieve_pending_comments_handler(
         # Execute and fetch
         # -----------------------
         stmt = stmt.options(
-            selectinload(Comment.user), selectinload(Comment.comment_attachments)
+            selectinload(Comment.user),
+            selectinload(Comment.comment_attachments),
+            selectinload(Comment.discussion),
+            selectinload(Comment.approved_by_user),
         )
         result = await db_session.execute(stmt)
         comments = result.scalars().unique().all()

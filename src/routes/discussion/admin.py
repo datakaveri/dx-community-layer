@@ -4,20 +4,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
-    AdminRetrievePendingCommentsParams,
-    AdminReviewCommentParams
-
+    AdminRetrieveCommentsParams,
+    AdminReviewCommentParams,
 )
 from ...services.discussion.admin_services import (
     admin_retrieve_discussions_handler,
     admin_review_discussion_handler,
-    admin_retrieve_pending_comments_handler,
-    admin_review_comment_handler
+    admin_retrieve_comments_handler,
+    admin_review_comment_handler,
 )
 from ...schemas.discussion.admin_responses import (
     ADMIN_RETRIEVE_DISCUSSIONS_RESPONSE_MODEL,
     ADMIN_REVIEW_DISCUSSION_RESPONSE_MODEL,
-    ADMIN_REVIEW_COMMENT_RESPONSE_MODEL
+    ADMIN_REVIEW_COMMENT_RESPONSE_MODEL,
 )
 from ...middlewares.logging import logger
 from ...configs.db_config import get_discussion_db_session
@@ -115,15 +114,15 @@ async def admin_review_discussion(
 
 
 @router.get(
-    path="/comments/pending",
+    path="/comments/{choice}",
     description=(
-        "Retrieve comments pending for admin approval.\n"
+        "Retrieve comments pending for admin approval and the history.\n"
         "`Note: Only Admins can access this route.`"
     ),
     responses=ADMIN_REVIEW_COMMENT_RESPONSE_MODEL,
 )
-async def admin_retrieve_pending_comments(
-    req_params: AdminRetrievePendingCommentsParams = Depends(),
+async def admin_retrieve_comments(
+    req_params: AdminRetrieveCommentsParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
@@ -140,7 +139,7 @@ async def admin_retrieve_pending_comments(
             },
         )
 
-    return await admin_retrieve_pending_comments_handler(
+    return await admin_retrieve_comments_handler(
         req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,

@@ -3,7 +3,7 @@ import pytz
 import enum
 import json
 import uuid
-from typing import Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 from fastapi import Body, Path, Query
 from pydantic import BaseModel, Field, ValidationError
 from fastapi.exceptions import RequestValidationError
@@ -191,13 +191,56 @@ class AdminReviewDiscussionParams:
                 )
 
 
-class AdminRetrievePendingCommentsParams:
+class RetrieveCommentsChoices(enum.Enum):
+    PENDING = "pending"
+    HISTORY = "history"
+
+
+class RetrieveCommentsSortByEnum(enum.Enum):
+    CREATED_AT = "created_at"
+    DISCUSSION_TITLE = "discussion_title"
+    APPROVED_AT = "approved_at"
+
+
+class RetrieveCommentsFilters(BaseModel):
+    discussion_type: Optional[List[DiscussionsTypeEnum]] = Field(
+        default=None, description="Type of the discussion to filter by"
+    )
+    time_range: Optional[TimeRangeFilter] = Field(
+        default=None, description="Time range to filter by"
+    )
+
+
+class AdminRetrieveCommentsParams:
     def __init__(
         self,
+        choice: RetrieveCommentsChoices = Path(
+            ...,
+            description="Type of the comment to retrieve",
+        ),
+        query: Optional[str] = Query(default=None, description="Query to search for"),
         page: int = Query(1, gt=0, description="Page number"),
         limit: int = Query(10, gt=0, description="Items per page"),
-        sort_by: Literal["discussion_title", "created_at"] = Query(
-            "created_at",
+        filters: Optional[str] = Query(
+            default=None,
+            description=(
+                "JSON string of filters to apply to the analysis.<br>"
+                "The keys can be 'discussion_type'.<br>"
+                "Each key should map to a list of strings, boolean or null.<br>"
+                "Optional 'time_range': {'start_date': 'YYYY-MM-DD', 'end_date': 'YYYY-MM-DD'}<br>"
+            ),
+            example=json.dumps(
+                {
+                    "discussion_type": [DiscussionsTypeEnum.GENERAL.value],
+                    "time_range": {
+                        "start_date": "2023-01-01",
+                        "end_date": "2023-01-31",
+                    },
+                }
+            ),
+        ),
+        sort_by: RetrieveCommentsSortByEnum = Query(
+            RetrieveCommentsSortByEnum.CREATED_AT,
             description="Sort field",
         ),
         sort_order: Literal["asc", "desc"] = Query(
@@ -205,8 +248,66 @@ class AdminRetrievePendingCommentsParams:
             description="Sort order",
         ),
     ):
+        self.choice = choice
+        self.query = query
         self.page = page
         self.limit = limit
+
+        # Parse the filters string into a dictionary
+        try:
+            self.filters: RetrieveCommentsFilters = (
+                RetrieveCommentsFilters.model_validate_json(filters)
+                if filters
+                else RetrieveCommentsFilters()
+            )
+        except (json.JSONDecodeError, ValidationError):
+            raise RequestValidationError(
+                [
+                    {
+                        "loc": ["query", "filters"],
+                        "msg": "Invalid JSON format for filters",
+                        "type": "value_error.json",
+                        "input": filters,
+                    }
+                ]
+            )
+
+        # Validate the time range
+        if self.filters.time_range:
+            try:
+                if self.filters.time_range.start_date:
+                    datetime.strptime(
+                        self.filters.time_range.start_date, self.DATE_FORMAT
+                    ).astimezone(pytz.UTC).date()
+            except ValueError:
+                raise RequestValidationError(
+                    [
+                        {
+                            "loc": ["query", "filters", "time_range", "start_date"],
+                            "msg": "Invalid date format for start_date",
+                            "type": "value_error",
+                            "input": self.filters.time_range.start_date,
+                        }
+                    ]
+                )
+
+            try:
+                if self.filters.time_range.end_date:
+                    datetime.strptime(
+                        self.filters.time_range.end_date, self.DATE_FORMAT
+                    ).astimezone(pytz.UTC).date()
+            except ValueError:
+                raise RequestValidationError(
+                    [
+                        {
+                            "loc": ["query", "filters", "time_range", "end_date"],
+                            "msg": "Invalid date format for end_date",
+                            "type": "value_error",
+                            "input": self.filters.time_range.end_date,
+                        }
+                    ]
+                )
+
         self.sort_by = sort_by
         self.sort_order = sort_order
 

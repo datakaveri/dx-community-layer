@@ -93,7 +93,7 @@ async def retrieve_user_submissions_handler(
         # -----------------------
         if req_params.query:
             formatted_query = format_tsquery(req_params.query)
-            ts_query = func.to_tsquery("english", formatted_query)
+            ts_query = func.to_tsquery("simple", formatted_query)
 
             stmt = stmt.where(
                 (Competition.title_vector.op("@@")(ts_query))
@@ -125,9 +125,13 @@ async def retrieve_user_submissions_handler(
 
         elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.DESCRIPTION:
             if req_params.sort_order == SortOrder.ASC:
-                stmt = stmt.order_by(func.lower(CompetitionSubmission.description).asc())
+                stmt = stmt.order_by(
+                    func.lower(CompetitionSubmission.description).asc()
+                )
             else:
-                stmt = stmt.order_by(func.lower(CompetitionSubmission.description).desc())
+                stmt = stmt.order_by(
+                    func.lower(CompetitionSubmission.description).desc()
+                )
 
         elif req_params.sort_by == RetrieveUserSubmissionsSortByEnum.CREATED_AT:
             if req_params.sort_order == SortOrder.ASC:
@@ -1204,7 +1208,7 @@ async def get_submission_interests_handler(
                         CompetitionSubmission.competition_id == Competition.id,
                         CompetitionSubmission.user_id == authorized_user["user_id"],
                     )
-                )
+                ),
             )
         )
 
