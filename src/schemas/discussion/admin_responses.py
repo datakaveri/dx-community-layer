@@ -13,6 +13,7 @@ from ..default_schemas import (
     ValidationErrorResponse,
 )
 from ...database.discussion.enums import (
+    CommentsStatusEnum,
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
     DiscussionsTypeEnum,
@@ -137,13 +138,14 @@ class AdminPendingCommentsCommentAttachments(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class AdminPendingCommentsSchema(BaseModel):
+class AdminRetrieveCommentsSchema(BaseModel):
     id: uuid.UUID
     discussion: AdminPendingCommentsDiscussion
     user: UserSchema
     comment: str
     comment_attachments: Optional[List[AdminPendingCommentsCommentAttachments]]
     created_at: datetime
+    status: CommentsStatusEnum
     approved_at: Optional[datetime]
     approved_by_user: Optional[UserSchema]
 

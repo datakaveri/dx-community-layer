@@ -34,7 +34,7 @@ from ...schemas.discussion.admin_requests import (
 )
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.discussion.admin_responses import (
-    AdminPendingCommentsSchema,
+    AdminRetrieveCommentsSchema,
     AdminRetrieveDiscussionsResponseDiscussion,
 )
 
@@ -450,7 +450,7 @@ async def admin_retrieve_comments_handler(
         # Serialize
         # -----------------------
         serialized_comments = [
-            AdminPendingCommentsSchema.model_validate(comment).model_dump()
+            AdminRetrieveCommentsSchema.model_validate(comment).model_dump()
             for comment in comments
         ]
 
