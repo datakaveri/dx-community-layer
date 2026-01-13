@@ -36,7 +36,7 @@ async def retrieve_discussion_comments_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieve all comments for a discussion.
+    Retrieve all approved comments for a discussion.
 
     Args:
         discussion_id (uuid.UUID): The ID of the discussion to retrieve comments for.
@@ -191,10 +191,10 @@ async def retrieve_comment_replies_handler(
         # -----------------------
         stmt = select(Comment).filter(
             Comment.parent_id == req_params.comment_id,
-            # or_(
-            #     Comment.status == "APPROVED",
-            #     Comment.user_id == authorized_user["user_id"],
-            # ),
+            or_(
+                Comment.status == "APPROVED",
+                Comment.user_id == authorized_user["user_id"],
+            ),
         )
 
         # -----------------------

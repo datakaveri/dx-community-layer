@@ -39,7 +39,9 @@ router = APIRouter(tags=["Discussion - Comment APIs"])
 
 @router.get(
     path="/discussion/{discussion_id}/comments",
-    description=public_desc("Fetches all comments for a discussion by its ID."),
+    description=public_desc(
+        "Fetches all approved comments for a discussion by its ID."
+    ),
     responses=RETRIEVE_COMMENTS_RESPONSE_MODEL,
 )
 async def retrieve_discussion_comments(
@@ -48,7 +50,7 @@ async def retrieve_discussion_comments(
     db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves all comments for a discussion by its ID.
+    Retrieves all approved comments for a discussion by its ID.
 
     Args:
         discussion_id (uuid.UUID): The ID of the discussion to retrieve comments for.
@@ -69,7 +71,7 @@ async def retrieve_discussion_comments(
 
 @router.get(
     path="/comments/{comment_id}/replies",
-    description=public_desc("Fetches all replies for a comment by its ID."),
+    description=public_desc("Fetches all approved replies for a comment by its ID."),
 )
 async def retrieve_comment_replies(
     req_params: RetrieveCommentRepliesParams = Depends(),
@@ -77,7 +79,7 @@ async def retrieve_comment_replies(
     db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves all replies for a comment by its ID.
+    Retrieves all approved replies for a comment by its ID.
 
     Args:
         comment_id (uuid.UUID): The ID of the comment to retrieve replies for.
