@@ -7,14 +7,15 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
+from ...configs.s3_config import s3_client
+from ...configs.env_config import env_config
 from ...schemas.discussion.comment_requests import (
     CreateCommentParams,
     CreateCommentReplyParams,
     RetrieveCommentRepliesParams,
     RetrieveDiscussionCommentsParams,
 )
-from ...configs.s3_config import s3_client
-from ...configs.env_config import env_config
+from ...database.discussion.enums import CommentsStatusEnum
 from ...schemas.discussion.comment_responses import CommentSchema
 from ...schemas.default_schemas import AuthorizationData, UserRole
 from ...database.discussion.models import (
@@ -54,10 +55,10 @@ async def retrieve_discussion_comments_handler(
         stmt = select(Comment).filter(
             Comment.discussion_id == req_params.discussion_id,
             Comment.parent_id.is_(None),
-            # or_(
-            #     Comment.status == "APPROVED",
-            #     Comment.user_id == authorized_user["user_id"],
-            # ),
+            or_(
+                Comment.status == CommentsStatusEnum.APPROVED,
+                Comment.user_id == authorized_user["user_id"],
+            ),
         )
 
         # -----------------------
