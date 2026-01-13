@@ -1,3 +1,4 @@
+from typing import List
 import pytz
 import math
 from fastapi import status
@@ -6,10 +7,14 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...configs.env_config import env_config
+from ...configs.s3_config import s3_client
+from ...services.discussion.discussion_services import get_s3_file_metadata
 from ...middlewares.logging import logger
 from .search_services import format_tsquery
 from ...schemas.default_schemas import AuthorizationData
 from ...database.discussion.models import (
+    CommentAttachment,
     Discussion,
     DiscussionReview,
     DiscussionTag,
@@ -364,6 +369,9 @@ async def admin_retrieve_comments_handler(
                     Discussion.type.in_(req_params.filters.discussion_type)
                 )
 
+            if req_params.filters.status:
+                stmt = stmt.where(Comment.status.in_(req_params.filters.status))
+
             if req_params.filters.time_range:
                 if (
                     req_params.filters.time_range.start_date
@@ -509,6 +517,64 @@ async def admin_review_comment_handler(
         # Update status
         comment_obj.status = req_params.status
         comment_obj.comment = req_params.comment
+
+        if req_params.attachments.remove:
+            for attachment_id in req_params.attachments.remove:
+                attachment_result = await db_session.execute(
+                    select(CommentAttachment).where(
+                        CommentAttachment.id == attachment_id,
+                        CommentAttachment.comment_id == comment_obj.id,
+                    )
+                )
+                attachment_obj = attachment_result.scalars().one_or_none()
+                if attachment_obj:
+                    db_session.delete(attachment_obj)
+
+        if req_params.attachments.add:
+            attachment_objs: List[CommentAttachment] = []
+            for source_s3_key in req_params.attachments.add:
+                metadata = get_s3_file_metadata(source_s3_key)
+
+                if "error" in metadata:
+                    logger.error(
+                        f"{authorized_user['email']} - Error fetching metadata for {source_s3_key}: {metadata['error']}"
+                    )
+                    await db_session.rollback()
+                    return CustomBackendError(
+                        message="Discussion creation failed",
+                        details="An error occurred while creating the discussion. Please contact developers if the issue persists.",
+                    )
+
+                # build permanent key and copy object to permanent location
+                permanent_s3_key = f"private/{comment_obj.discussion_id}/comments/{comment_obj.id}/{metadata['file_name']}"
+
+                try:
+                    s3_client.copy_object(
+                        Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
+                        CopySource=f"{env_config.DISCUSSION_AWS_S3_BUCKET}/{source_s3_key}",
+                        Key=permanent_s3_key,
+                    )
+                except Exception as s3_exc:
+                    logger.exception(
+                        f"{authorized_user['email']} - S3 copy failed: {str(s3_exc)}"
+                    )
+                    await db_session.rollback()
+                    return CustomBackendError(
+                        message="Discussion comment creation failed",
+                        details="An error occurred while creating the discussion comment. Please contact developers if the issue persists.",
+                    )
+
+                attachment_objs.append(
+                    CommentAttachment(
+                        comment_id=comment_obj.id,
+                        attachment_metadata=metadata,
+                        s3_key=permanent_s3_key,
+                    )
+                )
+
+            if attachment_objs:
+                db_session.add_all(attachment_objs)
+
         comment_obj.approved_at = current_timestamp
 
         await db_session.commit()

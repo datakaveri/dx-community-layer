@@ -206,6 +206,9 @@ class RetrieveCommentsFilters(BaseModel):
     discussion_type: Optional[List[DiscussionsTypeEnum]] = Field(
         default=None, description="Type of the discussion to filter by"
     )
+    status: Optional[List[CommentsStatusEnum]] = Field(
+        default=None, description="Status of the discussion to filter by"
+    )
     time_range: Optional[TimeRangeFilter] = Field(
         default=None, description="Time range to filter by"
     )
@@ -232,6 +235,7 @@ class AdminRetrieveCommentsParams:
             example=json.dumps(
                 {
                     "discussion_type": [DiscussionsTypeEnum.GENERAL.value],
+                    "status": [CommentsStatusEnum.PENDING.value],
                     "time_range": {
                         "start_date": "2023-01-01",
                         "end_date": "2023-01-31",
@@ -312,6 +316,17 @@ class AdminRetrieveCommentsParams:
         self.sort_order = sort_order
 
 
+class AdminReviewCommentAttachment(BaseModel):
+    add: Optional[List[str]] = Field(
+        default=None,
+        description="List of attachment S3 keys to add",
+    )
+    remove: Optional[List[uuid.UUID]] = Field(
+        default=None,
+        description="List of attachment ids to remove",
+    )
+
+
 class AdminReviewCommentParams:
     def __init__(
         self,
@@ -323,7 +338,12 @@ class AdminReviewCommentParams:
             default=None,
             description="The updated comment by the Admin",
         ),
+        attachments: AdminReviewCommentAttachment = Body(
+            default=None,
+            description="List of attachments to add or remove from the comment",
+        ),
     ):
         self.comment_id = comment_id
         self.status = CommentsStatusEnum(status)
         self.comment = comment
+        self.attachments = attachments
