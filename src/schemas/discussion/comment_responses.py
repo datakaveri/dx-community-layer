@@ -41,7 +41,7 @@ class CommentSchema(BaseModel):
     comment: str
     created_at: datetime
     status: CommentsStatusEnum
-    approved_at: datetime
+    approved_at: Optional[datetime]
     sub_comments_count: int = 0
     comment_attachments: List[CommentAttachmentSchema]
     votes: int = 0
