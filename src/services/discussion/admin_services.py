@@ -64,7 +64,7 @@ async def admin_retrieve_discussions_handler(
         # Base selectable
         # -----------------------
         stmt = (
-            select(Discussion)
+            select(Discussion, DiscussionReview.created_at)
             .distinct()
             .join(
                 DiscussionReview,
@@ -138,11 +138,6 @@ async def admin_retrieve_discussions_handler(
         # Review history filter
         # -----------------------
         if req_params.choice == AdminRetrieveDiscussionsChoices.REVIEW_HISTORY:
-            # reviewer_filter = exists().where(
-            #     (DiscussionReview.discussion_id == Discussion.id)
-            #     & (DiscussionReview.reviewer_id == authorized_user["user_id"])
-            # )
-            # stmt = stmt.where(reviewer_filter)
             stmt = stmt.where(
                 DiscussionReview.discussion_id == Discussion.id,
                 DiscussionReview.reviewer_id == authorized_user["user_id"],
