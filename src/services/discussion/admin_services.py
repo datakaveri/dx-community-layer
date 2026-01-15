@@ -63,7 +63,7 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         # Base selectable
         # -----------------------
-        stmt = select(Discussion).join(
+        stmt = select(Discussion).distinct().join(
             DiscussionReview,
             DiscussionReview.discussion_id == Discussion.id,
             isouter=True,
@@ -147,7 +147,7 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         # Total count
         # -----------------------
-        count_stmt = stmt.with_only_columns(func.count(Discussion.id))
+        count_stmt = stmt.with_only_columns(func.count(Discussion.id.distinct()))
         total_count_result = await db_session.execute(count_stmt)
         total_count = total_count_result.scalar_one()
         total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
@@ -192,7 +192,7 @@ async def admin_retrieve_discussions_handler(
             selectinload(Discussion.discussion_reviews),
         )
         result = await db_session.execute(stmt)
-        discussions = result.scalars().unique().all()
+        discussions = result.scalars().all()
 
         # -----------------------
         # Serialize
