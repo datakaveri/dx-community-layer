@@ -63,10 +63,14 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         # Base selectable
         # -----------------------
-        stmt = select(Discussion).distinct().join(
-            DiscussionReview,
-            DiscussionReview.discussion_id == Discussion.id,
-            isouter=True,
+        stmt = (
+            select(Discussion)
+            .distinct()
+            .join(
+                DiscussionReview,
+                DiscussionReview.discussion_id == Discussion.id,
+                isouter=True,
+            )
         )
 
         # -----------------------
@@ -286,7 +290,7 @@ async def admin_review_discussion_handler(
         )
 
         db_session.add(new_review)
-        discussion.updated_at = current_timestamp
+        # discussion.updated_at = current_timestamp
         await db_session.commit()
 
         logger.info(f"{authorized_user['email']} - Discussion reviewed successfully")
