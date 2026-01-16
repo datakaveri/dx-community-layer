@@ -84,7 +84,10 @@ async def admin_retrieve_discussions_handler(
                 latest_review_subquery.c.discussion_id == Discussion.id,
                 isouter=True,
             )
-            .where(latest_review_subquery.c.rn == 1)
+            .where(
+                (latest_review_subquery.c.rn == 1)
+                | (latest_review_subquery.c.rn.is_(None))
+            )
         )
 
         # -----------------------
