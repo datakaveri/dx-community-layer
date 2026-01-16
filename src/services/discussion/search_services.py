@@ -7,9 +7,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...middlewares.logging import logger
 from ...schemas.default_schemas import AuthorizationData
 from ...schemas.discussion.discussion_responses import TagSchema, UserSchema
-from ...database.discussion.models import Discussion, DiscussionTag, Tag, User
+from ...database.discussion.models import (
+    Discussion,
+    DiscussionTag,
+    Tag,
+    User,
+    PinnedDiscussion,
+)
 from ...schemas.discussion.discussion_requests import RetrieveDiscussionChoices
-from ...schemas.discussion.search_requests import SearchDiscussionsParams, SearchParams
+from ...schemas.discussion.search_requests import (
+    SearchDiscussionsParams,
+    SearchParams,
+    SearchPinnedDiscussionsParams,
+)
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
 from ...schemas.discussion.search_responses import (
     SearchDiscussionSuccessfulResponseDiscussion,
@@ -64,7 +74,6 @@ async def search_discussions_handler(
             selectinload(Discussion.discussion_votes),
             selectinload(Discussion.discussion_attachments),
             selectinload(Discussion.bookmarked_discussions),
-            selectinload(Discussion.pinned_discussions),
         )
 
         # -----------------------
@@ -129,10 +138,6 @@ async def search_discussions_handler(
                 b.user_id == authorized_user["user_id"]
                 for b in getattr(d, "bookmarked_discussions", [])
             )
-            is_pinned = any(
-                p.user_id == authorized_user["user_id"]
-                for p in getattr(d, "pinned_discussions", [])
-            )
 
             # compute vote count via relationship
             votes = len(getattr(d, "discussion_votes", []))
@@ -142,7 +147,6 @@ async def search_discussions_handler(
             ).model_dump(exclude={"votes"})
             base["votes"] = votes
             base["is_bookmarked"] = is_bookmarked
-            base["is_pinned"] = is_pinned
 
             serialized_discussions.append(base)
 
@@ -169,6 +173,149 @@ async def search_discussions_handler(
         return CustomBackendError(
             message="Failed to search discussions",
             details="An error occurred while searching discussions for the provided query. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
+
+async def search_pinned_discussions_handler(
+    req_params: SearchPinnedDiscussionsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves pinned discussions based on the provided search query for title and sub_category.
+
+    Args:
+        req_params (SearchPinnedDiscussionsParams): The request body containing the search query.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, ID and role.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved pinned discussions.
+    """
+    logger.info(f"{authorized_user['email']} - Execution started")
+
+    try:
+        formatted_query = format_tsquery(req_params.query)
+        ts_query = func.to_tsquery("simple", formatted_query)
+
+        # -----------------------
+        # Base Query - Join with PinnedDiscussion to filter only pinned discussions
+        # -----------------------
+        stmt = (
+            select(Discussion)
+            .join(PinnedDiscussion, PinnedDiscussion.discussion_id == Discussion.id)
+            .filter(PinnedDiscussion.user_id == authorized_user["user_id"])
+            .options(
+                selectinload(Discussion.user),
+                selectinload(Discussion.discussion_tags).selectinload(
+                    DiscussionTag.tag
+                ),
+                selectinload(Discussion.discussion_votes),
+                selectinload(Discussion.discussion_attachments),
+                selectinload(Discussion.bookmarked_discussions),
+            )
+        )
+
+        # -----------------------
+        # Choice Filter
+        # -----------------------
+        if req_params.choice == RetrieveDiscussionChoices.ALL:
+            pass
+        if req_params.choice == RetrieveDiscussionChoices.OWNED:
+            stmt = stmt.filter(Discussion.user_id == authorized_user["user_id"])
+        elif req_params.choice == RetrieveDiscussionChoices.BOOKMARKED:
+            stmt = stmt.filter(
+                Discussion.bookmarked_discussions.any(
+                    user_id=authorized_user["user_id"]
+                )
+            )
+
+        # -----------------------
+        # Search Query
+        # -----------------------
+        stmt = stmt.filter(
+            (Discussion.title_vector.op("@@")(ts_query))
+            | (Discussion.sub_category_vector.op("@@")(ts_query))
+        )
+
+        # -----------------------
+        # Apply filters
+        # -----------------------
+        if req_params.filters.sub_category_id:
+            stmt = stmt.filter(
+                Discussion.sub_category_id == req_params.filters.sub_category_id
+            )
+        if req_params.filters.type:
+            stmt = stmt.filter(Discussion.type == req_params.filters.type)
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(Discussion.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        result = await db_session.execute(stmt)
+        discussions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_discussions = []
+        for d in discussions:
+            # compute flags
+            is_bookmarked = any(
+                b.user_id == authorized_user["user_id"]
+                for b in getattr(d, "bookmarked_discussions", [])
+            )
+
+            # compute vote count via relationship
+            votes = len(getattr(d, "discussion_votes", []))
+
+            base = SearchDiscussionSuccessfulResponseDiscussion.model_validate(
+                d
+            ).model_dump(exclude={"votes"})
+            base["votes"] = votes
+            base["is_bookmarked"] = is_bookmarked
+
+            serialized_discussions.append(base)
+
+        logger.info(
+            f"{authorized_user['email']} - Search completed successfully for query: {req_params.query}"
+        )
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Search completed successfully",
+            data=serialized_discussions,
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+                "query": req_params.query,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Failed to search pinned discussions",
+            details="An error occurred while searching pinned discussions for the provided query. Please contact developers if the issue persists.",
         )
 
     finally:

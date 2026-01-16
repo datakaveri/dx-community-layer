@@ -8,6 +8,7 @@ from ...schemas.custom_responses import CustomJSONResponse
 from ...services.discussion.search_services import (
     search_authors_handler,
     search_discussions_handler,
+    search_pinned_discussions_handler,
     search_tags_handler,
 )
 from ...schemas.discussion.search_responses import (
@@ -17,7 +18,11 @@ from ...schemas.discussion.search_responses import (
 )
 from ...schemas.default_schemas import AuthorizationData
 from ...middlewares.authorization import http_bearer_header_public
-from ...schemas.discussion.search_requests import SearchDiscussionsParams, SearchParams
+from ...schemas.discussion.search_requests import (
+    SearchDiscussionsParams,
+    SearchParams,
+    SearchPinnedDiscussionsParams,
+)
 
 
 router = APIRouter(prefix="/search", tags=["Discussion - Search APIs"])
@@ -47,6 +52,34 @@ async def search_discussions(
     logger.info("Search Discussions API is being called")
 
     return await search_discussions_handler(
+        req_params=req_params, authorized_user=authorized_user, db_session=db_session
+    )
+
+
+@router.get(
+    path="/pinned-discussions/{choice}",
+    description=public_desc("Search pinned discussions by title and sub_category."),
+    responses=SEARCH_DISCUSSIONS_RESPONSE_MODEL,
+)
+async def search_pinned_discussions(
+    req_params: SearchPinnedDiscussionsParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header_public),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
+) -> CustomJSONResponse:
+    """
+    Retrieves pinned discussions based on the provided search query.
+
+    Args:
+        query (str): The search query.
+        authorized_user (AuthorizationData): The authenticated user's data, including their email, name, and ID.
+        db_session (AsyncSession): The database session for accessing the primary database.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the retrieved pinned discussions.
+    """
+    logger.info("Search Pinned Discussions API is being called")
+
+    return await search_pinned_discussions_handler(
         req_params=req_params, authorized_user=authorized_user, db_session=db_session
     )
 
