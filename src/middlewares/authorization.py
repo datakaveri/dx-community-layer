@@ -75,7 +75,17 @@ class HttpBearerHeader(HTTPBearer):
 
     async def verify_token(self, token: str) -> dict:
         """Verify JWT, check expiry, and cache payload in Redis"""
-        token_signature = token.split(".")[2]
+
+        try:
+            token_signature = token.split(".")[2]
+        except Exception as e:
+            logger.error(f"Failed to verify token: {e}")
+            raise CustomHttpException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                message="Unauthorized access",
+                error_code="UNAUTHORIZED",
+                error_details="Invalid token format",
+            )
 
         # Check Redis token cache
         cached_payload = await self.redis_client.get(f"token:{token_signature}")

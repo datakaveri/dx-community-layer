@@ -63,14 +63,28 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         # Base selectable
         # -----------------------
+        # Subquery to get the latest review for each discussion
+        latest_review_subquery = select(
+            DiscussionReview.discussion_id,
+            DiscussionReview.reviewer_id,
+            DiscussionReview.created_at,
+            func.row_number()
+            .over(
+                partition_by=DiscussionReview.discussion_id,
+                order_by=DiscussionReview.created_at.desc(),
+            )
+            .label("rn"),
+        ).subquery()
+
         stmt = (
-            select(Discussion, DiscussionReview.created_at)
+            select(Discussion, latest_review_subquery.c.created_at)
             .distinct()
             .join(
-                DiscussionReview,
-                DiscussionReview.discussion_id == Discussion.id,
+                latest_review_subquery,
+                latest_review_subquery.c.discussion_id == Discussion.id,
                 isouter=True,
             )
+            .where(latest_review_subquery.c.rn == 1)
         )
 
         # -----------------------
@@ -139,8 +153,7 @@ async def admin_retrieve_discussions_handler(
         # -----------------------
         if req_params.choice == AdminRetrieveDiscussionsChoices.REVIEW_HISTORY:
             stmt = stmt.where(
-                DiscussionReview.discussion_id == Discussion.id,
-                DiscussionReview.reviewer_id == authorized_user["user_id"],
+                latest_review_subquery.c.reviewer_id == authorized_user["user_id"]
             )
 
         # -----------------------
@@ -157,9 +170,9 @@ async def admin_retrieve_discussions_handler(
         if req_params.sort_by and req_params.sort_order:
             if req_params.sort_by == AdminRetrieveDiscussionsSortByEnum.reviewed_at:
                 stmt = stmt.order_by(
-                    DiscussionReview.created_at.asc()
+                    latest_review_subquery.c.created_at.asc()
                     if req_params.sort_order == "asc"
-                    else DiscussionReview.created_at.desc()
+                    else latest_review_subquery.c.created_at.desc()
                 )
             elif req_params.sort_by == AdminRetrieveDiscussionsSortByEnum.created_at:
                 stmt = stmt.order_by(
