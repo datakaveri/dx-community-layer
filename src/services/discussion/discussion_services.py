@@ -1456,6 +1456,7 @@ async def get_recent_authors_handler(
                 Discussion.type,
                 func.max(Discussion.created_at).label("max_created_at"),
             )
+            .where(Discussion.status == DiscussionsStatusEnum.APPROVED)
             .group_by(Discussion.user_id, Discussion.type)
             .subquery()
         )
@@ -1485,7 +1486,11 @@ async def get_recent_authors_handler(
         # Group users by discussion type
         users_by_type = {}
         for user, discussion_type in rows:
-            type_str = discussion_type.value
+            type_str = (
+                discussion_type.value
+                if hasattr(discussion_type, "value")
+                else discussion_type
+                )
             if type_str not in users_by_type:
                 users_by_type[type_str] = []
 
