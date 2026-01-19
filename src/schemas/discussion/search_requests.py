@@ -5,7 +5,7 @@ from fastapi import Path, Query
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, ValidationError
 
-from .discussion_requests import RetrieveDiscussionChoices
+from .discussion_requests import RetrieveDiscussionChoices, RetrieveDiscussionsSortByEnum
 from ...database.discussion.enums import DiscussionsTypeEnum
 from ...middlewares.search_validation import validate_search_query
 
@@ -44,6 +44,10 @@ class SearchDiscussionsParams:
                 }
             ),
         ),
+        sort_by: RetrieveDiscussionsSortByEnum = Query(
+            default=RetrieveDiscussionsSortByEnum.NEWEST,
+            description="The field to sort by",
+        ),
     ):
         validate_search_query(query)
         self.choice = choice
@@ -69,6 +73,8 @@ class SearchDiscussionsParams:
                     }
                 ]
             )
+
+        self.sort_by = sort_by
 
 
 class SearchPinnedDiscussionsParams:
@@ -96,6 +102,10 @@ class SearchPinnedDiscussionsParams:
                 }
             ),
         ),
+        sort_by: RetrieveDiscussionsSortByEnum = Query(
+            default=RetrieveDiscussionsSortByEnum.NEWEST,
+            description="The field to sort by",
+        ),
     ):
         validate_search_query(query)
         self.choice = choice
@@ -121,6 +131,8 @@ class SearchPinnedDiscussionsParams:
                     }
                 ]
             )
+
+        self.sort_by = sort_by
 
 
 class SearchParams:

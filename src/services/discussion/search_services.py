@@ -13,8 +13,9 @@ from ...database.discussion.models import (
     Tag,
     User,
     PinnedDiscussion,
+    DiscussionVote,
 )
-from ...schemas.discussion.discussion_requests import RetrieveDiscussionChoices
+from ...schemas.discussion.discussion_requests import RetrieveDiscussionChoices, RetrieveDiscussionsSortByEnum
 from ...schemas.discussion.search_requests import (
     SearchDiscussionsParams,
     SearchParams,
@@ -109,12 +110,39 @@ async def search_discussions_handler(
             stmt = stmt.filter(Discussion.type == req_params.filters.type)
 
         # -----------------------
-        # Total count
+        # Subquery: count votes per discussion (for HOTTEST sorting)
         # -----------------------
-        count_stmt = stmt.with_only_columns(func.count(Discussion.id))
+        votes_subq = (
+            select(
+                DiscussionVote.discussion_id,
+                func.count(DiscussionVote.id).label("vote_count"),
+            )
+            .group_by(DiscussionVote.discussion_id)
+            .subquery()
+        )
+
+        # -----------------------
+        # Total count (before sorting with joins)
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(Discussion.id.distinct()))
         total_count_result = await db_session.execute(count_stmt)
         total_count = total_count_result.scalar_one()
         total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if req_params.sort_by == RetrieveDiscussionsSortByEnum.NEWEST:
+            stmt = stmt.order_by(Discussion.created_at.desc())
+        elif req_params.sort_by == RetrieveDiscussionsSortByEnum.OLDEST:
+            stmt = stmt.order_by(Discussion.created_at.asc())
+        elif req_params.sort_by == RetrieveDiscussionsSortByEnum.HOTTEST:
+            stmt = stmt.outerjoin(
+                votes_subq, Discussion.id == votes_subq.c.discussion_id
+            ).order_by(
+                func.coalesce(votes_subq.c.vote_count, 0).desc(),
+                Discussion.updated_at.desc(),
+            )
 
         # -----------------------
         # Pagination
@@ -252,12 +280,39 @@ async def search_pinned_discussions_handler(
             stmt = stmt.filter(Discussion.type == req_params.filters.type)
 
         # -----------------------
-        # Total count
+        # Subquery: count votes per discussion (for HOTTEST sorting)
         # -----------------------
-        count_stmt = stmt.with_only_columns(func.count(Discussion.id))
+        votes_subq = (
+            select(
+                DiscussionVote.discussion_id,
+                func.count(DiscussionVote.id).label("vote_count"),
+            )
+            .group_by(DiscussionVote.discussion_id)
+            .subquery()
+        )
+
+        # -----------------------
+        # Total count (before sorting with joins)
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(Discussion.id.distinct()))
         total_count_result = await db_session.execute(count_stmt)
         total_count = total_count_result.scalar_one()
         total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        if req_params.sort_by == RetrieveDiscussionsSortByEnum.NEWEST:
+            stmt = stmt.order_by(Discussion.created_at.desc())
+        elif req_params.sort_by == RetrieveDiscussionsSortByEnum.OLDEST:
+            stmt = stmt.order_by(Discussion.created_at.asc())
+        elif req_params.sort_by == RetrieveDiscussionsSortByEnum.HOTTEST:
+            stmt = stmt.outerjoin(
+                votes_subq, Discussion.id == votes_subq.c.discussion_id
+            ).order_by(
+                func.coalesce(votes_subq.c.vote_count, 0).desc(),
+                Discussion.updated_at.desc(),
+            )
 
         # -----------------------
         # Pagination
