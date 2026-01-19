@@ -215,6 +215,8 @@ class RetrieveCommentsFilters(BaseModel):
 
 
 class AdminRetrieveCommentsParams:
+    DATE_FORMAT = "%Y-%m-%d"
+
     def __init__(
         self,
         choice: RetrieveCommentsChoices = Path(
