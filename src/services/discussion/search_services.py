@@ -167,6 +167,10 @@ async def search_discussions_handler(
                 for b in getattr(d, "bookmarked_discussions", [])
             )
 
+            is_voted = any(
+                v.user_id == authorized_user["user_id"]
+                for v in getattr(d, "discussion_votes", [])
+            )
             # compute vote count via relationship
             votes = len(getattr(d, "discussion_votes", []))
 
@@ -175,6 +179,7 @@ async def search_discussions_handler(
             ).model_dump(exclude={"votes"})
             base["votes"] = votes
             base["is_bookmarked"] = is_bookmarked
+            base["is_voted"] = is_voted
 
             serialized_discussions.append(base)
 
@@ -336,7 +341,10 @@ async def search_pinned_discussions_handler(
                 b.user_id == authorized_user["user_id"]
                 for b in getattr(d, "bookmarked_discussions", [])
             )
-
+            is_voted = any(
+                v.user_id == authorized_user["user_id"]
+                for v in getattr(d, "discussion_votes", [])
+            )
             # compute vote count via relationship
             votes = len(getattr(d, "discussion_votes", []))
 
@@ -345,6 +353,7 @@ async def search_pinned_discussions_handler(
             ).model_dump(exclude={"votes"})
             base["votes"] = votes
             base["is_bookmarked"] = is_bookmarked
+            base["is_voted"] = is_voted
 
             serialized_discussions.append(base)
 
