@@ -37,6 +37,7 @@ class SearchDiscussionSuccessfulResponseDiscussion(BaseModel):
     created_at: datetime
     updated_at: datetime
     votes: int = 0
+    is_voted: bool = False
     is_bookmarked: bool = False
 
     model_config = {"from_attributes": True}
