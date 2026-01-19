@@ -174,8 +174,8 @@ class CreateDiscussionParams:
 
 
 class UpdateDiscussionTags(BaseModel):
-    add: List[str]
-    remove: List[uuid.UUID]
+    add: Optional[List[str]] = None
+    remove: Optional[List[str]] = None
 
 
 class UpdateDiscussionParams:
@@ -225,7 +225,7 @@ class UpdateDiscussionParams:
         self.discussion_id = discussion_id
         self.title = title.strip() if title else None
         self.category = category
-        self.sub_category = sub_category.strip() if title else None
+        self.sub_category = sub_category.strip() if sub_category else None
         self.sub_category_id = sub_category_id
 
         if (

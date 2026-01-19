@@ -683,15 +683,16 @@ async def update_discussion_handler(
                     db_session.add(discussion_tag)
 
             if req_params.tags.remove:
-                discussion_tags_to_remove = await db_session.execute(
-                    select(DiscussionTag)
+                # Remove tags by name directly
+                await db_session.execute(
+                    delete(DiscussionTag)
                     .where(DiscussionTag.discussion_id == discussion.id)
-                    .where(DiscussionTag.tag_id.in_(req_params.tags.remove))
+                    .where(
+                        DiscussionTag.tag_id.in_(
+                            select(Tag.id).where(Tag.name.in_(req_params.tags.remove))
+                        )
+                    )
                 )
-                discussion_tags_to_remove = discussion_tags_to_remove.scalars().all()
-
-                for discussion_tag in discussion_tags_to_remove:
-                    db_session.delete(discussion_tag)
 
         # Added attachments
         if req_params.added_attachments:
