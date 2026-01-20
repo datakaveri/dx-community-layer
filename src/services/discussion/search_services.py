@@ -92,6 +92,7 @@ async def search_discussions_handler(
                 )
             )
         #  Search restriction: show only APPROVED discussions for public, ALL, and BOOKMARKED views
+        #  For OWNED: show APPROVED only if section='discussions', show all if section='submissions'
         # -----------------------
         if (
             not authorized_user
@@ -100,6 +101,7 @@ async def search_discussions_handler(
                 RetrieveDiscussionChoices.ALL,
                 RetrieveDiscussionChoices.BOOKMARKED,
             ]
+            or (req_params.choice == RetrieveDiscussionChoices.OWNED and req_params.section == "discussions")
         ):
             stmt = stmt.filter(Discussion.status == DiscussionsStatusEnum.APPROVED)
 
