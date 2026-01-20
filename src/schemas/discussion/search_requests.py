@@ -48,12 +48,17 @@ class SearchDiscussionsParams:
             default=RetrieveDiscussionsSortByEnum.NEWEST,
             description="The field to sort by",
         ),
+        section: str = Query(
+            default="discussions",
+            description="Section type: 'discussions' (show APPROVED only for owned) or 'submissions' (show all statuses for owned)",
+        ),
     ):
         validate_search_query(query)
         self.choice = choice
         self.query = query
         self.page = page
         self.limit = limit
+        self.section = section
 
         # Parse the filters string into a dictionary
         try:
