@@ -14,6 +14,7 @@ from ...database.discussion.models import (
     User,
     PinnedDiscussion,
     DiscussionVote,
+    DiscussionsStatusEnum,
 )
 from ...schemas.discussion.discussion_requests import RetrieveDiscussionChoices, RetrieveDiscussionsSortByEnum
 from ...schemas.discussion.search_requests import (
@@ -90,6 +91,19 @@ async def search_discussions_handler(
                     user_id=authorized_user["user_id"]
                 )
             )
+        #  Search restriction: show only APPROVED discussions for public, ALL, and BOOKMARKED views
+        #  For OWNED: show APPROVED only if section='discussions', show all if section='submissions'
+        # -----------------------
+        if (
+            not authorized_user
+            or not authorized_user.get("user_id")
+            or req_params.choice in [
+                RetrieveDiscussionChoices.ALL,
+                RetrieveDiscussionChoices.BOOKMARKED,
+            ]
+            or (req_params.choice == RetrieveDiscussionChoices.OWNED and req_params.section == "discussions")
+        ):
+            stmt = stmt.filter(Discussion.status == DiscussionsStatusEnum.APPROVED)
 
         # -----------------------
         # Search Query
