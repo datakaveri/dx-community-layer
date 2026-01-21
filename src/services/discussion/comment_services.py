@@ -272,6 +272,7 @@ async def retrieve_comment_replies_handler(
                     user_reaction = {"emoji_code": r.emoji_code}
 
             base = CommentSchema.model_validate(comment).model_dump(exclude={"votes"})
+            base["is_approved"] = comment.status == CommentsStatusEnum.APPROVED
             base["votes"] = votes
             base["is_voted"] = is_voted
             base["reactions"] = {
