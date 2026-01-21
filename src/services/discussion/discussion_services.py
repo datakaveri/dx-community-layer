@@ -43,7 +43,7 @@ from ...schemas.discussion.discussion_responses import (
     RetrieveDiscussionsResponseDiscussion,
     UserSchema,
 )
-
+from ...database.discussion.models import DiscussionReview
 
 def _build_permanent_s3_key(discussion_id: uuid.UUID, file_name: str) -> str:
     return f"private/{discussion_id}/content/{file_name}"
@@ -139,6 +139,16 @@ async def retrieve_discussion_by_id_handler(
         serialized_discussion = RetrieveDiscussionByIDResponseDiscussion.model_validate(
             discussion
         ).model_dump()
+
+        latest_review_time = (
+            max(r.created_at for r in discussion.discussion_reviews)
+            if discussion.discussion_reviews
+            else None
+        )
+
+        serialized_discussion["published_time"] = (
+            latest_review_time or discussion.created_at
+        )
 
         # compute reactions
         reactions_summary = {}
@@ -315,10 +325,37 @@ async def retrieve_discussions_handler(
         # -----------------------
         # Sorting
         # -----------------------
+        
+        latest_review_subq = (
+            select(
+                DiscussionReview.discussion_id,
+                func.max(DiscussionReview.created_at).label("approved_time"),
+            )
+            .group_by(DiscussionReview.discussion_id)
+            .subquery()
+        )
+
+        stmt = stmt.outerjoin(
+            latest_review_subq,
+            Discussion.id == latest_review_subq.c.discussion_id,
+        )
+
         if req_params.sort_by == RetrieveDiscussionsSortByEnum.NEWEST:
-            stmt = stmt.order_by(Discussion.created_at.desc())
+            stmt = stmt.order_by(
+                func.coalesce(
+                    latest_review_subq.c.approved_time,
+                    Discussion.created_at,
+                ).desc()
+            )
+
         elif req_params.sort_by == RetrieveDiscussionsSortByEnum.OLDEST:
-            stmt = stmt.order_by(Discussion.created_at.asc())
+            stmt = stmt.order_by(
+                func.coalesce(
+                    latest_review_subq.c.approved_time,
+                    Discussion.created_at,
+                ).asc()
+            )
+
         elif req_params.sort_by == RetrieveDiscussionsSortByEnum.HOTTEST:
             stmt = stmt.outerjoin(
                 votes_subq, Discussion.id == votes_subq.c.discussion_id
@@ -344,6 +381,9 @@ async def retrieve_discussions_handler(
             selectinload(Discussion.discussion_votes),
             selectinload(Discussion.pinned_discussions),
             selectinload(Discussion.bookmarked_discussions),
+            selectinload(Discussion.discussion_reviews).selectinload(
+                Discussion.discussion_reviews.property.mapper.class_.reviewer
+            ),
         )
         result = await db_session.execute(stmt)
         discussions = result.scalars().unique().all()
@@ -370,6 +410,13 @@ async def retrieve_discussions_handler(
             base = RetrieveDiscussionsResponseDiscussion.model_validate(d).model_dump(
                 exclude={"votes"}
             )
+            latest_review_time = (
+                max(r.created_at for r in d.discussion_reviews)
+                if d.discussion_reviews
+                else None
+            )
+
+            base["published_time"] = latest_review_time or d.created_at
             base["votes"] = votes
             base["is_bookmarked"] = is_bookmarked
             base["is_pinned"] = is_pinned

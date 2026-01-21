@@ -301,7 +301,10 @@ async def admin_review_discussion_handler(
         )
 
         db_session.add(new_review)
-        # discussion.updated_at = current_timestamp
+        await db_session.flush()  
+
+        discussion.updated_at = current_timestamp
+
         await db_session.commit()
 
         logger.info(f"{authorized_user['email']} - Discussion reviewed successfully")
@@ -313,7 +316,7 @@ async def admin_review_discussion_handler(
         )
 
     except Exception as e:
-        db_session.rollback()
+        await db_session.rollback()
         logger.error(f"{authorized_user['email']} - Error: {str(e)}")
         return CustomBackendError(
             message="Failed to review discussion",
