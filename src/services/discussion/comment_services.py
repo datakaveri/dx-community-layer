@@ -2,7 +2,7 @@ import math
 from typing import List
 import uuid
 from fastapi import status
-from sqlalchemy import func, or_, select, delete
+from sqlalchemy import func, or_, select, delete, case
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,16 +73,20 @@ async def retrieve_discussion_comments_handler(
         # Sorting
         # -----------------------
         sort = getattr(req_params, "sort", "newest")
+        sort_col = case(
+            (Comment.approved_at.isnot(None), Comment.approved_at),
+            else_=Comment.created_at,
+        )
         if sort == "newest":
-            stmt = stmt.order_by(Comment.approved_at.desc())
+            stmt = stmt.order_by(sort_col.desc())
         elif sort == "oldest":
-            stmt = stmt.order_by(Comment.approved_at.asc())
+            stmt = stmt.order_by(sort_col.asc())
         elif sort == "hottest":
             # Order by most upvoted, then newest
             stmt = (
                 stmt.join(Comment.comment_votes, isouter=True)
                 .group_by(Comment.id)
-                .order_by(func.count(CommentVote.id).desc(), Comment.approved_at.desc())
+                .order_by(func.count(CommentVote.id).desc(), sort_col.desc())
             )
 
         # -----------------------
@@ -217,15 +221,19 @@ async def retrieve_comment_replies_handler(
         # Sorting
         # -----------------------
         sort = getattr(req_params, "sort", "newest")
+        sort_col = case(
+            (Comment.approved_at.isnot(None), Comment.approved_at),
+            else_=Comment.created_at,
+        )
         if sort == "newest":
-            stmt = stmt.order_by(Comment.approved_at.desc())
+            stmt = stmt.order_by(sort_col.desc())
         elif sort == "oldest":
-            stmt = stmt.order_by(Comment.approved_at.asc())
+            stmt = stmt.order_by(sort_col.asc())
         elif sort == "hottest":
             stmt = (
                 stmt.join(Comment.comment_votes, isouter=True)
                 .group_by(Comment.id)
-                .order_by(func.count(CommentVote.id).desc(), Comment.approved_at.desc())
+                .order_by(func.count(CommentVote.id).desc(), sort_col.desc())
             )
 
         # -----------------------
