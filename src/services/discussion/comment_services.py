@@ -137,8 +137,13 @@ async def retrieve_discussion_comments_handler(
                 "user_reaction": user_reaction,
             }
             # compute sub-comments counts
-            if comment.sub_comments:
-                base["sub_comments_count"] = len(comment.sub_comments)
+            approved_replies_count = sum(
+                1 for c in getattr(comment, "sub_comments", [])
+                if c.status == CommentsStatusEnum.APPROVED
+            )
+
+            base["sub_comments_count"] = approved_replies_count
+
             serialized_comments.append(base)
 
         logger.info(f"{authorized_user['email']} - Discussions retrieved successfully")
@@ -192,7 +197,7 @@ async def retrieve_comment_replies_handler(
         stmt = select(Comment).filter(
             Comment.parent_id == req_params.comment_id,
             or_(
-                Comment.status == "APPROVED",
+                Comment.status == CommentsStatusEnum.APPROVED,
                 Comment.user_id == authorized_user["user_id"],
             ),
         )
@@ -200,7 +205,10 @@ async def retrieve_comment_replies_handler(
         # -----------------------
         # Total count
         # -----------------------
-        count_stmt = stmt.with_only_columns(func.count(Comment.id))
+        count_stmt = select(func.count(Comment.id)).filter(
+            Comment.parent_id == req_params.comment_id,
+            Comment.status == CommentsStatusEnum.APPROVED,
+        )
         total_count_result = await db_session.execute(count_stmt)
         total_count = total_count_result.scalar_one()
         total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
