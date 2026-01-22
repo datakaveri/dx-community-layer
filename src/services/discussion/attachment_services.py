@@ -326,7 +326,7 @@ async def generate_download_url_handler(
         download_url = s3_client.generate_presigned_url(
             "get_object",
             Params={
-                "Bucket": env_config.DISCUSSIONS3_BUCKET,
+                "Bucket": env_config.DISCUSSION_S3_BUCKET,
                 "Key": s3_key,
             },
             ExpiresIn=300,
