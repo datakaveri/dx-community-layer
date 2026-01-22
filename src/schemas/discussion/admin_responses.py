@@ -125,6 +125,7 @@ class AdminPendingCommentsDiscussion(BaseModel):
     title: str
     type: DiscussionsTypeEnum
     category: DiscussionsCategoryEnum
+    sub_category: str
 
     model_config = {"from_attributes": True}
 
