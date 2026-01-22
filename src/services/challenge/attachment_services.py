@@ -43,7 +43,7 @@ async def generate_presigned_url_handler(
         presigned_url = s3_client.generate_presigned_url(
             "put_object",
             Params={
-                "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
+                "Bucket": env_config.CHALLENGE_S3_BUCKET,
                 "Key": object_key,
                 "ContentType": "application/octet-stream",
             },
@@ -61,7 +61,7 @@ async def generate_presigned_url_handler(
             meta={
                 "batch_id": req_params.batch_id,
                 "object_key": (
-                    f"https://{env_config.CHALLENGE_AWS_S3_BUCKET}.s3.amazonaws.com/{object_key}"
+                    f"https://{env_config.CHALLENGE_S3_BUCKET}.s3.amazonaws.com/{object_key}"
                     if req_params.md_attachment
                     else object_key
                 ),
@@ -132,7 +132,7 @@ async def delete_temporary_attachment_handler(
 
         # Delete from S3
         s3_client.delete_object(
-            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET, Key=req_params.object_key
+            Bucket=env_config.CHALLENGE_S3_BUCKET, Key=req_params.object_key
         )
 
         return CustomJSONResponse(
@@ -209,7 +209,7 @@ async def download_rules_and_guidelines_handler(
         download_url = s3_client.generate_presigned_url(
             "get_object",
             Params={
-                "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
+                "Bucket": env_config.CHALLENGE_S3_BUCKET,
                 "Key": competition.rules_and_guidelines["s3_key"],
             },
             ExpiresIn=300,
@@ -313,7 +313,7 @@ async def download_additional_assets_handler(
         download_url = s3_client.generate_presigned_url(
             "get_object",
             Params={
-                "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
+                "Bucket": env_config.CHALLENGE_S3_BUCKET,
                 "Key": object_key,
             },
             ExpiresIn=300,
@@ -433,7 +433,7 @@ async def download_submission_attachments_handler(
             download_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={
-                    "Bucket": env_config.CHALLENGE_AWS_S3_BUCKET,
+                    "Bucket": env_config.CHALLENGE_S3_BUCKET,
                     "Key": object_key,
                 },
                 ExpiresIn=300,

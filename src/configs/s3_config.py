@@ -9,9 +9,9 @@ from .env_config import env_config
 
 _s3_kwargs = {
     "service_name": "s3",
-    "aws_access_key_id": env_config.AWS_ACCESS_KEY_ID,
-    "aws_secret_access_key": env_config.AWS_SECRET_ACCESS_KEY,
-    "region_name": env_config.AWS_DEFAULT_REGION,
+    "aws_access_key_id": env_config.S3_ACCESS_KEY_ID,
+    "aws_secret_access_key": env_config.S3_SECRET_ACCESS_KEY,
+    "region_name": env_config.S3_DEFAULT_REGION,
 }
 
 # Only use custom endpoint if provided
