@@ -384,8 +384,8 @@ async def create_discussion_comment_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
-                        CopySource=f"{env_config.DISCUSSION_AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.DISCUSSION_S3_BUCKET,
+                        CopySource=f"{env_config.DISCUSSION_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -503,8 +503,8 @@ async def create_comment_reply_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
-                        CopySource=f"{env_config.DISCUSSION_AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.DISCUSSION_S3_BUCKET,
+                        CopySource=f"{env_config.DISCUSSION_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -880,7 +880,7 @@ async def delete_comment_handler(
         for key in attachment_keys:
             try:
                 s3_client.delete_object(
-                    Bucket=env_config.DISCUSSION_AWS_S3_BUCKET, Key=key
+                    Bucket=env_config.DISCUSSION_S3_BUCKET, Key=key
                 )
             except Exception as s3_exc:
                 logger.warning(
