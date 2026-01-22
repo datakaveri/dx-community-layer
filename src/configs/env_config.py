@@ -37,6 +37,9 @@ class EnvConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", env_file_encoding="utf-8"
     )
+    S3_ENDPOINT_URL: str | None = None
 
+    REDIS_URL: str
+    ACTIVATED_SERVICES: list[str]
 
 env_config = EnvConfig()
