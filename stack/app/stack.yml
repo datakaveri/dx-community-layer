@@ -22,11 +22,11 @@ services:
       - keycloak_realm
       - keycloak_audience
       - keycloak_issuer
-      - discussion_aws_s3_bucket
-      - challenge_aws_s3_bucket
-      - aws_access_key_id
-      - aws_secret_access_key
-      - aws_default_region
+      - discussion_s3_bucket
+      - challenge_s3_bucket
+      - s3_access_key_id
+      - s3_secret_access_key
+      - s3_default_region
 
     configs:
       - source: app_entrypoint
@@ -101,15 +101,15 @@ secrets:
     external: true
   keycloak_issuer:
     external: true
-  discussion_aws_s3_bucket:
+  discussion_s3_bucket:
     external: true
-  challenge_aws_s3_bucket:
+  challenge_s3_bucket:
     external: true
-  aws_access_key_id:
+  s3_access_key_id:
     external: true
-  aws_secret_access_key:
+  s3_secret_access_key:
     external: true
-  aws_default_region:
+  s3_default_region:
     external: true
 
 configs:

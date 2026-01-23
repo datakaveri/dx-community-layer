@@ -67,10 +67,11 @@ The application uses the following Docker secrets:
 - `keycloak_realm` - Keycloak realm name
 - `keycloak_audience` - Keycloak audience
 - `keycloak_issuer` - Keycloak token issuer
-- `aws_s3_bucket` - AWS S3 bucket name
-- `aws_access_key_id` - AWS access key ID
-- `aws_secret_access_key` - AWS secret access key
-- `aws_default_region` - AWS default region
+- `discussion_s3_bucket` - S3 bucket for discussion service
+- `challenge_s3_bucket` - S3 bucket for challenge service
+- `s3_access_key_id` - S3 access key ID
+- `s3_secret_access_key` - S3 secret access key
+- `s3_default_region` - S3 default region
 
 ### Resources
 

@@ -72,11 +72,11 @@ create_or_update_secret "keycloak_issuer" "$KEYCLOAK_ISSUER"
 # ------------------------------------------
 # AWS
 # ------------------------------------------
-create_or_update_secret "discussion_aws_s3_bucket" "$DISCUSSION_AWS_S3_BUCKET"
-create_or_update_secret "challenge_aws_s3_bucket" "$CHALLENGE_AWS_S3_BUCKET"
-create_or_update_secret "aws_access_key_id" "$AWS_ACCESS_KEY_ID"
-create_or_update_secret "aws_secret_access_key" "$AWS_SECRET_ACCESS_KEY"
-create_or_update_secret "aws_default_region" "$AWS_DEFAULT_REGION"
+create_or_update_secret "discussion_s3_bucket" "$DISCUSSION_S3_BUCKET"
+create_or_update_secret "challenge_s3_bucket" "$CHALLENGE_S3_BUCKET"
+create_or_update_secret "s3_access_key_id" "$S3_ACCESS_KEY_ID"
+create_or_update_secret "s3_secret_access_key" "$S3_SECRET_ACCESS_KEY"
+create_or_update_secret "s3_default_region" "$S3_DEFAULT_REGION"
 
 echo ""
 echo "All secrets processed successfully!"

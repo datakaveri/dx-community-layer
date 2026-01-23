@@ -114,43 +114,43 @@ else
 fi
 
 # AWS S3 Buckets
-if [ -f /run/secrets/discussion_aws_s3_bucket ]; then
-  export DISCUSSION_AWS_S3_BUCKET=$(cat /run/secrets/discussion_aws_s3_bucket)
-  echo "DISCUSSION_AWS_S3_BUCKET loaded"
+if [ -f /run/secrets/discussion_s3_bucket ]; then
+  export DISCUSSION_S3_BUCKET=$(cat /run/secrets/discussion_s3_bucket)
+  echo "DISCUSSION_S3_BUCKET loaded"
 else
-  echo "ERROR: discussion_aws_s3_bucket secret not found"
+  echo "ERROR: discussion_s3_bucket secret not found"
   exit 1
 fi
 
-if [ -f /run/secrets/challenge_aws_s3_bucket ]; then
-  export CHALLENGE_AWS_S3_BUCKET=$(cat /run/secrets/challenge_aws_s3_bucket)
-  echo "CHALLENGE_AWS_S3_BUCKET loaded"
+if [ -f /run/secrets/challenge_s3_bucket ]; then
+  export CHALLENGE_S3_BUCKET=$(cat /run/secrets/challenge_s3_bucket)
+  echo "CHALLENGE_S3_BUCKET loaded"
 else
-  echo "ERROR: challenge_aws_s3_bucket secret not found"
+  echo "ERROR: challenge_s3_bucket secret not found"
   exit 1
 fi
 
-if [ -f /run/secrets/aws_access_key_id ]; then
-  export AWS_ACCESS_KEY_ID=$(cat /run/secrets/aws_access_key_id)
-  echo "AWS_ACCESS_KEY_ID loaded"
+if [ -f /run/secrets/s3_access_key_id ]; then
+  export S3_ACCESS_KEY_ID=$(cat /run/secrets/s3_access_key_id)
+  echo "S3_ACCESS_KEY_ID loaded"
 else
-  echo "ERROR: aws_access_key_id secret not found"
+  echo "ERROR: s3_access_key_id secret not found"
   exit 1
 fi
 
-if [ -f /run/secrets/aws_secret_access_key ]; then
-  export AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/aws_secret_access_key)
-  echo "AWS_SECRET_ACCESS_KEY loaded"
+if [ -f /run/secrets/s3_secret_access_key ]; then
+  export S3_SECRET_ACCESS_KEY=$(cat /run/secrets/s3_secret_access_key)
+  echo "S3_SECRET_ACCESS_KEY loaded"
 else
-  echo "ERROR: aws_secret_access_key secret not found"
+  echo "ERROR: s3_secret_access_key secret not found"
   exit 1
 fi
 
-if [ -f /run/secrets/aws_default_region ]; then
-  export AWS_DEFAULT_REGION=$(cat /run/secrets/aws_default_region)
-  echo "AWS_DEFAULT_REGION loaded"
+if [ -f /run/secrets/s3_default_region ]; then
+  export S3_DEFAULT_REGION=$(cat /run/secrets/s3_default_region)
+  echo "S3_DEFAULT_REGION loaded"
 else
-  echo "ERROR: aws_default_region secret not found"
+  echo "ERROR: s3_default_region secret not found"
   exit 1
 fi
 
