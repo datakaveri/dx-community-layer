@@ -779,8 +779,8 @@ async def admin_create_competition_handler(
 
             try:
                 s3_client.copy_object(
-                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
-                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.image_url}",
+                    Bucket=env_config.CHALLENGE_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_S3_BUCKET}/{req_params.image_url}",
                     Key=permanent_s3_key,
                 )
             except Exception as s3_exc:
@@ -793,7 +793,7 @@ async def admin_create_competition_handler(
                     details="An error occurred while creating the challenge. Please contact developers if the issue persists.",
                 )
 
-            new_competition.image_url = f"https://{env_config.CHALLENGE_AWS_S3_BUCKET}.s3.amazonaws.com/{permanent_s3_key}"
+            new_competition.image_url = f"https://{env_config.CHALLENGE_S3_BUCKET}.s3.amazonaws.com/{permanent_s3_key}"
 
         # Competition rules and guidelines file
         if req_params.rules_and_guidelines:
@@ -814,8 +814,8 @@ async def admin_create_competition_handler(
 
             try:
                 s3_client.copy_object(
-                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
-                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.rules_and_guidelines}",
+                    Bucket=env_config.CHALLENGE_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_S3_BUCKET}/{req_params.rules_and_guidelines}",
                     Key=permanent_s3_key,
                 )
             except Exception as s3_exc:
@@ -904,8 +904,8 @@ async def admin_create_competition_handler(
 
             try:
                 s3_client.copy_object(
-                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
-                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{asset['object_key']}",
+                    Bucket=env_config.CHALLENGE_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_S3_BUCKET}/{asset['object_key']}",
                     Key=permanent_s3_key,
                 )
             except Exception as s3_exc:
@@ -1066,8 +1066,8 @@ async def admin_update_competition_handler(
 
             try:
                 s3_client.copy_object(
-                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
-                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.image_url}",
+                    Bucket=env_config.CHALLENGE_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_S3_BUCKET}/{req_params.image_url}",
                     Key=permanent_s3_key,
                 )
             except Exception as s3_exc:
@@ -1080,7 +1080,7 @@ async def admin_update_competition_handler(
                     details="An error occurred while updating the competition. Please contact developers if the issue persists.",
                 )
 
-            competition.image_url = f"https://{env_config.CHALLENGE_AWS_S3_BUCKET}.s3.amazonaws.com/{permanent_s3_key}"
+            competition.image_url = f"https://{env_config.CHALLENGE_S3_BUCKET}.s3.amazonaws.com/{permanent_s3_key}"
 
         if req_params.constraints and req_params.constraints != competition.constraints:
             competition.constraints = req_params.constraints
@@ -1183,8 +1183,8 @@ async def admin_update_competition_handler(
 
             try:
                 s3_client.copy_object(
-                    Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
-                    CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{req_params.rules_and_guidelines}",
+                    Bucket=env_config.CHALLENGE_S3_BUCKET,
+                    CopySource=f"{env_config.CHALLENGE_S3_BUCKET}/{req_params.rules_and_guidelines}",
                     Key=permanent_s3_key,
                 )
             except Exception as s3_exc:
@@ -1267,7 +1267,7 @@ async def admin_update_competition_handler(
                 for key, value in competition.datasets.additional_assets.items():
                     if value["s3_key"] in req_params.additional_assets.remove:
                         s3_client.delete_object(
-                            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                            Bucket=env_config.CHALLENGE_S3_BUCKET,
                             Key=value["s3_key"],
                         )
                     else:
@@ -1298,8 +1298,8 @@ async def admin_update_competition_handler(
 
                     try:
                         s3_client.copy_object(
-                            Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
-                            CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{asset['object_key']}",
+                            Bucket=env_config.CHALLENGE_S3_BUCKET,
+                            CopySource=f"{env_config.CHALLENGE_S3_BUCKET}/{asset['object_key']}",
                             Key=permanent_s3_key,
                         )
                     except Exception as s3_exc:
@@ -1536,7 +1536,7 @@ async def admin_evaluate_submission_handler(
             if submission.evaluation_attachments:
                 for attachment in submission.evaluation_attachments.values():
                     s3_client.delete_object(
-                        Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                        Bucket=env_config.CHALLENGE_S3_BUCKET,
                         Key=attachment["s3_key"],
                     )
 
@@ -1558,7 +1558,7 @@ async def admin_evaluate_submission_handler(
                     for key, value in submission.evaluation_attachments.items():
                         if value["s3_key"] in req_params.attachments.remove:
                             s3_client.delete_object(
-                                Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
+                                Bucket=env_config.CHALLENGE_S3_BUCKET,
                                 Key=value["s3_key"],
                             )
                         else:
@@ -1591,8 +1591,8 @@ async def admin_evaluate_submission_handler(
 
                         try:
                             s3_client.copy_object(
-                                Bucket=env_config.CHALLENGE_AWS_S3_BUCKET,
-                                CopySource=f"{env_config.CHALLENGE_AWS_S3_BUCKET}/{source_s3_key}",
+                                Bucket=env_config.CHALLENGE_S3_BUCKET,
+                                CopySource=f"{env_config.CHALLENGE_S3_BUCKET}/{source_s3_key}",
                                 Key=permanent_s3_key,
                             )
                         except Exception as s3_exc:

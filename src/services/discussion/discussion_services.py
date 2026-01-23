@@ -52,7 +52,7 @@ def _build_permanent_s3_key(discussion_id: uuid.UUID, file_name: str) -> str:
 def get_s3_file_metadata(object_key: str) -> dict:
     try:
         response = s3_client.head_object(
-            Bucket=env_config.DISCUSSION_AWS_S3_BUCKET, Key=object_key
+            Bucket=env_config.DISCUSSION_S3_BUCKET, Key=object_key
         )
 
         metadata = {
@@ -594,8 +594,8 @@ async def create_discussion_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
-                        CopySource=f"{env_config.DISCUSSION_AWS_S3_BUCKET}/{source_s3_key}",
+                        Bucket=env_config.DISCUSSION_S3_BUCKET,
+                        CopySource=f"{env_config.DISCUSSION_S3_BUCKET}/{source_s3_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
@@ -765,8 +765,8 @@ async def update_discussion_handler(
 
                 try:
                     s3_client.copy_object(
-                        Bucket=env_config.DISCUSSION_AWS_S3_BUCKET,
-                        CopySource=f"{env_config.DISCUSSION_AWS_S3_BUCKET}/{attachment_key}",
+                        Bucket=env_config.DISCUSSION_S3_BUCKET,
+                        CopySource=f"{env_config.DISCUSSION_S3_BUCKET}/{attachment_key}",
                         Key=permanent_s3_key,
                     )
                 except Exception as s3_exc:
