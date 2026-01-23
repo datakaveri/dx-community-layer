@@ -303,8 +303,6 @@ async def admin_review_discussion_handler(
         db_session.add(new_review)
         await db_session.flush()  
 
-        discussion.updated_at = current_timestamp
-
         await db_session.commit()
 
         logger.info(f"{authorized_user['email']} - Discussion reviewed successfully")
