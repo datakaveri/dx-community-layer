@@ -135,7 +135,7 @@ class AdminPendingCommentsCommentAttachments(BaseModel):
     attachment_metadata: dict[str, Any]
     s3_key: str
     uploaded_at: datetime
-
+    download_url: Optional[str] = None
     model_config = {"from_attributes": True}
 
 
