@@ -292,6 +292,7 @@ async def admin_review_discussion_handler(
             )
 
         discussion.status = req_params.review_status.value
+        discussion.updated_at = current_timestamp
 
         new_review = DiscussionReview(
             discussion_id=req_params.discussion_id,
