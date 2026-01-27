@@ -292,6 +292,7 @@ async def admin_review_discussion_handler(
             )
 
         discussion.status = req_params.review_status.value
+        discussion.updated_at = current_timestamp
 
         new_review = DiscussionReview(
             discussion_id=req_params.discussion_id,
@@ -465,10 +466,40 @@ async def admin_retrieve_comments_handler(
         # -----------------------
         # Serialize
         # -----------------------
-        serialized_comments = [
-            AdminRetrieveCommentsSchema.model_validate(comment).model_dump()
-            for comment in comments
-        ]
+        serialized_comments = []
+
+        for comment in comments:
+            base = AdminRetrieveCommentsSchema.model_validate(comment).model_dump()
+
+            attachments = []
+            for att in getattr(comment, "comment_attachments", []):
+                try:
+                    download_url = s3_client.generate_presigned_url(
+                        "get_object",
+                        Params={
+                            "Bucket": env_config.DISCUSSION_S3_BUCKET,
+                            "Key": att.s3_key,
+                        },
+                        ExpiresIn=300,  # 5 minutes, same as generate_download_url_handler
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"{authorized_user['email']} - Failed to generate download URL for {att.s3_key}: {e}"
+                    )
+                    download_url = None
+
+                attachments.append(
+                    {
+                        "id": att.id,
+                        "attachment_metadata": att.attachment_metadata,
+                        "s3_key": att.s3_key,
+                        "uploaded_at": att.uploaded_at,
+                        "download_url": download_url,
+                    }
+                )
+
+            base["comment_attachments"] = attachments
+            serialized_comments.append(base)
 
         return CustomJSONResponse(
             success=True,
