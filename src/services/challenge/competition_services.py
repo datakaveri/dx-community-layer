@@ -227,8 +227,32 @@ async def retrieve_competitions_handler(
         elif req_params.choice == RetrieveCompetitionChoices.EVALUATION:
             stmt = stmt.where(Competition.status == CompetitionStatusEnum.EVALUATION)
 
+        elif req_params.choice == RetrieveCompetitionChoices.ALL:
+            stmt = stmt.where(
+                Competition.status.in_(
+                    [
+                        CompetitionStatusEnum.PUBLISHED,
+                        CompetitionStatusEnum.EVALUATION,
+                        CompetitionStatusEnum.COMPLETED,
+                    ]
+                )
+            )
+            
         else:
-            stmt = stmt.where(Competition.status == CompetitionStatusEnum.PUBLISHED)
+            # PUBLISHED = only live + joinable challenges
+            now = datetime.now(pytz.timezone("Asia/Kolkata")).date()
+
+            stmt = stmt.join(
+                CompetitionTimeline,
+                CompetitionTimeline.competition_id == Competition.id,
+                isouter=True,
+            ).where(
+                Competition.status == CompetitionStatusEnum.PUBLISHED,
+                CompetitionTimeline.submission_starts_at.isnot(None),
+                CompetitionTimeline.submission_ends_at.isnot(None),
+                CompetitionTimeline.submission_starts_at <= now,
+                CompetitionTimeline.submission_ends_at >= now,
+            )
 
         # -----------------------
         # Search Query

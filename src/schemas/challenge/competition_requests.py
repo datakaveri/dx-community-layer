@@ -20,6 +20,7 @@ class RetrieveCompetitionChoices(enum.Enum):
     JOINED = "joined"
     COMPLETED = "completed"
     EVALUATION = "evaluation"
+    ALL = "all"
 
 
 class RetrieveCompetitonsParams:
