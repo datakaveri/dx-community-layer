@@ -147,7 +147,7 @@ async def retrieve_discussion_by_id_handler(
         )
 
         serialized_discussion["published_time"] = (
-            latest_review_time or discussion.created_at
+            latest_review_time or discussion.updated_at or discussion.created_at
         )
 
         # compute reactions
@@ -418,7 +418,7 @@ async def retrieve_discussions_handler(
                 else None
             )
 
-            base["published_time"] = latest_review_time or d.created_at or d.updated_at
+            base["published_time"] = latest_review_time or d.updated_at or d.created_at
             base["votes"] = votes
             base["is_bookmarked"] = is_bookmarked
             base["is_pinned"] = is_pinned
