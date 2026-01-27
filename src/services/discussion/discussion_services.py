@@ -344,6 +344,7 @@ async def retrieve_discussions_handler(
             stmt = stmt.order_by(
                 func.coalesce(
                     latest_review_subq.c.approved_time,
+                    Discussion.updated_at,
                     Discussion.created_at,
                 ).desc()
             )
@@ -352,6 +353,7 @@ async def retrieve_discussions_handler(
             stmt = stmt.order_by(
                 func.coalesce(
                     latest_review_subq.c.approved_time,
+                    Discussion.updated_at,
                     Discussion.created_at,
                 ).asc()
             )
@@ -416,7 +418,7 @@ async def retrieve_discussions_handler(
                 else None
             )
 
-            base["published_time"] = latest_review_time or d.created_at
+            base["published_time"] = latest_review_time or d.created_at or d.updated_at
             base["votes"] = votes
             base["is_bookmarked"] = is_bookmarked
             base["is_pinned"] = is_pinned
