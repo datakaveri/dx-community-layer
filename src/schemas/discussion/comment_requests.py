@@ -82,3 +82,28 @@ class AddUpdateCommentReactionParams:
     ):
         self.comment_id = comment_id
         self.emoji_code = emoji_code
+
+class ReportCommentParams:
+    def __init__(
+        self,
+        comment_id: uuid.UUID = Path(..., description="ID of the comment to report"),
+        reason: str = Body(..., description="Reason for reporting the comment"),
+        description: Optional[str] = Body(
+            default=None, description="Optional description of the report"
+        ),
+    ):
+        self.comment_id = comment_id
+        self.reason = reason
+        self.description = description
+
+
+class ReviewCommentReportParams:
+    def __init__(
+        self,
+        report_id: uuid.UUID = Path(..., description="ID of the comment report"),
+        action: Literal["IGNORE", "ACCEPT"] = Body(
+            ..., description="Admin action: IGNORE or ACCEPT"
+        ),
+    ):
+        self.report_id = report_id
+        self.action = action

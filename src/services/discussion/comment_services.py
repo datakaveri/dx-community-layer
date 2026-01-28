@@ -14,6 +14,8 @@ from ...schemas.discussion.comment_requests import (
     CreateCommentReplyParams,
     RetrieveCommentRepliesParams,
     RetrieveDiscussionCommentsParams,
+    ReportCommentParams,
+    ReviewCommentReportParams
 )
 from ...database.discussion.enums import CommentsStatusEnum
 from ...schemas.discussion.comment_responses import CommentSchema
@@ -25,6 +27,7 @@ from ...database.discussion.models import (
     CommentVote,
     DeletedComment,
     Discussion,
+    CommentReport
 )
 from .discussion_services import get_s3_file_metadata
 from ...schemas.custom_responses import CustomJSONResponse, CustomBackendError
@@ -906,3 +909,98 @@ async def delete_comment_handler(
         )
     finally:
         logger.info(f"{authorized_user['email']} - Delete Comment Execution completed")
+
+async def report_comment_handler(
+    req_params: ReportCommentParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    logger.info(f"{authorized_user['email']} - Report Comment Execution started")
+
+    try:
+        # Check comment exists
+        comment = (
+            (
+                await db_session.execute(
+                    select(Comment).where(Comment.id == req_params.comment_id)
+                )
+            )
+            .scalars()
+            .one_or_none()
+        )
+
+        if not comment:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Comment not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "The comment you are trying to report does not exist.",
+                },
+            )
+        if comment.user_id == authorized_user["user_id"]:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Invalid report",
+                error={
+                    "code": "INVALID_ACTION",
+                    "details": "You cannot report your own comment.",
+                },
+            )
+        # Do not allow reporting hidden comments
+        if comment.status == CommentsStatusEnum.HIDDEN:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_409_CONFLICT,
+                message="Comment already moderated",
+                error={
+                    "code": "CONFLICT",
+                    "details": "This comment is already hidden or moderated.",
+                },
+            )
+
+        # Create report
+        report = CommentReport(
+            comment_id=req_params.comment_id,
+            reported_by_user_id=authorized_user["user_id"],
+            reason=req_params.reason,
+            description=req_params.description,
+        )
+
+        db_session.add(report)
+        await db_session.commit()
+
+        logger.info(f"{authorized_user['email']} - Comment reported successfully")
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_201_CREATED,
+            message="Comment reported successfully",
+        )
+
+    except Exception as e:
+        await db_session.rollback()
+
+        # Unique constraint → already reported
+        if "uq_comment_reports_comment_user" in str(e):
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_409_CONFLICT,
+                message="Comment already reported",
+                error={
+                    "code": "CONFLICT",
+                    "details": "You have already reported this comment.",
+                },
+            )
+
+        logger.exception(f"Error reporting comment: {e}")
+        return CustomBackendError(
+            message="Comment report failed",
+            details="An error occurred while reporting the comment.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
