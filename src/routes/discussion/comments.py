@@ -13,6 +13,7 @@ from ...schemas.discussion.comment_requests import (
     RetrieveCommentRepliesParams,
     RetrieveDiscussionCommentsParams,
     AddUpdateCommentReactionParams,
+    ReportCommentParams,
 )
 from ...middlewares.authorization import http_bearer_header, http_bearer_header_public
 from ...services.discussion.comment_services import (
@@ -25,6 +26,7 @@ from ...services.discussion.comment_services import (
     add_update_comment_reaction_handler,
     delete_comment_reaction_handler,
     delete_comment_handler,
+    report_comment_handler,
 )
 from ...schemas.discussion.comment_responses import (
     ADD_UPDATE_COMMENT_REACTION_RESPONSE_MODEL,
@@ -238,6 +240,22 @@ async def delete_comment(
     logger.info("Delete Comment API is being called")
     return await delete_comment_handler(
         comment_id=comment_id,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+@router.post(
+    path="/comments/{comment_id}/report",
+    description="Reports a comment for moderation review.",
+)
+async def report_comment(
+    req_params: ReportCommentParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
+) -> CustomJSONResponse:
+    logger.info("Report Comment API is being called")
+
+    return await report_comment_handler(
+        req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,
     )

@@ -7,11 +7,15 @@ from ...schemas.discussion.admin_requests import (
     AdminRetrieveCommentsParams,
     AdminReviewCommentParams,
 )
+from ...schemas.discussion.comment_requests import ReviewCommentReportParams
+
 from ...services.discussion.admin_services import (
     admin_retrieve_discussions_handler,
     admin_review_discussion_handler,
     admin_retrieve_comments_handler,
     admin_review_comment_handler,
+    admin_retrieve_comment_reports_handler,
+    admin_review_comment_report_handler,
 )
 from ...schemas.discussion.admin_responses import (
     ADMIN_RETRIEVE_DISCUSSIONS_RESPONSE_MODEL,
@@ -172,6 +176,66 @@ async def admin_review_comment(
         )
 
     return await admin_review_comment_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+@router.get(
+    path="/comment-reports",
+    description=(
+        "Retrieve all reported comments for moderation.\n"
+        "`Note: Only Admins can access this route.`"
+    ),
+)
+async def admin_retrieve_comment_reports(
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
+) -> CustomJSONResponse:
+    logger.info("Admin Retrieve Comment Reports API is being called")
+
+    if authorized_user["user_role"] != UserRole.COS_ADMIN:
+        return CustomJSONResponse(
+            success=False,
+            status_code=status.HTTP_403_FORBIDDEN,
+            message="Forbidden access",
+            error={
+                "code": "FORBIDDEN",
+                "details": "You are not authorized to access this resource.",
+            },
+        )
+
+    return await admin_retrieve_comment_reports_handler(
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
+
+@router.post(
+    path="/comment-reports/{report_id}/review",
+    description=(
+        "Review a reported comment (ignore or accept).\n"
+        "`Note: Only Admins can access this route.`"
+    ),
+)
+async def admin_review_comment_report(
+    req_params: ReviewCommentReportParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: AsyncSession = Depends(get_discussion_db_session),
+) -> CustomJSONResponse:
+    logger.info("Admin Review Comment Report API is being called")
+
+    if authorized_user["user_role"] != UserRole.COS_ADMIN:
+        return CustomJSONResponse(
+            success=False,
+            status_code=status.HTTP_403_FORBIDDEN,
+            message="Forbidden access",
+            error={
+                "code": "FORBIDDEN",
+                "details": "You are not authorized to access this resource.",
+            },
+        )
+
+    return await admin_review_comment_report_handler(
         req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,

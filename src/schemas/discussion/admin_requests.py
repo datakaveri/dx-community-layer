@@ -349,3 +349,28 @@ class AdminReviewCommentParams:
         self.status = CommentsStatusEnum(status)
         self.comment = comment
         self.attachments = attachments
+
+class AdminRetrieveCommentReportsParams:
+    def __init__(
+        self,
+        choice: Literal["PENDING", "HISTORY"] = Query(
+            "PENDING", description="Retrieve pending or reviewed reports"
+        ),
+        query: Optional[str] = Query(
+            default=None, description="Search by discussion title or user name"
+        ),
+        page: int = Query(1, gt=0),
+        limit: int = Query(10, gt=0),
+        start_date: Optional[date] = Query(default=None),
+        end_date: Optional[date] = Query(default=None),
+        sort_by: Literal["CREATED_AT", "REVIEWED_AT"] = Query("CREATED_AT"),
+        sort_order: Literal["asc", "desc"] = Query("desc"),
+    ):
+        self.choice = choice
+        self.query = query
+        self.page = page
+        self.limit = limit
+        self.start_date = start_date
+        self.end_date = end_date
+        self.sort_by = sort_by
+        self.sort_order = sort_order

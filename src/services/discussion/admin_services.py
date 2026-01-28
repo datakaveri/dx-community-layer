@@ -21,6 +21,7 @@ from ...database.discussion.models import (
     Tag,
     Comment,
     User,
+    CommentReport
 )
 from ...schemas.discussion.admin_requests import (
     AdminRetrieveDiscussionParams,
@@ -39,6 +40,11 @@ from ...schemas.discussion.admin_responses import (
 )
 
 from ...database.discussion.enums import CommentsStatusEnum
+from ...schemas.discussion.admin_requests import AdminRetrieveCommentReportsParams
+from ...schemas.discussion.comment_requests import (
+    ReportCommentParams,
+    ReviewCommentReportParams,
+)
 
 
 async def admin_retrieve_discussions_handler(
@@ -292,7 +298,6 @@ async def admin_review_discussion_handler(
             )
 
         discussion.status = req_params.review_status.value
-        discussion.updated_at = current_timestamp
 
         new_review = DiscussionReview(
             discussion_id=req_params.discussion_id,
@@ -644,3 +649,255 @@ async def admin_review_comment_handler(
 
     finally:
         logger.info(f"{authorized_user['email']} - Execution completed")
+
+async def admin_retrieve_comment_reports_handler(
+    req_params: AdminRetrieveCommentReportsParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves reported comments for admin review.
+
+    Args:
+        req_params (AdminRetrieveCommentReportsParams): Filters, pagination, sorting.
+        authorized_user (AuthorizationData): Admin user data.
+        db_session (AsyncSession): DB session.
+
+    Returns:
+        CustomJSONResponse: List of comment reports.
+    """
+    logger.info(f"{authorized_user['email']} - Fetch comment reports started")
+
+    try:
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        stmt = (
+            select(CommentReport)
+            .join(Comment, CommentReport.comment_id == Comment.id)
+            .join(User, CommentReport.reported_by_user_id == User.id)
+            .join(Discussion, Comment.discussion_id == Discussion.id)
+        )
+
+        # -----------------------
+        # Status filter
+        # -----------------------
+        if req_params.choice == "PENDING":
+            stmt = stmt.where(CommentReport.status == "PENDING")
+        else:
+            stmt = stmt.where(CommentReport.status != "PENDING")
+
+        # -----------------------
+        # Search
+        # -----------------------
+        if req_params.query:
+            formatted_query = format_tsquery(req_params.query)
+            ts_query = func.to_tsquery("simple", formatted_query)
+
+            stmt = stmt.where(
+                Discussion.title_vector.op("@@")(ts_query)
+                | User.name_vector.op("@@")(ts_query)
+            )
+
+        # -----------------------
+        # Date filter
+        # -----------------------
+        if req_params.start_date and req_params.end_date:
+            start_dt = datetime.combine(
+                req_params.start_date, time.min
+            ).replace(tzinfo=pytz.UTC)
+
+            end_dt = (
+                datetime.combine(req_params.end_date, time.min)
+                .replace(tzinfo=pytz.UTC)
+                + timedelta(days=1)
+            )
+
+            stmt = stmt.where(
+                CommentReport.created_at >= start_dt,
+                CommentReport.created_at < end_dt,
+            )
+
+        # -----------------------
+        # Total count
+        # -----------------------
+        count_stmt = stmt.with_only_columns(func.count(CommentReport.id))
+        total_count = (await db_session.execute(count_stmt)).scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        sort_column = (
+            CommentReport.reviewed_at
+            if req_params.sort_by == "REVIEWED_AT"
+            else CommentReport.created_at
+        )
+
+        if req_params.sort_order == "asc":
+            stmt = stmt.order_by(sort_column.asc().nullslast(), CommentReport.id.asc())
+        else:
+            stmt = stmt.order_by(sort_column.desc().nullslast(), CommentReport.id.desc())
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(CommentReport.comment).selectinload(Comment.user),
+            selectinload(CommentReport.reported_by_user),
+            selectinload(CommentReport.reviewed_by_admin),
+        )
+
+        reports = (await db_session.execute(stmt)).scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        data = []
+        for report in reports:
+            data.append(
+                {
+                    "report_id": report.id,
+                    "status": report.status,
+                    "reason": report.reason,
+                    "description": report.description,
+                    "created_at": report.created_at,
+                    "reviewed_at": report.reviewed_at,
+                    "comment": {
+                        "id": report.comment.id,
+                        "text": report.comment.comment,
+                        "status": report.comment.status,
+                    },
+                    "reported_by": {
+                        "id": report.reported_by_user.id,
+                        "name": report.reported_by_user.name,
+                        "email": report.reported_by_user.email,
+                    },
+                    "reviewed_by": (
+                        {
+                            "id": report.reviewed_by_admin.id,
+                            "name": report.reviewed_by_admin.name,
+                        }
+                        if report.reviewed_by_admin
+                        else None
+                    ),
+                }
+            )
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Comment reports retrieved successfully",
+            data=data,
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+            },
+        )
+
+    except Exception as e:
+        logger.exception(f"{authorized_user['email']} - Error retrieving reports: {e}")
+        return CustomBackendError(
+            message="Failed to retrieve comment reports",
+            details="An error occurred while retrieving comment reports.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
+async def admin_review_comment_report_handler(
+    req_params: ReviewCommentReportParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    logger.info(f"{authorized_user['email']} - Review Comment Report started")
+
+    try:
+        report = (
+            (
+                await db_session.execute(
+                    select(CommentReport).where(
+                        CommentReport.id == req_params.report_id
+                    )
+                )
+            )
+            .scalars()
+            .one_or_none()
+        )
+
+        if not report:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Report not found",
+                error={
+                    "code": "NOT_FOUND",
+                    "details": "The comment report does not exist.",
+                },
+            )
+
+        if report.status != "PENDING":
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_409_CONFLICT,
+                message="Report already reviewed",
+                error={
+                    "code": "CONFLICT",
+                    "details": "This report has already been reviewed.",
+                },
+            )
+
+        # Fetch comment
+        comment = (
+            (
+                await db_session.execute(
+                    select(Comment).where(Comment.id == report.comment_id)
+                )
+            )
+            .scalars()
+            .one_or_none()
+        )
+
+        # Update report
+        report.reviewed_by_admin_id = authorized_user["user_id"]
+        report.reviewed_at = datetime.now(pytz.utc)
+
+        if req_params.action == "IGNORE":
+            report.status = "IGNORED"
+
+        elif req_params.action == "ACCEPT":
+            report.status = "ACCEPTED"
+
+            if comment:
+                comment.status = CommentsStatusEnum.HIDDEN # comment may already be deleted; report can still be resolved
+
+        else:
+            return CustomJSONResponse(
+                success=False,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Invalid action",
+            )
+
+        await db_session.commit()
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Comment report reviewed successfully",
+        )
+
+    except Exception as e:
+        await db_session.rollback()
+        logger.exception(f"Error reviewing comment report: {e}")
+        return CustomBackendError(
+            message="Failed to review comment report",
+            details="An error occurred while reviewing the comment report.",
+        )

@@ -645,17 +645,17 @@ class Comment(Base):
         cascade="all, delete-orphan",
         lazy="raise",
     )
-    comment_reactions: Mapped[List["CommentReaction"]] = relationship(
-        back_populates="comment",
-        cascade="all, delete-orphan",
-        lazy="raise",
-    )
     comment_attachments: Mapped[List["CommentAttachment"]] = relationship(
         back_populates="comment",
         cascade="all, delete-orphan",
         lazy="raise",
     )
     deleted_comments: Mapped[List["DeletedComment"]] = relationship(
+        back_populates="comment",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+    comment_reports: Mapped[List["CommentReport"]] = relationship(
         back_populates="comment",
         cascade="all, delete-orphan",
         lazy="raise",
@@ -872,4 +872,79 @@ class BookmarkedDiscussion(Base):
     __table_args__ = (
         Index("idx_bookmarked_discussions_discussion_id", "discussion_id"),
         Index("idx_bookmarked_discussions_user_id", "user_id"),
+    )
+
+class CommentReport(Base):
+    __tablename__ = "comment_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+
+    comment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID,
+        ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    reported_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    reason: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    status: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="PENDING"
+    )
+
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+
+    reviewed_at: Mapped[Optional[DateTime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    reviewed_by_admin_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    # Relationships
+    comment: Mapped["Comment"] = relationship(
+        back_populates="comment_reports",
+        foreign_keys=[comment_id],
+        lazy="raise",
+    )
+
+    reported_by_user: Mapped["User"] = relationship(
+        foreign_keys=[reported_by_user_id],
+        lazy="raise",
+    )
+
+    reviewed_by_admin: Mapped[Optional["User"]] = relationship(
+        foreign_keys=[reviewed_by_admin_id],
+        lazy="raise",
+    )
+
+    __table_args__ = (
+        Index("idx_comment_reports_comment_id", "comment_id"),
+        Index("idx_comment_reports_reported_by_user_id", "reported_by_user_id"),
+        Index("idx_comment_reports_status", "status"),
+        Index(
+            "uq_comment_reports_comment_user",
+            "comment_id",
+            "reported_by_user_id",
+            unique=True,
+        ),
     )
