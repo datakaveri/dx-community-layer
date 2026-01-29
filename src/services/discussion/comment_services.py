@@ -2,7 +2,7 @@ import math
 from typing import List
 import uuid
 from fastapi import status
-from sqlalchemy import func, or_, select, delete, case
+from sqlalchemy import and_, func, or_, select, delete, case
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,6 @@ from ...schemas.discussion.comment_requests import (
     RetrieveCommentRepliesParams,
     RetrieveDiscussionCommentsParams,
     ReportCommentParams,
-    ReviewCommentReportParams
 )
 from ...database.discussion.enums import CommentsStatusEnum
 from ...schemas.discussion.comment_responses import CommentSchema
@@ -60,7 +59,10 @@ async def retrieve_discussion_comments_handler(
             Comment.parent_id.is_(None),
             or_(
                 Comment.status == CommentsStatusEnum.APPROVED,
-                Comment.user_id == authorized_user["user_id"],
+                and_(
+                    Comment.user_id == authorized_user["user_id"],
+                    Comment.status != CommentsStatusEnum.HIDDEN,
+                ),
             ),
         )
 
@@ -205,7 +207,10 @@ async def retrieve_comment_replies_handler(
             Comment.parent_id == req_params.comment_id,
             or_(
                 Comment.status == CommentsStatusEnum.APPROVED,
-                Comment.user_id == authorized_user["user_id"],
+                and_(
+                    Comment.user_id == authorized_user["user_id"],
+                    Comment.status != CommentsStatusEnum.HIDDEN,
+                ),
             ),
         )
 
@@ -214,7 +219,13 @@ async def retrieve_comment_replies_handler(
         # -----------------------
         count_stmt = select(func.count(Comment.id)).filter(
             Comment.parent_id == req_params.comment_id,
-            Comment.status == CommentsStatusEnum.APPROVED,
+            or_(
+                Comment.status == CommentsStatusEnum.APPROVED,
+                and_(
+                    Comment.user_id == authorized_user["user_id"],
+                    Comment.status != CommentsStatusEnum.HIDDEN,
+                ),
+            ),
         )
         total_count_result = await db_session.execute(count_stmt)
         total_count = total_count_result.scalar_one()
@@ -966,7 +977,6 @@ async def report_comment_handler(
             comment_id=req_params.comment_id,
             reported_by_user_id=authorized_user["user_id"],
             reason=req_params.reason,
-            description=req_params.description,
         )
 
         db_session.add(report)

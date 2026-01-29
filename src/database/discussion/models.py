@@ -23,7 +23,8 @@ from .enums import (
     DiscussionsCategoryEnum,
     DiscussionsStatusEnum,
     CommentsStatusEnum,
-    CommentReportReasonEnum
+    CommentReportReasonEnum,
+    CommentReportStatusEnum
 )
 
 
@@ -904,8 +905,14 @@ class CommentReport(Base):
         nullable=False,
     )
 
-    status: Mapped[str] = mapped_column(
-        String(30), nullable=False, server_default="PENDING"
+    status: Mapped[CommentReportStatusEnum] = mapped_column(
+        Enum(
+            CommentReportStatusEnum,
+            name="comment_report_status_enum",
+            schema=env_config.DISCUSSION_DB_SCHEMA,
+        ),
+        nullable=False,
+        server_default=CommentReportStatusEnum.PENDING.value,
     )
 
     created_at: Mapped[DateTime] = mapped_column(
