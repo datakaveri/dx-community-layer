@@ -39,7 +39,7 @@ from ...schemas.discussion.admin_responses import (
     AdminRetrieveDiscussionsResponseDiscussion,
 )
 
-from ...database.discussion.enums import CommentsStatusEnum
+from ...database.discussion.enums import CommentsStatusEnum, CommentReportStatusEnum
 from ...schemas.discussion.admin_requests import AdminRetrieveCommentReportsParams
 from ...schemas.discussion.comment_requests import (
     ReportCommentParams,
@@ -683,9 +683,9 @@ async def admin_retrieve_comment_reports_handler(
         # Status filter
         # -----------------------
         if req_params.choice == "PENDING":
-            stmt = stmt.where(CommentReport.status == "PENDING")
+            stmt = stmt.where(CommentReport.status == CommentReportStatusEnum.PENDING)
         else:
-            stmt = stmt.where(CommentReport.status != "PENDING")
+            stmt = stmt.where(CommentReport.status != CommentReportStatusEnum.PENDING)
 
         # -----------------------
         # Search
@@ -764,15 +764,14 @@ async def admin_retrieve_comment_reports_handler(
             data.append(
                 {
                     "report_id": report.id,
-                    "status": report.status,
-                    "reason": report.reason,
-                    "description": report.description,
+                    "status": report.status.value,
+                    "reason": report.reason.value,
                     "created_at": report.created_at,
                     "reviewed_at": report.reviewed_at,
                     "comment": {
                         "id": report.comment.id,
                         "text": report.comment.comment,
-                        "status": report.comment.status,
+                        "status": report.comment.status.value,
                     },
                     "reported_by": {
                         "id": report.reported_by_user.id,
@@ -844,7 +843,7 @@ async def admin_review_comment_report_handler(
                 },
             )
 
-        if report.status != "PENDING":
+        if report.status != CommentReportStatusEnum.PENDING:
             return CustomJSONResponse(
                 success=False,
                 status_code=status.HTTP_409_CONFLICT,
@@ -868,14 +867,13 @@ async def admin_review_comment_report_handler(
 
         # Update report
         report.reviewed_by_admin_id = authorized_user["user_id"]
-        report.reviewed_at = datetime.now(pytz.utc)
+        report.reviewed_at = datetime.now(pytz.UTC)
 
         if req_params.action == "IGNORE":
-            report.status = "IGNORED"
+            report.status = CommentReportStatusEnum.IGNORED
 
         elif req_params.action == "ACCEPT":
-            report.status = "ACCEPTED"
-
+            report.status = CommentReportStatusEnum.ACCEPTED
             if comment:
                 comment.status = CommentsStatusEnum.HIDDEN # comment may already be deleted; report can still be resolved
 
