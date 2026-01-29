@@ -682,7 +682,7 @@ async def admin_retrieve_comment_reports_handler(
         # -----------------------
         # Status filter
         # -----------------------
-        if req_params.choice == CommentReportStatusEnum.PENDING:
+        if req_params.choice == "PENDING":
             stmt = stmt.where(CommentReport.status == CommentReportStatusEnum.PENDING)
         else:
             stmt = stmt.where(CommentReport.status != CommentReportStatusEnum.PENDING)
@@ -764,14 +764,14 @@ async def admin_retrieve_comment_reports_handler(
             data.append(
                 {
                     "report_id": report.id,
-                    "status": report.status,
-                    "reason": report.reason,
+                    "status": report.status.value,
+                    "reason": report.reason.value,
                     "created_at": report.created_at,
                     "reviewed_at": report.reviewed_at,
                     "comment": {
                         "id": report.comment.id,
                         "text": report.comment.comment,
-                        "status": report.comment.status,
+                        "status": report.comment.status.value,
                     },
                     "reported_by": {
                         "id": report.reported_by_user.id,

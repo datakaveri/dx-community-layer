@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...schemas.discussion.admin_requests import (
+    AdminRetrieveCommentReportsParams,
     AdminRetrieveDiscussionParams,
     AdminReviewDiscussionParams,
     AdminRetrieveCommentsParams,
@@ -189,6 +190,7 @@ async def admin_review_comment(
     ),
 )
 async def admin_retrieve_comment_reports(
+    req_params: AdminRetrieveCommentReportsParams = Depends(),
     authorized_user: AuthorizationData = Depends(http_bearer_header),
     db_session: AsyncSession = Depends(get_discussion_db_session),
 ) -> CustomJSONResponse:
@@ -206,6 +208,7 @@ async def admin_retrieve_comment_reports(
         )
 
     return await admin_retrieve_comment_reports_handler(
+        req_params=req_params,
         authorized_user=authorized_user,
         db_session=db_session,
     )
