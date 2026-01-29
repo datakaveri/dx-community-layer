@@ -146,9 +146,13 @@ async def retrieve_discussion_by_id_handler(
             else None
         )
 
-        serialized_discussion["published_time"] = (
-            latest_review_time or discussion.updated_at or discussion.created_at
-        )
+        if discussion.status == DiscussionsStatusEnum.PENDING:
+            # User resubmitted, ignore old admin review timestamp
+            serialized_discussion["published_time"] = discussion.updated_at
+        else:
+            serialized_discussion["published_time"] = (
+                latest_review_time or discussion.updated_at or discussion.created_at
+            )
 
         # compute reactions
         reactions_summary = {}
@@ -417,8 +421,11 @@ async def retrieve_discussions_handler(
                 if d.discussion_reviews
                 else None
             )
-
-            base["published_time"] = latest_review_time or d.updated_at or d.created_at
+            if d.status == DiscussionsStatusEnum.PENDING:
+                # User has (re)submitted - ignore old admin review time
+                base["published_time"] = d.updated_at
+            else:
+                base["published_time"] = latest_review_time or d.updated_at or d.created_at
             base["votes"] = votes
             base["is_bookmarked"] = is_bookmarked
             base["is_pinned"] = is_pinned

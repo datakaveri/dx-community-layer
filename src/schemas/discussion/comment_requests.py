@@ -3,7 +3,7 @@ from fastapi import Body, Path, Query
 from typing import List, Optional, Literal
 from pydantic import BaseModel
 import uuid
-
+from ...database.discussion.enums import CommentReportReasonEnum
 
 class RetrieveDiscussionCommentsParams:
     def __init__(
@@ -87,14 +87,10 @@ class ReportCommentParams:
     def __init__(
         self,
         comment_id: uuid.UUID = Path(..., description="ID of the comment to report"),
-        reason: str = Body(..., description="Reason for reporting the comment"),
-        description: Optional[str] = Body(
-            default=None, description="Optional description of the report"
-        ),
+        reason: CommentReportReasonEnum = Body(..., description="Reason for reporting the comment"),
     ):
         self.comment_id = comment_id
         self.reason = reason
-        self.description = description
 
 
 class ReviewCommentReportParams:
