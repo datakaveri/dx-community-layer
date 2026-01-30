@@ -767,6 +767,7 @@ async def admin_retrieve_comment_reports_handler(
                     "report_id": report.id,
                     "status": report.status.value,
                     "reason": report.reason.value,
+                    "description": report.description,
                     "created_at": report.created_at,
                     "reviewed_at": report.reviewed_at,
                     "comment": {

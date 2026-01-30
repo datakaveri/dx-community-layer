@@ -982,6 +982,7 @@ async def report_comment_handler(
             comment_id=req_params.comment_id,
             reported_by_user_id=authorized_user["user_id"],
             reason=req_params.reason,
+            description=req_params.description,
         )
 
         db_session.add(report)
