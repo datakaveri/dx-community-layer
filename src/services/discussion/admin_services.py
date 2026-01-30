@@ -750,6 +750,7 @@ async def admin_retrieve_comment_reports_handler(
         # -----------------------
         stmt = stmt.options(
             selectinload(CommentReport.comment).selectinload(Comment.user),
+            selectinload(CommentReport.comment).selectinload(Comment.discussion),
             selectinload(CommentReport.reported_by_user),
             selectinload(CommentReport.reviewed_by_admin),
         )
@@ -772,6 +773,10 @@ async def admin_retrieve_comment_reports_handler(
                         "id": report.comment.id,
                         "text": report.comment.comment,
                         "status": report.comment.status.value,
+                    },
+                    "discussion": {       
+                        "id": report.comment.discussion.id,
+                        "title": report.comment.discussion.title,
                     },
                     "reported_by": {
                         "id": report.reported_by_user.id,

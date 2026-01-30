@@ -69,7 +69,12 @@ async def retrieve_discussion_comments_handler(
         # -----------------------
         # Total count
         # -----------------------
-        count_stmt = stmt.with_only_columns(func.count(Comment.id))
+        count_stmt = select(func.count(Comment.id)).filter(
+            Comment.discussion_id == req_params.discussion_id,
+            Comment.parent_id.is_(None),
+            Comment.status == CommentsStatusEnum.APPROVED,
+        )
+
         total_count_result = await db_session.execute(count_stmt)
         total_count = total_count_result.scalar_one()
         total_pages = math.ceil(total_count / req_params.limit) if total_count else 1

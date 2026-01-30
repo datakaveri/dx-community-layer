@@ -53,3 +53,5 @@ class CommentReportReasonEnum(str, enum.Enum):
 
     SELF_PROMOTION = "SELF_PROMOTION"
     VOTE_MANIPULATION = "VOTE_MANIPULATION"
+
+    OTHER = "OTHER"
