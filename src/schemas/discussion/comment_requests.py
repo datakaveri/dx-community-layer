@@ -1,6 +1,7 @@
 import uuid
 from fastapi import Body, Path, Query
 from typing import List, Optional, Literal
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 import uuid
 from ...database.discussion.enums import CommentReportReasonEnum
@@ -88,10 +89,24 @@ class ReportCommentParams:
         self,
         comment_id: uuid.UUID = Path(..., description="ID of the comment to report"),
         reason: CommentReportReasonEnum = Body(..., description="Reason for reporting the comment"),
+        description: Optional[str] = Body(
+            default=None,
+            description="Required when reason is OTHER"
+        ),
     ):
         self.comment_id = comment_id
         self.reason = reason
-
+        self.description = description
+        if self.reason == CommentReportReasonEnum.OTHER and not self.description:
+            raise RequestValidationError(
+                [
+                    {
+                        "loc": ["body", "description"],
+                        "msg": "Description is required when reason is OTHER",
+                        "type": "value_error",
+                    }
+                ]
+            )
 
 class ReviewCommentReportParams:
     def __init__(

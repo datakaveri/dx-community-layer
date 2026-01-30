@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy import (
     JSON,
+    Column,
     ForeignKey,
     Index,
     String,
@@ -904,6 +905,7 @@ class CommentReport(Base):
              ),
         nullable=False,
     )
+    description = Column(Text, nullable=True)
 
     status: Mapped[CommentReportStatusEnum] = mapped_column(
         Enum(
