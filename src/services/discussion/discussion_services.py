@@ -5,7 +5,7 @@ from fastapi import status
 from typing import Dict, List
 from datetime import datetime
 from sqlalchemy.orm import selectinload
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...schemas.discussion.discussion_requests import (
@@ -343,24 +343,23 @@ async def retrieve_discussions_handler(
             latest_review_subq,
             Discussion.id == latest_review_subq.c.discussion_id,
         )
+        sort_time_expr = case(
+            (
+                Discussion.status == DiscussionsStatusEnum.PENDING,
+                Discussion.updated_at,
+            ),
+            else_=func.coalesce(
+                latest_review_subq.c.approved_time,
+                Discussion.updated_at,
+                Discussion.created_at,
+            ),
+        )
 
         if req_params.sort_by == RetrieveDiscussionsSortByEnum.NEWEST:
-            stmt = stmt.order_by(
-                func.coalesce(
-                    latest_review_subq.c.approved_time,
-                    Discussion.updated_at,
-                    Discussion.created_at,
-                ).desc()
-            )
+            stmt = stmt.order_by(sort_time_expr.desc())
 
         elif req_params.sort_by == RetrieveDiscussionsSortByEnum.OLDEST:
-            stmt = stmt.order_by(
-                func.coalesce(
-                    latest_review_subq.c.approved_time,
-                    Discussion.updated_at,
-                    Discussion.created_at,
-                ).asc()
-            )
+            stmt = stmt.order_by(sort_time_expr.asc())
 
         elif req_params.sort_by == RetrieveDiscussionsSortByEnum.HOTTEST:
             stmt = stmt.outerjoin(
