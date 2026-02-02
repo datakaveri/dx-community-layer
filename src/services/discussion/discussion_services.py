@@ -312,6 +312,18 @@ async def retrieve_discussions_handler(
                 )
             )
 
+            # Apply dynamic filters to pinned discussions (same as main query)
+            if req_params.filters:
+                for field, values in req_params.filters.model_dump().items():
+                    # Skip tags and sub_category_id as they are handled separately
+                    if field in ["tags", "sub_category_id"]:
+                        continue
+                    if values not in [None, []] and hasattr(Discussion, field):
+                        column = getattr(Discussion, field)
+                        if isinstance(values, list):
+                            pinned_stmt = pinned_stmt.where(column.in_(values))
+                        elif isinstance(values, bool):
+                            pinned_stmt = pinned_stmt.where(column.is_(values))
             
             if req_params.filters and req_params.filters.tags:
                 pinned_stmt = pinned_stmt.where(
