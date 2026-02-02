@@ -259,21 +259,22 @@ async def retrieve_discussions_handler(
         # -----------------------
         # Apply dynamic filters
         # -----------------------
-        for field, values in req_params.filters.model_dump().items():
-            # Skip tags and sub_category_id as they are handled separately
-            if field in ["tags", "sub_category_id"]:
-                continue
-            if values not in [None, []] and hasattr(Discussion, field):
-                column = getattr(Discussion, field)
-                if isinstance(values, list):
-                    stmt = stmt.where(column.in_(values))
-                elif isinstance(values, bool):
-                    stmt = stmt.where(column.is_(values))
+        if req_params.filters:
+            for field, values in req_params.filters.model_dump().items():
+                # Skip tags and sub_category_id as they are handled separately
+                if field in ["tags", "sub_category_id"]:
+                    continue
+                if values not in [None, []] and hasattr(Discussion, field):
+                    column = getattr(Discussion, field)
+                    if isinstance(values, list):
+                        stmt = stmt.where(column.in_(values))
+                    elif isinstance(values, bool):
+                        stmt = stmt.where(column.is_(values))
 
         # -----------------------
         # Tag filter
         # -----------------------
-        if req_params.filters.tags:
+        if req_params.filters and req_params.filters.tags:
             stmt = stmt.where(
                 Discussion.discussion_tags.any(
                     DiscussionTag.tag.has(Tag.name.in_(req_params.filters.tags))
@@ -283,7 +284,7 @@ async def retrieve_discussions_handler(
         # -----------------------
         # Sub-category ID filter
         # -----------------------
-        if req_params.filters.sub_category_id is not None:
+        if req_params.filters and req_params.filters.sub_category_id is not None:
             stmt = stmt.where(
                 Discussion.sub_category_id == req_params.filters.sub_category_id
             )
@@ -293,14 +294,39 @@ async def retrieve_discussions_handler(
         # -----------------------
         if req_params.pinned:
             pinned_stmt = (
-                stmt.join(
-                    PinnedDiscussion, PinnedDiscussion.discussion_id == Discussion.id
+                select(Discussion)
+                .join(
+                    PinnedDiscussion,
+                    PinnedDiscussion.discussion_id == Discussion.id,
                 )
-                .where(PinnedDiscussion.user_id == user_id)
+                .where(
+                    PinnedDiscussion.user_id == user_id,
+                    Discussion.status == DiscussionsStatusEnum.APPROVED,
+                )
                 .order_by(PinnedDiscussion.pinned_at.desc())
+                .options(
+                    selectinload(Discussion.user),
+                    selectinload(Discussion.discussion_votes),
+                    selectinload(Discussion.bookmarked_discussions),
+                    selectinload(Discussion.pinned_discussions),
+                )
             )
+
+            
+            if req_params.filters and req_params.filters.tags:
+                pinned_stmt = pinned_stmt.where(
+                    Discussion.discussion_tags.any(
+                        DiscussionTag.tag.has(Tag.name.in_(req_params.filters.tags))
+                    )
+                )
+
+            if req_params.filters and req_params.filters.sub_category_id is not None:
+                pinned_stmt = pinned_stmt.where(
+                    Discussion.sub_category_id == req_params.filters.sub_category_id
+                )
+
             result = await db_session.execute(pinned_stmt)
-            pinned_discussions = result.scalars().all()
+            pinned_discussions = result.scalars().unique().all()
 
             pinned_ids = [d.id for d in pinned_discussions]
             if pinned_ids:
