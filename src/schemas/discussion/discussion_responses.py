@@ -219,6 +219,25 @@ RETRIEVE_DISCUSSION_RESPONSE_MODEL = {
 }
 
 
+class RetrievePinnedDiscussionsResponseData(BaseModel):
+    pinned_discussions: List[RetrieveDiscussionsResponseDiscussion]
+
+
+class RetrievePinnedDiscussionsSuccessfulResponse(SuccessfulResponse):
+    message: Literal["Pinned discussions retrieved successfully"]
+    data: RetrievePinnedDiscussionsResponseData
+    meta: RetrieveDiscussionsResponseMeta
+
+
+RETRIEVE_PINNED_DISCUSSIONS_RESPONSE_MODEL = {
+    200: {"model": RetrievePinnedDiscussionsSuccessfulResponse},
+    400: {"model": BadRequestErrorResponse},
+    401: {"model": UnauthorizedErrorResponse},
+    422: {"model": ValidationErrorResponse},
+    500: {"model": RetrieveDiscussionBackendErrorResponse},
+}
+
+
 class CreateDiscussionCreatedData(BaseModel):
     discussion_id: uuid.UUID
 

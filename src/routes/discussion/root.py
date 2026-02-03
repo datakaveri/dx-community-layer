@@ -13,6 +13,7 @@ from ...schemas.discussion.discussion_requests import (
     CreateDiscussionParams,
     DiscussionActionsParams,
     RetrieveDiscussionParams,
+    RetrievePinnedDiscussionParams,
     UpdateDiscussionParams,
 )
 from ...schemas.default_schemas import AuthorizationData
@@ -30,6 +31,7 @@ from ...services.discussion.discussion_services import (
     discussion_actions_handler,
     retrieve_discussion_by_id_handler,
     retrieve_discussions_handler,
+    retrieve_pinned_discussions_handler,
     get_popular_tags_handler,
 )
 from ...schemas.discussion.discussion_responses import (
@@ -45,6 +47,7 @@ from ...schemas.discussion.discussion_responses import (
     RECENT_BOOKMARKED_DISCUSSIONS_RESPONSE_MODEL,
     RETRIEVE_DISCUSSION_BY_ID_RESPONSE_MODEL,
     RETRIEVE_DISCUSSION_RESPONSE_MODEL,
+    RETRIEVE_PINNED_DISCUSSIONS_RESPONSE_MODEL,
     UPDATE_DISCUSSION_RESPONSE_MODEL,
 )
 
@@ -60,6 +63,39 @@ router.include_router(admin_router)
 router.include_router(search_router)
 router.include_router(comments_router)
 router.include_router(attachment_router)
+
+
+@router.get(
+    path="/pinned/{choice}",
+    description=public_desc(
+        "Retrieves pinned discussions for the authenticated user."
+    ),
+    responses=RETRIEVE_PINNED_DISCUSSIONS_RESPONSE_MODEL,
+    tags=["Discussion APIs"],
+)
+async def retrieve_pinned_discussions(
+    req_params: RetrievePinnedDiscussionParams = Depends(),
+    authorized_user: AuthorizationData = Depends(http_bearer_header),
+    db_session: Session = Depends(get_discussion_db_session),
+) -> CustomJSONResponse:
+    """
+    Retrieves pinned discussions for the authenticated user.
+
+    Args:
+        req_params (RetrieveDiscussionParams): The request body containing filters.
+        authorized_user (AuthorizationData): The authenticated user's data.
+        db_session (Session): The database session.
+
+    Returns:
+        CustomJSONResponse: A JSON response with the pinned discussions.
+    """
+    logger.info("Retrieve Pinned Discussions API is being called")
+
+    return await retrieve_pinned_discussions_handler(
+        req_params=req_params,
+        authorized_user=authorized_user,
+        db_session=db_session,
+    )
 
 
 @router.get(

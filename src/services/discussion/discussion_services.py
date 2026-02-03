@@ -15,6 +15,7 @@ from ...schemas.discussion.discussion_requests import (
     DiscussionActionsParams,
     RetrieveDiscussionChoices,
     RetrieveDiscussionParams,
+    RetrievePinnedDiscussionParams,
     RetrieveDiscussionsSortByEnum,
     UpdateDiscussionParams,
 )
@@ -290,59 +291,61 @@ async def retrieve_discussions_handler(
             )
 
         # -----------------------
-        # Pinned discussions
+        # Pinned discussions (Always fetch to exclude from main list)
         # -----------------------
-        if req_params.pinned:
-            pinned_stmt = (
-                select(Discussion)
-                .join(
-                    PinnedDiscussion,
-                    PinnedDiscussion.discussion_id == Discussion.id,
-                )
-                .where(
-                    PinnedDiscussion.user_id == user_id,
-                    Discussion.status == DiscussionsStatusEnum.APPROVED,
-                )
-                .order_by(PinnedDiscussion.pinned_at.desc())
-                .options(
-                    selectinload(Discussion.user),
-                    selectinload(Discussion.discussion_votes),
-                    selectinload(Discussion.bookmarked_discussions),
-                    selectinload(Discussion.pinned_discussions),
+        pinned_stmt = (
+            select(Discussion)
+            .join(
+                PinnedDiscussion,
+                PinnedDiscussion.discussion_id == Discussion.id,
+            )
+            .where(
+                PinnedDiscussion.user_id == user_id,
+                Discussion.status == DiscussionsStatusEnum.APPROVED,
+            )
+            .order_by(PinnedDiscussion.pinned_at.desc())
+            .options(
+                selectinload(Discussion.user),
+                selectinload(Discussion.discussion_votes),
+                selectinload(Discussion.bookmarked_discussions),
+                selectinload(Discussion.pinned_discussions),
+            )
+        )
+
+        # Apply dynamic filters to pinned discussions (same as main query)
+        if req_params.filters:
+            for field, values in req_params.filters.model_dump().items():
+                # Skip tags and sub_category_id as they are handled separately
+                if field in ["tags", "sub_category_id"]:
+                    continue
+                if values not in [None, []] and hasattr(Discussion, field):
+                    column = getattr(Discussion, field)
+                    if isinstance(values, list):
+                        pinned_stmt = pinned_stmt.where(column.in_(values))
+                    elif isinstance(values, bool):
+                        pinned_stmt = pinned_stmt.where(column.is_(values))
+        
+        if req_params.filters and req_params.filters.tags:
+            pinned_stmt = pinned_stmt.where(
+                Discussion.discussion_tags.any(
+                    DiscussionTag.tag.has(Tag.name.in_(req_params.filters.tags))
                 )
             )
 
-            # Apply dynamic filters to pinned discussions (same as main query)
-            if req_params.filters:
-                for field, values in req_params.filters.model_dump().items():
-                    # Skip tags and sub_category_id as they are handled separately
-                    if field in ["tags", "sub_category_id"]:
-                        continue
-                    if values not in [None, []] and hasattr(Discussion, field):
-                        column = getattr(Discussion, field)
-                        if isinstance(values, list):
-                            pinned_stmt = pinned_stmt.where(column.in_(values))
-                        elif isinstance(values, bool):
-                            pinned_stmt = pinned_stmt.where(column.is_(values))
-            
-            if req_params.filters and req_params.filters.tags:
-                pinned_stmt = pinned_stmt.where(
-                    Discussion.discussion_tags.any(
-                        DiscussionTag.tag.has(Tag.name.in_(req_params.filters.tags))
-                    )
-                )
+        if req_params.filters and req_params.filters.sub_category_id is not None:
+            pinned_stmt = pinned_stmt.where(
+                Discussion.sub_category_id == req_params.filters.sub_category_id
+            )
 
-            if req_params.filters and req_params.filters.sub_category_id is not None:
-                pinned_stmt = pinned_stmt.where(
-                    Discussion.sub_category_id == req_params.filters.sub_category_id
-                )
+        result = await db_session.execute(pinned_stmt)
+        fetched_pinned_discussions = result.scalars().unique().all()
 
-            result = await db_session.execute(pinned_stmt)
-            pinned_discussions = result.scalars().unique().all()
-
-            pinned_ids = [d.id for d in pinned_discussions]
-            if pinned_ids:
-                stmt = stmt.where(Discussion.id.not_in(pinned_ids))
+        pinned_ids = [d.id for d in fetched_pinned_discussions]
+        if pinned_ids:
+            stmt = stmt.where(Discussion.id.not_in(pinned_ids))
+        
+        if req_params.pinned:
+            pinned_discussions = fetched_pinned_discussions
 
         # -----------------------
         # Subquery: count votes per discussion
@@ -504,6 +507,229 @@ async def retrieve_discussions_handler(
         return CustomBackendError(
             message="Discussion retrieval failed",
             details="An error occurred while retrieving discussions. Please contact developers if the issue persists.",
+        )
+
+    finally:
+        logger.info(f"{authorized_user['email']} - Execution completed")
+
+
+async def retrieve_pinned_discussions_handler(
+    req_params: RetrievePinnedDiscussionParams,
+    authorized_user: AuthorizationData,
+    db_session: AsyncSession,
+) -> CustomJSONResponse:
+    """
+    Retrieves pinned discussions for the authenticated user.
+
+    Args:
+        req_params (RetrievePinnedDiscussionParams): Request params including filters, pagination, etc.
+        authorized_user (AuthorizationData): The authenticated user's data.
+        db_session (AsyncSession): Async SQLAlchemy session.
+
+    Returns:
+        CustomJSONResponse: Pinned discussions with metadata.
+    """
+    logger.info(f"{authorized_user['email']} - Retrieve Pinned Discussions Execution started")
+
+    try:
+        user_id = authorized_user["user_id"]
+
+        # -----------------------
+        # Base selectable
+        # -----------------------
+        # Join Discussion with PinnedDiscussion immediately and filter by user_id
+        stmt = (
+            select(Discussion)
+            .join(PinnedDiscussion, PinnedDiscussion.discussion_id == Discussion.id)
+            .where(
+                PinnedDiscussion.user_id == user_id,
+                Discussion.status == DiscussionsStatusEnum.APPROVED,
+            )
+        )
+
+        # -----------------------
+        # Apply choice filters
+        # -----------------------
+        if req_params.choice == RetrieveDiscussionChoices.OWNED:
+            stmt = stmt.where(Discussion.user_id == user_id)
+        elif req_params.choice == RetrieveDiscussionChoices.BOOKMARKED:
+            stmt = stmt.where(
+                Discussion.bookmarked_discussions.any(
+                    BookmarkedDiscussion.user_id == user_id,
+                )
+            )
+
+        # -----------------------
+        # Apply dynamic filters (Category, Type, etc.)
+        # -----------------------
+        if req_params.filters:
+            for field, values in req_params.filters.model_dump().items():
+                # Skip tags and sub_category_id as they are handled separately
+                if field in ["tags", "sub_category_id"]:
+                    continue
+                if values not in [None, []] and hasattr(Discussion, field):
+                    column = getattr(Discussion, field)
+                    if isinstance(values, list):
+                        stmt = stmt.where(column.in_(values))
+                    elif isinstance(values, bool):
+                        stmt = stmt.where(column.is_(values))
+
+        # -----------------------
+        # Tag filter
+        # -----------------------
+        if req_params.filters and req_params.filters.tags:
+            stmt = stmt.where(
+                Discussion.discussion_tags.any(
+                    DiscussionTag.tag.has(Tag.name.in_(req_params.filters.tags))
+                )
+            )
+
+        # -----------------------
+        # Sub-category ID filter
+        # -----------------------
+        if req_params.filters and req_params.filters.sub_category_id is not None:
+            stmt = stmt.where(
+                Discussion.sub_category_id == req_params.filters.sub_category_id
+            )
+
+        # -----------------------
+        # Total count (before pagination)
+        # -----------------------
+        # We need to count distinct discussions that match criteria
+        count_stmt = stmt.with_only_columns(func.count(Discussion.id))
+        total_count_result = await db_session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+        total_pages = math.ceil(total_count / req_params.limit) if total_count else 1
+
+        # -----------------------
+        # Sorting
+        # -----------------------
+        
+        # Subquery for latest review time (used in NEWEST/OLDEST)
+        latest_review_subq = (
+            select(
+                DiscussionReview.discussion_id,
+                func.max(DiscussionReview.created_at).label("approved_time"),
+            )
+            .group_by(DiscussionReview.discussion_id)
+            .subquery()
+        )
+        
+        # Subquery for vote counts (used in HOTTEST)
+        votes_subq = (
+            select(
+                DiscussionVote.discussion_id,
+                func.count(DiscussionVote.id).label("vote_count"),
+            )
+            .group_by(DiscussionVote.discussion_id)
+            .subquery()
+        )
+
+        stmt = stmt.outerjoin(
+            latest_review_subq,
+            Discussion.id == latest_review_subq.c.discussion_id,
+        )
+        
+        # Sort key logic
+        sort_time_expr = func.coalesce(
+                latest_review_subq.c.approved_time,
+                Discussion.updated_at,
+                Discussion.created_at,
+        )
+
+        if req_params.sort_by == RetrieveDiscussionsSortByEnum.NEWEST:
+            stmt = stmt.order_by(sort_time_expr.desc())
+
+        elif req_params.sort_by == RetrieveDiscussionsSortByEnum.OLDEST:
+            stmt = stmt.order_by(sort_time_expr.asc())
+
+        elif req_params.sort_by == RetrieveDiscussionsSortByEnum.HOTTEST:
+            stmt = stmt.outerjoin(
+                votes_subq, Discussion.id == votes_subq.c.discussion_id
+            ).order_by(
+                func.coalesce(votes_subq.c.vote_count, 0).desc(),
+                Discussion.updated_at.desc(),
+            )
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
+        # Execute and fetch
+        # -----------------------
+        stmt = stmt.options(
+            selectinload(Discussion.user),
+            selectinload(Discussion.discussion_tags).selectinload(
+                Discussion.discussion_tags.property.mapper.class_.tag
+            ),
+            selectinload(Discussion.discussion_votes),
+            selectinload(Discussion.pinned_discussions),
+            selectinload(Discussion.bookmarked_discussions),
+            selectinload(Discussion.discussion_reviews).selectinload(
+                Discussion.discussion_reviews.property.mapper.class_.reviewer
+            ),
+        )
+        result = await db_session.execute(stmt)
+        discussions = result.scalars().unique().all()
+
+        # -----------------------
+        # Serialize
+        # -----------------------
+        serialized_pinned = []
+        for d in discussions:
+             # compute flags
+            is_bookmarked = any(
+                b.user_id == user_id for b in getattr(d, "bookmarked_discussions", [])
+            )
+            is_voted = any(
+                v.user_id == user_id for v in getattr(d, "discussion_votes", [])
+            )
+            
+            votes = len(getattr(d, "discussion_votes", []))
+
+            base = RetrieveDiscussionsResponseDiscussion.model_validate(d).model_dump(
+                exclude={"votes"}
+            )
+            
+            latest_review_time = (
+                max(r.created_at for r in d.discussion_reviews)
+                if d.discussion_reviews
+                else None
+            )
+            
+            base["published_time"] = latest_review_time or d.updated_at or d.created_at
+            base["votes"] = votes
+            base["is_bookmarked"] = is_bookmarked
+            base["is_pinned"] = True
+            base["is_voted"] = is_voted
+            
+            serialized_pinned.append(base)
+
+        logger.info(f"{authorized_user['email']} - Pinned Discussions retrieved successfully")
+
+        return CustomJSONResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Pinned discussions retrieved successfully",
+            data={
+                "pinned_discussions": serialized_pinned,
+            },
+            meta={
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "current_page": req_params.page,
+                "limit": req_params.limit,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"{authorized_user['email']} - Error: {str(e)}")
+        return CustomBackendError(
+            message="Pinned discussion retrieval failed",
+            details="An error occurred while retrieving pinned discussions. Please contact developers if the issue persists.",
         )
 
     finally:

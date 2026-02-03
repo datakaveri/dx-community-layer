@@ -101,6 +101,63 @@ class RetrieveDiscussionParams:
         self.pinned = pinned
 
 
+class RetrievePinnedDiscussionParams:
+    def __init__(
+        self,
+        choice: RetrieveDiscussionChoices = Path(
+            ...,
+            description="Type of the discussion to retrieve",
+        ),
+        page: int = Query(1, gt=0, description="The page number for pagination"),
+        limit: int = Query(10, gt=0, description="The number of discussions per page"),
+        filters: Optional[str] = Query(
+            default=None,
+            description=(
+                "JSON string of filters to apply to the analysis.<br>"
+                "The keys can be 'type', 'status', 'tags', 'sub_category_id'.<br>"
+                "Each key should map to a list of strings, boolean, UUID or null.<br>"
+            ),
+            example=json.dumps(
+                {
+                    "type": [DiscussionsTypeEnum.PUBLIC.value],
+                    "status": [DiscussionsStatusEnum.PENDING.value],
+                    "tags": ["tag1", "tag2"],
+                    "sub_category_id": "00000000-0000-0000-0000-000000000000",
+                }
+            ),
+        ),
+        sort_by: RetrieveDiscussionsSortByEnum = Query(
+            default=RetrieveDiscussionsSortByEnum.NEWEST,
+            description="The field to sort by",
+        ),
+    ):
+        self.choice = choice
+        self.page = page
+        self.limit = limit
+
+        # Parse the filters string into a dictionary
+        try:
+            self.filters: RetrieveDiscussionsFilters = (
+                RetrieveDiscussionsFilters.model_validate_json(filters)
+                if filters
+                else RetrieveDiscussionsFilters()
+            )
+        except (json.JSONDecodeError, ValidationError) as e:
+            raise RequestValidationError(
+                [
+                    {
+                        "loc": ["query", "filters"],
+                        "msg": "Invalid JSON format for filters",
+                        "type": "value_error.json",
+                        "input": filters,
+                    }
+                ]
+            )
+
+        self.sort_by = sort_by
+
+
+
 class CreateDiscussionParams:
     def __init__(
         self,
