@@ -367,6 +367,7 @@ CREATE TABLE tgdx_dev.comment_reports (
     comment_id uuid NOT NULL,
     reported_by_user_id uuid NOT NULL,
     reason tgdx_dev.comment_report_reason_enum NOT NULL,
+    description TEXT,
     status tgdx_dev.comment_report_status_enum DEFAULT 'PENDING' NOT NULL,
     created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
     reviewed_at timestamptz,
