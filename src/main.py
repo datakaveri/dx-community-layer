@@ -23,15 +23,10 @@ app = FastAPI()
 
 # Set up CORS (Cross-Origin Resource Sharing)
 origins = [
-    "http://127.0.0.1:3000",
-    "http://localhost:3000",
-    "http://127.0.0.1:5003",
-    "http://localhost:5003",
-    "http://localhost:4007",
-    "http://127.0.0.1:4007",
-    "http://localhost:4200",
-    "https://staging.catalogue.tgdex.iudx.io",
+    *env_config.ALLOWED_ORIGINS,
 ]
+
+print(origins)
 
 
 app.add_middleware(

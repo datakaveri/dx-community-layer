@@ -32,6 +32,7 @@ class EnvConfig(BaseSettings):
     S3_SECRET_ACCESS_KEY: str
     S3_DEFAULT_REGION: str
     REDIS_URL: str
+    ALLOWED_ORIGINS: list[str]
     ACTIVATED_SERVICES: list[str]
 
     model_config = SettingsConfigDict(
@@ -41,5 +42,6 @@ class EnvConfig(BaseSettings):
 
     REDIS_URL: str
     ACTIVATED_SERVICES: list[str]
+
 
 env_config = EnvConfig()

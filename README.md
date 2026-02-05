@@ -70,6 +70,7 @@ The app is configured via `pydantic-settings` from `.env` or environment. All of
 |----------------------|----------|-----------------------------------------------------------------------------|
 | `INSTANCE`           | Yes      | Environment name (e.g. `development`, `staging`, `production`).             |
 | `BASE_URL`           | No       | Base URL of the API (default: `http://127.0.0.1:5000`).                     |
+| `ALLOWED_ORIGINS`    | Yes      | JSON array of allowed CORS origins (e.g. `["http://localhost:3000"]`).      |
 | `ACTIVATED_SERVICES` | Yes      | JSON array of enabled services: `["DISCUSSION"]`, `["CHALLENGE"]`, or `["DISCUSSION", "CHALLENGE"]`. |
 
 ### Databases (PostgreSQL)
@@ -93,12 +94,13 @@ The app is configured via `pydantic-settings` from `.env` or environment. All of
 ### AWS S3
 
 | Variable                    | Required | Description                        |
-|-----------------------------|----------|------------------------------------|
-| `DISCUSSION_AWS_S3_BUCKET`  | Yes      | S3 bucket for Discussion assets.   |
-| `CHALLENGE_AWS_S3_BUCKET`   | Yes      | S3 bucket for Challenge assets.    |
-| `AWS_ACCESS_KEY_ID`         | Yes      | AWS access key.                    |
-| `AWS_SECRET_ACCESS_KEY`     | Yes      | AWS secret key.                    |
-| `AWS_DEFAULT_REGION`        | Yes      | AWS region (e.g. `us-east-1`).     |
+|-----------------------------|----------|--------------------------------------------------------------------|
+| `DISCUSSION_S3_BUCKET`  | Yes      | S3 bucket for Discussion assets.   |
+| `CHALLENGE_S3_BUCKET`   | Yes      | S3 bucket for Challenge assets.    |
+| `S3_ACCESS_KEY_ID`         | Yes      | AWS access key.                    |
+| `S3_SECRET_ACCESS_KEY`     | Yes      | AWS secret key.                    |
+| `S3_DEFAULT_REGION`        | Yes      | AWS region (e.g. `us-east-1`).     |
+| `S3_ENDPOINT_URL`          | No       | Custom S3 endpoint (e.g. for MinIO).|
 
 ### Redis
 
@@ -111,6 +113,7 @@ The app is configured via `pydantic-settings` from `.env` or environment. All of
 ```env
 INSTANCE=development
 BASE_URL=http://127.0.0.1:5000
+ALLOWED_ORIGINS=["http://localhost:3000", "http://127.0.0.1:3000"]
 ACTIVATED_SERVICES=["DISCUSSION", "CHALLENGE"]
 
 DISCUSSION_DATABASE_URL=postgresql://user:pass@localhost:5432/discussion_db
@@ -123,11 +126,12 @@ KEYCLOAK_REALM=your-realm
 KEYCLOAK_AUDIENCE=your-audience
 KEYCLOAK_ISSUER=https://your-keycloak.example.com/realms/your-realm
 
-DISCUSSION_AWS_S3_BUCKET=your-discussion-bucket
-CHALLENGE_AWS_S3_BUCKET=your-challenge-bucket
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_DEFAULT_REGION=us-east-1
+DISCUSSION_S3_BUCKET=your-discussion-bucket
+CHALLENGE_S3_BUCKET=your-challenge-bucket
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key
+S3_DEFAULT_REGION=us-east-1
+S3_ENDPOINT_URL= # Optional: your-custom-endpoint (e.g. for MinIO)
 
 REDIS_URL=redis://localhost:6379/0
 ```
@@ -256,13 +260,15 @@ docker compose up -d
 
    Fill `secrets.env` with:
 
-   - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`
-   - `DISCUSSION_DB_NAME`, `CHALLENGE_DB_NAME`
-   - `DISCUSSION_DB_SCHEMA`, `CHALLENGE_DB_SCHEMA`
-   - `REDIS_URL`
-   - `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_AUDIENCE`, `KEYCLOAK_ISSUER`
-   - `DISCUSSION_AWS_S3_BUCKET`, `CHALLENGE_AWS_S3_BUCKET`
-   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`
+    - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`
+    - `DISCUSSION_DB_NAME`, `CHALLENGE_DB_NAME`
+    - `DISCUSSION_DB_SCHEMA`, `CHALLENGE_DB_SCHEMA`
+    - `REDIS_URL`
+    - `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_AUDIENCE`, `KEYCLOAK_ISSUER`
+    - `DISCUSSION_S3_BUCKET`, `CHALLENGE_S3_BUCKET`
+    - `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_DEFAULT_REGION`
+    - `ALLOWED_ORIGINS`
+    - `S3_ENDPOINT_URL` (Optional)
 
 2. **Create Docker secrets:**
 
