@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal, Union
+from typing import List, Literal, Optional, Union
 import uuid
 from pydantic import BaseModel
 
@@ -33,6 +33,7 @@ class SearchDiscussionSuccessfulResponseDiscussion(BaseModel):
     type: DiscussionsTypeEnum
     category: DiscussionsCategoryEnum
     sub_category: str
+    sub_category_id: Optional[uuid.UUID]
     status: DiscussionsStatusEnum
     created_at: datetime
     updated_at: datetime
