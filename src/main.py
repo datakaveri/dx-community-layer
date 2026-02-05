@@ -26,8 +26,6 @@ origins = [
     *env_config.ALLOWED_ORIGINS,
 ]
 
-print(origins)
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,6 +52,7 @@ app.add_middleware(
         "Sec-Fetch-Mode",
         "Sec-Fetch-Site",
         "User-Agent",
+        "Sec-Ch-Ua",
         "Sec-Ch-Ua-Mobile",
         "Sec-Ch-Ua-Platform",
     ],
