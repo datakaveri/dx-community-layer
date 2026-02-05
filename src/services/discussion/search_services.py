@@ -91,6 +91,7 @@ async def search_discussions_handler(
                     user_id=authorized_user["user_id"]
                 )
             )
+        #-----------------------
         #  Search restriction: show only APPROVED discussions for public, ALL, and BOOKMARKED views
         #  For OWNED: show APPROVED only if section='discussions', show all if section='submissions'
         # -----------------------
@@ -136,6 +137,20 @@ async def search_discussions_handler(
         )
 
         # -----------------------
+        # Exclude pinned discussions from ALL search
+        # -----------------------
+        pinned_ids_stmt = (
+            select(PinnedDiscussion.discussion_id)
+            .where(PinnedDiscussion.user_id == authorized_user["user_id"])
+        )
+
+        pinned_ids_result = await db_session.execute(pinned_ids_stmt)
+        pinned_ids = [row[0] for row in pinned_ids_result.all()]
+
+        if pinned_ids:
+            stmt = stmt.filter(Discussion.id.not_in(pinned_ids))
+
+        # -----------------------
         # Total count (before sorting with joins)
         # -----------------------
         count_stmt = stmt.with_only_columns(func.count(Discussion.id.distinct()))
@@ -157,12 +172,6 @@ async def search_discussions_handler(
                 func.coalesce(votes_subq.c.vote_count, 0).desc(),
                 Discussion.updated_at.desc(),
             )
-
-        # -----------------------
-        # Pagination
-        # -----------------------
-        offset = (req_params.page - 1) * req_params.limit
-        stmt = stmt.offset(offset).limit(req_params.limit)
 
         # -----------------------
         # Execute and fetch
@@ -279,6 +288,10 @@ async def search_pinned_discussions_handler(
                     user_id=authorized_user["user_id"]
                 )
             )
+        # -----------------------
+        # Approved discussions only (for pinned search)
+        # -----------------------
+        stmt = stmt.filter(Discussion.status == DiscussionsStatusEnum.APPROVED)
 
         # -----------------------
         # Search Query
@@ -332,12 +345,6 @@ async def search_pinned_discussions_handler(
                 func.coalesce(votes_subq.c.vote_count, 0).desc(),
                 Discussion.updated_at.desc(),
             )
-
-        # -----------------------
-        # Pagination
-        # -----------------------
-        offset = (req_params.page - 1) * req_params.limit
-        stmt = stmt.offset(offset).limit(req_params.limit)
 
         # -----------------------
         # Execute and fetch
