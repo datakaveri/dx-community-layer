@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA tgdx_dev;
 
 -- =====================================================
--- ENUM TYPES (BASE + EXTENDED)
+-- ENUM TYPES
 -- =====================================================
 
 CREATE TYPE tgdx_dev.discussions_category_enum AS ENUM (
@@ -34,12 +34,6 @@ CREATE TYPE tgdx_dev.discussions_status_enum AS ENUM (
     'REJECTED'
 );
 
-CREATE TYPE tgdx_dev.reactions_vote_enum AS ENUM (
-    'UP',
-    'DOWN'
-);
-
--- 🔹 NEW ENUMS (ADDED, NOTHING REMOVED)
 CREATE TYPE tgdx_dev.comments_status_enum AS ENUM (
     'PENDING',
     'APPROVED',
@@ -74,145 +68,158 @@ CREATE TYPE tgdx_dev.comment_report_reason_enum AS ENUM (
 -- USERS
 -- =====================================================
 CREATE TABLE tgdx_dev.users (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    email varchar(256) NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    email varchar(256) NOT NULL UNIQUE,
     name varchar(256) NOT NULL,
     name_vector tsvector GENERATED ALWAYS AS (
         to_tsvector('english', COALESCE(name, ''))
-    ) STORED,
-    CONSTRAINT users_pkey PRIMARY KEY (id),
-    CONSTRAINT users_email_key UNIQUE (email)
+    ) STORED
 );
 
 -- =====================================================
 -- TAGS
 -- =====================================================
 CREATE TABLE tgdx_dev.tags (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     name varchar(256) NOT NULL,
     name_vector tsvector GENERATED ALWAYS AS (
         to_tsvector('english', COALESCE(name, ''))
-    ) STORED,
-    CONSTRAINT tags_pkey PRIMARY KEY (id)
+    ) STORED
 );
 
 -- =====================================================
 -- DISCUSSIONS
 -- =====================================================
 CREATE TABLE tgdx_dev.discussions (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL,
     title varchar(256) NOT NULL,
-    type tgdx_dev.discussions_type_enum DEFAULT 'PUBLIC' NOT NULL,
-    category tgdx_dev.discussions_category_enum DEFAULT 'OTHERS' NOT NULL,
+    type tgdx_dev.discussions_type_enum NOT NULL DEFAULT 'PUBLIC',
+    category tgdx_dev.discussions_category_enum NOT NULL DEFAULT 'OTHERS',
     sub_category varchar(256) NOT NULL,
     sub_category_id uuid,
     content text NOT NULL,
-    status tgdx_dev.discussions_status_enum DEFAULT 'PENDING' NOT NULL,
-    is_active boolean DEFAULT true NOT NULL,
+    status tgdx_dev.discussions_status_enum NOT NULL DEFAULT 'PENDING',
+    is_active boolean NOT NULL DEFAULT true,
     zip_s3_key varchar(256),
-    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     title_vector tsvector GENERATED ALWAYS AS (
         to_tsvector('english', COALESCE(title, ''))
     ) STORED,
     sub_category_vector tsvector GENERATED ALWAYS AS (
         to_tsvector('english', COALESCE(sub_category, ''))
     ) STORED,
-    CONSTRAINT discussions_pkey PRIMARY KEY (id),
-    CONSTRAINT discussions_user_id_fkey
+    CONSTRAINT discussions_user_fk
         FOREIGN KEY (user_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_discussions_user_id ON tgdx_dev.discussions(user_id);
-CREATE INDEX idx_discussions_title_trgm
-ON tgdx_dev.discussions USING gin (title gin_trgm_ops);
-
 -- =====================================================
--- DISCUSSION TAGS
+-- PINNED / BOOKMARKED / DELETED DISCUSSIONS
 -- =====================================================
-CREATE TABLE tgdx_dev.discussion_tags (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+CREATE TABLE tgdx_dev.pinned_discussions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     discussion_id uuid NOT NULL,
-    tag_id uuid NOT NULL,
-    CONSTRAINT discussion_tags_pkey PRIMARY KEY (id),
-    CONSTRAINT discussion_tags_discussion_id_fkey
+    user_id uuid NOT NULL,
+    pinned_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pinned_discussions_discussion_fk
         FOREIGN KEY (discussion_id)
         REFERENCES tgdx_dev.discussions(id)
         ON DELETE CASCADE,
-    CONSTRAINT discussion_tags_tag_id_fkey
+    CONSTRAINT pinned_discussions_user_fk
+        FOREIGN KEY (user_id)
+        REFERENCES tgdx_dev.users(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE tgdx_dev.bookmarked_discussions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    discussion_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    is_active boolean DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT bookmarked_discussions_discussion_fk
+        FOREIGN KEY (discussion_id)
+        REFERENCES tgdx_dev.discussions(id)
+        ON DELETE CASCADE,
+    CONSTRAINT bookmarked_discussions_user_fk
+        FOREIGN KEY (user_id)
+        REFERENCES tgdx_dev.users(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE tgdx_dev.deleted_discussions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    discussion_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    deleted_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT deleted_discussions_discussion_fk
+        FOREIGN KEY (discussion_id)
+        REFERENCES tgdx_dev.discussions(id)
+        ON DELETE CASCADE,
+    CONSTRAINT deleted_discussions_user_fk
+        FOREIGN KEY (user_id)
+        REFERENCES tgdx_dev.users(id)
+        ON DELETE CASCADE
+);
+
+-- =====================================================
+-- DISCUSSION META
+-- =====================================================
+CREATE TABLE tgdx_dev.discussion_tags (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    discussion_id uuid NOT NULL,
+    tag_id uuid NOT NULL,
+    CONSTRAINT discussion_tags_discussion_fk
+        FOREIGN KEY (discussion_id)
+        REFERENCES tgdx_dev.discussions(id)
+        ON DELETE CASCADE,
+    CONSTRAINT discussion_tags_tag_fk
         FOREIGN KEY (tag_id)
         REFERENCES tgdx_dev.tags(id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_discussion_tags_discussion_id
-ON tgdx_dev.discussion_tags(discussion_id);
-CREATE INDEX idx_discussion_tags_tag_id
-ON tgdx_dev.discussion_tags(tag_id);
-
--- =====================================================
--- DISCUSSION ATTACHMENTS
--- =====================================================
 CREATE TABLE tgdx_dev.discussion_attachments (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     discussion_id uuid NOT NULL,
     attachment_metadata jsonb NOT NULL,
     s3_key varchar(256) NOT NULL,
-    uploaded_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT discussion_attachments_pkey PRIMARY KEY (id),
-    CONSTRAINT discussion_attachments_discussion_id_fkey
+    uploaded_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT discussion_attachments_discussion_fk
         FOREIGN KEY (discussion_id)
         REFERENCES tgdx_dev.discussions(id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_discussion_attachments_discussion_id
-ON tgdx_dev.discussion_attachments(discussion_id);
-CREATE INDEX idx_discussion_attachments_attachment_metadata_gin
-ON tgdx_dev.discussion_attachments USING gin (attachment_metadata);
-
--- =====================================================
--- DISCUSSION REACTIONS
--- =====================================================
 CREATE TABLE tgdx_dev.discussion_reactions (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     discussion_id uuid NOT NULL,
     user_id uuid NOT NULL,
     emoji_code varchar(256),
     emoji_timestamp timestamptz,
-    CONSTRAINT discussion_reactions_pkey PRIMARY KEY (id),
-    CONSTRAINT discussion_reactions_discussion_id_fkey
+    CONSTRAINT discussion_reactions_discussion_fk
         FOREIGN KEY (discussion_id)
         REFERENCES tgdx_dev.discussions(id)
         ON DELETE CASCADE,
-    CONSTRAINT discussion_reactions_user_id_fkey
+    CONSTRAINT discussion_reactions_user_fk
         FOREIGN KEY (user_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_discussion_reactions_discussion_id
-ON tgdx_dev.discussion_reactions(discussion_id);
-CREATE INDEX idx_discussion_reactions_user_id
-ON tgdx_dev.discussion_reactions(user_id);
-
--- =====================================================
--- DISCUSSION VOTES
--- =====================================================
 CREATE TABLE tgdx_dev.discussion_votes (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     discussion_id uuid NOT NULL,
     user_id uuid NOT NULL,
-    vote_timestamp timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT discussion_votes_pkey PRIMARY KEY (id),
-    CONSTRAINT discussion_votes_discussion_id_fkey
+    vote_timestamp timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT discussion_votes_discussion_fk
         FOREIGN KEY (discussion_id)
         REFERENCES tgdx_dev.discussions(id)
         ON DELETE CASCADE,
-    CONSTRAINT discussion_votes_user_id_fkey
+    CONSTRAINT discussion_votes_user_fk
         FOREIGN KEY (user_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE,
@@ -220,22 +227,18 @@ CREATE TABLE tgdx_dev.discussion_votes (
         UNIQUE (discussion_id, user_id)
 );
 
--- =====================================================
--- DISCUSSION REVIEWS
--- =====================================================
 CREATE TABLE tgdx_dev.discussion_reviews (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     discussion_id uuid NOT NULL,
     reviewer_id uuid NOT NULL,
     comment text NOT NULL,
-    updated_status tgdx_dev.discussions_status_enum DEFAULT 'PENDING' NOT NULL,
-    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT discussion_reviews_pkey PRIMARY KEY (id),
-    CONSTRAINT discussion_reviews_discussion_id_fkey
+    updated_status tgdx_dev.discussions_status_enum NOT NULL DEFAULT 'PENDING',
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT discussion_reviews_discussion_fk
         FOREIGN KEY (discussion_id)
         REFERENCES tgdx_dev.discussions(id)
         ON DELETE CASCADE,
-    CONSTRAINT discussion_reviews_reviewer_id_fkey
+    CONSTRAINT discussion_reviews_reviewer_fk
         FOREIGN KEY (reviewer_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE
@@ -245,94 +248,76 @@ CREATE TABLE tgdx_dev.discussion_reviews (
 -- COMMENTS
 -- =====================================================
 CREATE TABLE tgdx_dev.comments (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     discussion_id uuid NOT NULL,
     user_id uuid NOT NULL,
     parent_id uuid,
     replied_to uuid,
     comment text NOT NULL,
-    status tgdx_dev.comments_status_enum DEFAULT 'PENDING' NOT NULL,
+    status tgdx_dev.comments_status_enum NOT NULL DEFAULT 'PENDING',
     approved_at timestamptz,
     approved_by uuid,
-    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT comments_pkey PRIMARY KEY (id),
-    CONSTRAINT comments_discussion_id_fkey
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT comments_discussion_fk
         FOREIGN KEY (discussion_id)
         REFERENCES tgdx_dev.discussions(id)
         ON DELETE CASCADE,
-    CONSTRAINT comments_user_id_fkey
+    CONSTRAINT comments_user_fk
         FOREIGN KEY (user_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE,
-    CONSTRAINT comments_parent_id_fkey
+    CONSTRAINT comments_parent_fk
         FOREIGN KEY (parent_id)
         REFERENCES tgdx_dev.comments(id)
         ON DELETE CASCADE,
-    CONSTRAINT comments_replied_to_fkey
+    CONSTRAINT comments_replied_to_fk
         FOREIGN KEY (replied_to)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE,
-    CONSTRAINT comments_approved_by_fkey
+    CONSTRAINT comments_approved_by_fk
         FOREIGN KEY (approved_by)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE
 );
 
--- =====================================================
--- COMMENT ATTACHMENTS
--- =====================================================
 CREATE TABLE tgdx_dev.comment_attachments (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     comment_id uuid NOT NULL,
     attachment_metadata jsonb NOT NULL,
     s3_key varchar(256) NOT NULL,
-    uploaded_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT comment_attachments_pkey PRIMARY KEY (id),
-    CONSTRAINT comment_attachments_comment_id_fkey
+    uploaded_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT comment_attachments_comment_fk
         FOREIGN KEY (comment_id)
         REFERENCES tgdx_dev.comments(id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_comment_attachments_comment_id
-ON tgdx_dev.comment_attachments(comment_id);
-CREATE INDEX idx_comment_attachments_attachment_metadata_gin
-ON tgdx_dev.comment_attachments USING gin (attachment_metadata);
-
--- =====================================================
--- COMMENT REACTIONS
--- =====================================================
 CREATE TABLE tgdx_dev.comment_reactions (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     comment_id uuid NOT NULL,
     user_id uuid NOT NULL,
     emoji_code varchar(256),
     emoji_timestamp timestamptz,
-    CONSTRAINT comment_reactions_pkey PRIMARY KEY (id),
-    CONSTRAINT comment_reactions_comment_id_fkey
+    CONSTRAINT comment_reactions_comment_fk
         FOREIGN KEY (comment_id)
         REFERENCES tgdx_dev.comments(id)
         ON DELETE CASCADE,
-    CONSTRAINT comment_reactions_user_id_fkey
+    CONSTRAINT comment_reactions_user_fk
         FOREIGN KEY (user_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE
 );
 
--- =====================================================
--- COMMENT VOTES
--- =====================================================
 CREATE TABLE tgdx_dev.comment_votes (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     comment_id uuid NOT NULL,
     user_id uuid NOT NULL,
-    vote_timestamp timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT comment_votes_pkey PRIMARY KEY (id),
-    CONSTRAINT comment_votes_comment_id_fkey
+    vote_timestamp timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT comment_votes_comment_fk
         FOREIGN KEY (comment_id)
         REFERENCES tgdx_dev.comments(id)
         ON DELETE CASCADE,
-    CONSTRAINT comment_votes_user_id_fkey
+    CONSTRAINT comment_votes_user_fk
         FOREIGN KEY (user_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE,
@@ -340,51 +325,130 @@ CREATE TABLE tgdx_dev.comment_votes (
         UNIQUE (comment_id, user_id)
 );
 
--- =====================================================
--- DELETED COMMENTS
--- =====================================================
 CREATE TABLE tgdx_dev.deleted_comments (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     comment_id uuid NOT NULL,
     user_id uuid NOT NULL,
-    deleted_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT deleted_comments_pkey PRIMARY KEY (id),
-    CONSTRAINT deleted_comments_comment_id_fkey
+    deleted_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT deleted_comments_comment_fk
         FOREIGN KEY (comment_id)
         REFERENCES tgdx_dev.comments(id)
         ON DELETE CASCADE,
-    CONSTRAINT deleted_comments_user_id_fkey
+    CONSTRAINT deleted_comments_user_fk
         FOREIGN KEY (user_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE
 );
 
--- =====================================================
--- COMMENT REPORTS
--- =====================================================
 CREATE TABLE tgdx_dev.comment_reports (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     comment_id uuid NOT NULL,
     reported_by_user_id uuid NOT NULL,
     reason tgdx_dev.comment_report_reason_enum NOT NULL,
-    description TEXT,
-    status tgdx_dev.comment_report_status_enum DEFAULT 'PENDING' NOT NULL,
-    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    description text,
+    status tgdx_dev.comment_report_status_enum NOT NULL DEFAULT 'PENDING',
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     reviewed_at timestamptz,
     reviewed_by_admin_id uuid,
-    CONSTRAINT comment_reports_pkey PRIMARY KEY (id),
-    CONSTRAINT comment_reports_comment_id_fkey
+    CONSTRAINT comment_reports_comment_fk
         FOREIGN KEY (comment_id)
         REFERENCES tgdx_dev.comments(id)
         ON DELETE CASCADE,
-    CONSTRAINT comment_reports_reported_by_user_id_fkey
+    CONSTRAINT comment_reports_reported_by_fk
         FOREIGN KEY (reported_by_user_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE,
-    CONSTRAINT comment_reports_reviewed_by_admin_id_fkey
+    CONSTRAINT comment_reports_reviewed_by_fk
         FOREIGN KEY (reviewed_by_admin_id)
         REFERENCES tgdx_dev.users(id)
         ON DELETE CASCADE,
     CONSTRAINT uq_comment_reports_comment_user
         UNIQUE (comment_id, reported_by_user_id)
 );
+
+
+-- Indexes
+CREATE INDEX idx_discussions_user_id
+    ON tgdx_dev.discussions(user_id);
+
+CREATE INDEX idx_discussions_title_trgm
+    ON tgdx_dev.discussions
+    USING gin (title gin_trgm_ops);
+
+CREATE INDEX idx_discussions_category
+    ON tgdx_dev.discussions(category);
+
+CREATE INDEX idx_discussions_status
+    ON tgdx_dev.discussions(status);
+
+
+CREATE INDEX idx_pinned_discussions_user
+    ON tgdx_dev.pinned_discussions(user_id);
+
+CREATE INDEX idx_pinned_discussions_discussion_user
+    ON tgdx_dev.pinned_discussions(discussion_id, user_id);
+
+CREATE INDEX idx_bookmarked_discussions_user
+    ON tgdx_dev.bookmarked_discussions(user_id);
+
+CREATE INDEX idx_bookmarked_discussions_discussion_user
+    ON tgdx_dev.bookmarked_discussions(discussion_id, user_id);
+
+CREATE INDEX idx_deleted_discussions_user
+    ON tgdx_dev.deleted_discussions(user_id);
+
+CREATE INDEX idx_deleted_discussions_discussion
+    ON tgdx_dev.deleted_discussions(discussion_id);
+
+
+CREATE INDEX idx_discussion_tags_discussion
+    ON tgdx_dev.discussion_tags(discussion_id);
+
+CREATE INDEX idx_discussion_tags_tag
+    ON tgdx_dev.discussion_tags(tag_id);
+
+CREATE INDEX idx_discussion_attachments_discussion
+    ON tgdx_dev.discussion_attachments(discussion_id);
+
+CREATE INDEX idx_discussion_attachments_metadata
+    ON tgdx_dev.discussion_attachments
+    USING gin (attachment_metadata);
+
+CREATE INDEX idx_discussion_reactions_discussion
+    ON tgdx_dev.discussion_reactions(discussion_id);
+
+CREATE INDEX idx_discussion_votes_user
+    ON tgdx_dev.discussion_votes(user_id);
+
+
+CREATE INDEX idx_comments_discussion
+    ON tgdx_dev.comments(discussion_id);
+
+CREATE INDEX idx_comments_user
+    ON tgdx_dev.comments(user_id);
+
+CREATE INDEX idx_comments_parent
+    ON tgdx_dev.comments(parent_id);
+
+CREATE INDEX idx_comments_status
+    ON tgdx_dev.comments(status);
+
+
+CREATE INDEX idx_comment_attachments_comment
+    ON tgdx_dev.comment_attachments(comment_id);
+
+CREATE INDEX idx_comment_attachments_metadata
+    ON tgdx_dev.comment_attachments
+    USING gin (attachment_metadata);
+
+CREATE INDEX idx_comment_reactions_comment
+    ON tgdx_dev.comment_reactions(comment_id);
+
+CREATE INDEX idx_comment_votes_user
+    ON tgdx_dev.comment_votes(user_id);
+
+CREATE INDEX idx_comment_reports_comment
+    ON tgdx_dev.comment_reports(comment_id);
+
+CREATE INDEX idx_comment_reports_status
+    ON tgdx_dev.comment_reports(status);
