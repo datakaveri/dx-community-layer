@@ -174,6 +174,12 @@ async def search_discussions_handler(
             )
 
         # -----------------------
+        # Pagination
+        # -----------------------          
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
+
+        # -----------------------
         # Execute and fetch
         # -----------------------
         result = await db_session.execute(stmt)
@@ -345,6 +351,12 @@ async def search_pinned_discussions_handler(
                 func.coalesce(votes_subq.c.vote_count, 0).desc(),
                 Discussion.updated_at.desc(),
             )
+
+        # -----------------------
+        # Pagination
+        # -----------------------
+        offset = (req_params.page - 1) * req_params.limit
+        stmt = stmt.offset(offset).limit(req_params.limit)
 
         # -----------------------
         # Execute and fetch
