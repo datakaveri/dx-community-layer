@@ -54,6 +54,7 @@ jobs:
           push: true
           tags: ${{ env.DOCKER_IMAGE_NAME }}:dev 
           no-cache: true
+          provenance: mode=max
 
       - name: Copy .env file to server
         uses: appleboy/scp-action@v0.1.7
