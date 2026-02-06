@@ -48,9 +48,12 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       
       - name: Build and Push Docker Image
-        run: |
-          docker build --no-cache -t ${{ secrets.DOCKER_IMAGE_NAME }}:dev .
-          docker push ${{ secrets.DOCKER_IMAGE_NAME }}:dev
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: ${{ env.DOCKER_IMAGE_NAME }}:dev 
+          no-cache: true
 
       - name: Copy .env file to server
         uses: appleboy/scp-action@v0.1.7
