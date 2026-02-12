@@ -10,6 +10,7 @@ TGDex-MonoRepo is a **FastAPI** application that provides all **TGDex** microser
 - [Installation](#installation)
 - [Environment Variables](#environment-variables)
 - [Running Locally](#running-locally)
+- [Cron](#cron)
 - [Deployments](#deployments)
   - [Docker (standalone)](#1-docker-standalone)
   - [GitHub Actions (CI/CD)](#2-github-actions-cicd)
@@ -153,6 +154,26 @@ REDIS_URL=redis://localhost:6379/0
   ```
 
 The API listens on **port 5000**. Ensure PostgreSQL, Redis, and (if used) Keycloak and S3 are reachable and variables are set (e.g. via `.env` in the project root).
+
+---
+
+## Cron
+
+A scheduled job publishes competitions whose `scheduled_publish_at` has passed and status is not yet `PUBLISHED`. Use this for automated publishing of pre-scheduled challenges.
+
+**Run manually:**
+
+```bash
+poetry run cron
+```
+
+**Schedule (e.g. every 5 minutes via cron):**
+
+```bash
+*/5 * * * * cd /path/to/tgdex-monorepo && poetry run cron
+```
+
+Requires the same [environment variables](#environment-variables) as the main app (notably `CHALLENGE_DATABASE_URL`, `CHALLENGE_DB_SCHEMA`). Uses the Challenge database only.
 
 ---
 
@@ -341,6 +362,8 @@ tgdex-monorepo/
 │   └── redis/              # Redis Compose config
 ├── src/
 │   ├── configs/            # DB, env, Redis, S3 config
+│   ├── cron/               # Scheduled jobs (e.g. competition publisher)
+│   │   └── script.py
 │   ├── database/           # Discussion and Challenge models
 │   ├── middlewares/        # Auth, logging, search validation
 │   ├── routes/             # Challenge, Discussion, utility (incl. /healthz)
