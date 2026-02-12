@@ -30,6 +30,7 @@ packages = [{include = "src"}]
 [tool.poetry.scripts]
 server = "src.run:server"
 local = "src.run:local"
+cron = "src.cron.script:main"
 
 
 [build-system]
