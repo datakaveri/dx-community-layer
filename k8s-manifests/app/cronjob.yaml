@@ -1,0 +1,46 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tgdex-monolith-cronjob
+spec:
+  # Run every 5 minutes to publish scheduled competitions
+  schedule: "*/5 * * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: tgdex-monolith-cronjob
+        spec:
+          securityContext:
+            fsGroup: 1000
+            runAsNonRoot: true
+            supplementalGroups: [1000]
+          imagePullSecrets:
+            - name: <placeholder>
+          restartPolicy: OnFailure
+          containers:
+            - name: tgdex-monolith-cronjob
+              image: <placeholder>
+              command: ["cron"]
+              envFrom:
+                - secretRef:
+                    name: <placeholder>
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  memory: "512Mi"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
