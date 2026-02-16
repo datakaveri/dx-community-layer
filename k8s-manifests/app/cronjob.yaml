@@ -5,7 +5,7 @@ metadata:
   name: tgdex-monolith-cronjob
 spec:
   # Run every 5 minutes to publish scheduled competitions
-  schedule: "*/5 * * * *"
+  schedule: "* * * * *"
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   concurrencyPolicy: Forbid
