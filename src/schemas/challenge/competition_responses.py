@@ -92,7 +92,7 @@ class RetrieveCompetitionsSchema(BaseModel):
     id: uuid.UUID
     title: str
     subtitle: Optional[str]
-    image_url: str
+    image_url: Optional[str]
     prize_pools: CompetitionPrizePoolSchema
     timelines: CompetitionTimelinesSchema
     participant_count: Optional[int] = 0
@@ -203,7 +203,7 @@ class RetrieveBookmarkedCompetitionsCompetitionSchema(BaseModel):
     title: str
     subtitle: Optional[str]
     status: CompetitionStatusEnum
-    image_url: str
+    image_url: Optional[str]
     timelines: Optional[CompetitionTimelinesSchema]
     prize_pools: Optional[CompetitionPrizePoolSchema]
 
