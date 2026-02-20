@@ -23,6 +23,12 @@ pipeline {
     stage('Continuous Deployment') {
       when {
         allOf {
+          anyOf {
+            changeset "src/**"
+            changeset "Dockerfile"
+            changeset "pyproject.toml"
+            triggeredBy cause: 'UserIdCause'
+          }
           expression {
             return env.GIT_BRANCH == 'origin/dev';
           }
