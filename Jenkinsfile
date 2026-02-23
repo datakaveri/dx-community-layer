@@ -40,6 +40,7 @@ pipeline {
             script {
               docker.withRegistry( registryUri, registryCredential ) {
                 devImage.push("1.0.0-${env.GIT_HASH}")
+                devImage.push("latest")
               }
             }
           }
