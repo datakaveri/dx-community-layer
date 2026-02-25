@@ -1,4 +1,5 @@
 import uuid
+import re
 from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -35,12 +36,12 @@ async def generate_presigned_url_handler(
         CustomJSONResponse: A JSON response with the created discussion details and relevant metadata.
     """
     logger.info(f"{authorized_user['email']} - Execution started")
-
+    safe_file_name = re.sub(r"[^\w.\-]", "_", req_params.file_name)
     try:
         if req_params.type_of_upload == UploadType.CONTENT:
-            object_key = f"public/{authorized_user['user_id']}/{req_params.batch_id}/{req_params.file_name}"
+            object_key = f"public/{authorized_user['user_id']}/{req_params.batch_id}/{safe_file_name}"
         else:
-            object_key = f"private/{authorized_user['user_id']}/{req_params.batch_id}/{req_params.file_name}"
+            object_key = f"private/{authorized_user['user_id']}/{req_params.batch_id}/{safe_file_name}"
 
         presigned_url = s3_client.generate_presigned_url(
             "put_object",
