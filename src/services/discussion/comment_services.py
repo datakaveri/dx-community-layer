@@ -375,6 +375,7 @@ async def create_discussion_comment_handler(
             discussion_id=req_params.discussion_id,
             user_id=authorized_user["user_id"],
             comment=req_params.comment,
+            status=CommentsStatusEnum.APPROVED,
         )
 
         db_session.add(new_comment)
