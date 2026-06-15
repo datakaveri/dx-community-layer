@@ -69,7 +69,7 @@ async def healthz() -> CustomJSONResponse:
 
     # Check PostgreSQL DB
     try:
-        discussion_db_session.execute(text("SELECT 1"))
+        await discussion_db_session.execute(text("SELECT 1"))
         status_report["PostgreSQL DB"] = True
     except Exception as e:
         logger.error(f"PostgreSQL DB check failed: {e}")
