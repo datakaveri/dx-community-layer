@@ -371,11 +371,17 @@ async def create_discussion_comment_handler(
                 },
             )
 
+        comment_status = (
+            CommentsStatusEnum.APPROVED
+            if authorized_user["user_role"] == UserRole.COS_ADMIN
+            else CommentsStatusEnum.PENDING
+        )
+
         new_comment = Comment(
             discussion_id=req_params.discussion_id,
             user_id=authorized_user["user_id"],
             comment=req_params.comment,
-            status=CommentsStatusEnum.APPROVED,
+            status=comment_status,
         )
 
         db_session.add(new_comment)
