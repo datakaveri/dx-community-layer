@@ -101,7 +101,10 @@ The app is configured via `pydantic-settings` from `.env` or environment. All of
 | `S3_ACCESS_KEY_ID`         | Yes      | AWS access key.                    |
 | `S3_SECRET_ACCESS_KEY`     | Yes      | AWS secret key.                    |
 | `S3_DEFAULT_REGION`        | Yes      | AWS region (e.g. `us-east-1`).     |
-| `S3_ENDPOINT_URL`          | No       | Custom S3 endpoint (e.g. for MinIO).|
+| `S3_ENDPOINT_URL`          | No       | S3-compatible **service** endpoint, not a bucket URL (e.g. `https://pocrakkpc.s3.cyfuture.cloud` — the bucket goes in `*_S3_BUCKET`). Omit for AWS. |
+| `S3_ADDRESSING_STYLE`      | No       | `virtual` → `https://bucket.host/key`; `path` → `https://host/bucket/key`. Defaults to what boto3 itself picks: `path` with a custom endpoint, `virtual` for AWS. |
+| `S3_PUBLIC_BASE_URL`       | Cond.    | Base URL for browser-facing public object URLs. Falls back to `S3_ENDPOINT_URL` — **one of the two must be set**, there is no built-in default. On AWS set `https://s3.amazonaws.com`. |
+| `S3_SIGNATURE_VERSION`     | No       | Presigned-URL signing algorithm. Left to boto3 when unset, which means SigV2 at `us-east-1`. Set `s3v4` only after confirming the provider accepts it. |
 
 ### Redis
 
@@ -132,7 +135,10 @@ CHALLENGE_S3_BUCKET=your-challenge-bucket
 S3_ACCESS_KEY_ID=your-access-key
 S3_SECRET_ACCESS_KEY=your-secret-key
 S3_DEFAULT_REGION=us-east-1
-S3_ENDPOINT_URL= # Optional: your-custom-endpoint (e.g. for MinIO)
+S3_ENDPOINT_URL= # Optional: S3-compatible service endpoint; leave empty for AWS
+S3_ADDRESSING_STYLE= # Optional: virtual | path (defaults to boto3's own choice)
+S3_PUBLIC_BASE_URL=https://s3.amazonaws.com # Required unless S3_ENDPOINT_URL is set
+S3_SIGNATURE_VERSION= # Optional: e.g. s3v4, once verified against the provider
 
 REDIS_URL=redis://localhost:6379/0
 ```
@@ -289,7 +295,13 @@ docker compose up -d
     - `DISCUSSION_S3_BUCKET`, `CHALLENGE_S3_BUCKET`
     - `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_DEFAULT_REGION`
     - `ALLOWED_ORIGINS`
-    - `S3_ENDPOINT_URL` (Optional)
+    - `S3_ENDPOINT_URL` or `S3_PUBLIC_BASE_URL` (**one is required**), `S3_ADDRESSING_STYLE` (Optional)
+
+   > These three are read from the deploying shell by `stack/app/stack.yml`, not from Docker secrets.
+   > For an S3-compatible store, export them before `docker stack deploy`:
+   > ```bash
+   > export S3_ENDPOINT_URL=https://pocrakkpc.s3.cyfuture.cloud   # service endpoint, NOT a bucket URL
+   > ```
 
 2. **Create Docker secrets:**
 

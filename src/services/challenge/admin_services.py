@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
-from ...configs.s3_config import s3_client
+from ...configs.s3_config import s3_client, public_object_url
 from ...configs.env_config import env_config
 from ..discussion.search_services import format_tsquery
 from ...schemas.default_schemas import AuthorizationData
@@ -793,7 +793,9 @@ async def admin_create_competition_handler(
                     details="An error occurred while creating the challenge. Please contact developers if the issue persists.",
                 )
 
-            new_competition.image_url = f"https://{env_config.CHALLENGE_S3_BUCKET}.s3.amazonaws.com/{permanent_s3_key}"
+            new_competition.image_url = public_object_url(
+                env_config.CHALLENGE_S3_BUCKET, permanent_s3_key
+            )
 
         # Competition rules and guidelines file
         if req_params.rules_and_guidelines:
@@ -1080,7 +1082,9 @@ async def admin_update_competition_handler(
                     details="An error occurred while updating the competition. Please contact developers if the issue persists.",
                 )
 
-            competition.image_url = f"https://{env_config.CHALLENGE_S3_BUCKET}.s3.amazonaws.com/{permanent_s3_key}"
+            competition.image_url = public_object_url(
+                env_config.CHALLENGE_S3_BUCKET, permanent_s3_key
+            )
 
         if req_params.constraints and req_params.constraints != competition.constraints:
             competition.constraints = req_params.constraints

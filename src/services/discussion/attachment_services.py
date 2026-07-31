@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
-from ...configs.s3_config import s3_client
+from ...configs.s3_config import s3_client, public_object_url
 from ...configs.env_config import env_config
 from ...database.discussion.models import CommentAttachment, DiscussionAttachment
 from ...schemas.discussion.attachment_requests import (
@@ -53,7 +53,7 @@ async def generate_presigned_url_handler(
             ExpiresIn=300,
         )
 
-        public_url = f"https://{env_config.DISCUSSION_S3_BUCKET}.s3.amazonaws.com/{object_key}"
+        public_url = public_object_url(env_config.DISCUSSION_S3_BUCKET, object_key)
 
         logger.info(
             f"{authorized_user['email']} - Presigned URL generated successfully for file: {req_params.file_name} and type of upload: {req_params.type_of_upload}"
