@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...middlewares.logging import logger
-from ...configs.s3_config import s3_client
+from ...configs.s3_config import s3_client, public_object_url
 from ...configs.env_config import env_config
 from ...schemas.default_schemas import AuthorizationData, UserRole
 from ...database.challenge.models import Competition, CompetitionSubmission
@@ -61,7 +61,7 @@ async def generate_presigned_url_handler(
             meta={
                 "batch_id": req_params.batch_id,
                 "object_key": (
-                    f"https://{env_config.CHALLENGE_S3_BUCKET}.s3.amazonaws.com/{object_key}"
+                    public_object_url(env_config.CHALLENGE_S3_BUCKET, object_key)
                     if req_params.md_attachment
                     else object_key
                 ),

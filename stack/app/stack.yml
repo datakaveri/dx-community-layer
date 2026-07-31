@@ -9,6 +9,19 @@ services:
       BASE_URL: http://localhost:5000
       ACTIVATED_SERVICES: '["DISCUSSION", "CHALLENGE"]'
 
+      # S3-compatible object store. Export these in the deploying shell;
+      # leaving them unset selects AWS S3. S3_ENDPOINT_URL must be the
+      # *service* endpoint, not a bucket URL -- boto3 adds the bucket itself,
+      # per S3_ADDRESSING_STYLE. Example (staging):
+      #   export S3_ENDPOINT_URL=https://pocrakkpc.s3.cyfuture.cloud
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      # Leave these two empty unless a provider requires otherwise: empty means
+      # boto3 keeps its own defaults (path addressing behind a custom endpoint,
+      # SigV2 at us-east-1), which is what staging runs on today.
+      S3_ADDRESSING_STYLE: ${S3_ADDRESSING_STYLE:-}
+      S3_SIGNATURE_VERSION: ${S3_SIGNATURE_VERSION:-}
+
     secrets:
       - postgres_user
       - postgres_password
