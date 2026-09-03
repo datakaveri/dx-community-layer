@@ -20,6 +20,31 @@ pipeline {
         }
       }
     }
+
+    stage('Detect config/migration change') {
+      when {
+        not { changeRequest() }
+      }
+      steps {
+        script {
+          def baseCommit = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT
+          if (!baseCommit) {
+            baseCommit = sh(script: 'git rev-list --max-parents=0 HEAD | tail -1', returnStdout: true).trim()
+          }
+
+          def changedFiles = sh(
+            script: "git diff --name-only ${baseCommit} HEAD",
+            returnStdout: true
+          ).trim().split('\n') as List
+
+          env.CONFIG_CHANGED = changedFiles.contains('example-config/.community-server.env') ? 'true' : 'false'
+          env.MIGRATION_CHANGED = changedFiles.any { it.startsWith('stack/postgres/init-scripts/') } ? 'true' : 'false'
+
+          echo "Diffing against ${baseCommit} (last successful build's commit): config changed=${env.CONFIG_CHANGED}, migration changed=${env.MIGRATION_CHANGED}"
+        }
+      }
+    }
+
     stage('Continuous Deployment') {
       when {
         allOf {
@@ -27,6 +52,8 @@ pipeline {
             changeset "src/**"
             changeset "Dockerfile"
             changeset "pyproject.toml"
+            changeset "example-config/.community-server.env"
+            changeset "stack/postgres/init-scripts/**"
             triggeredBy cause: 'UserIdCause'
           }
           expression {
@@ -38,16 +65,24 @@ pipeline {
         stage('Push Images') {
           steps {
             script {
+              def tagSuffix = ''
+              if (env.CONFIG_CHANGED == 'true') {
+                tagSuffix += '-C'
+              }
+              if (env.MIGRATION_CHANGED == 'true') {
+                tagSuffix += '-M'
+              }
+              env.IMAGE_TAG = "1.0.0-${env.GIT_HASH}${tagSuffix}"
               docker.withRegistry( registryUri, registryCredential ) {
-                devImage.push("1.0.0-${env.GIT_HASH}")
+                devImage.push(env.IMAGE_TAG)
               }
             }
           }
         }
-        stage('Docker Swarm deployment') {
+        stage('EKS Helm deployment') {
           steps {
             script {
-              sh "ssh azureuser@docker-swarm 'docker service update iudx-v2-monorepo_monorepo-iudx-v2 --image ghcr.io/datakaveri/tgdex-monorepo:1.0.0-${env.GIT_HASH}'"
+              sh "ssh ubuntu@dev-eks 'cd v2-deployments/iudx/iudx-installer/K8s-deployment/Charts/community-layer && helm upgrade community-server . -n community-server --atomic --timeout 5m --reuse-values --set image.tag=${env.IMAGE_TAG}'"
               sh 'sleep 15'
               sh '''#!/bin/bash 
               response_code=$(curl -s -o /dev/null -w \'%{http_code}\\n\' --connect-timeout 5 --retry 5 --retry-connrefused -XGET https://v2.dev.community-layer.iudx.io/docs)
@@ -65,7 +100,7 @@ pipeline {
           }
           post{
             failure{
-              error "Failed to deploy image in Docker Swarm"
+              error "Failed to deploy image to EKS via Helm"
             }
           }
         }
