@@ -18,7 +18,7 @@ from .routes.challenge.root import router as challenge_router
 from .schemas.custom_responses import CustomHttpException, CustomJSONResponse
 
 
-app = FastAPI()
+app = FastAPI(root_path=env_config.ROOT_PATH)
 
 
 # Set up CORS (Cross-Origin Resource Sharing)
@@ -126,6 +126,9 @@ def custom_openapi():
         description=docs_description,
         tags=docs_tags_metadata,
         routes=app.routes,
+        # Without this, "Try it out" in the docs calls /<path> instead of
+        # /<ROOT_PATH>/<path> when served behind a subpath proxy.
+        servers=[{"url": env_config.ROOT_PATH}] if env_config.ROOT_PATH else None,
     )
     openapi_schema["info"]["x-logo"] = {
         "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png",

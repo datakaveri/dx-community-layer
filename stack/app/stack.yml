@@ -7,6 +7,9 @@ services:
     environment:
       INSTANCE: production
       BASE_URL: http://localhost:5000
+      # Set to the proxy prefix (e.g. /community) when a reverse proxy mounts
+      # this service under a subpath and strips it. Empty = served from root.
+      ROOT_PATH: ${ROOT_PATH:-}
       ACTIVATED_SERVICES: '["DISCUSSION", "CHALLENGE"]'
 
       # S3-compatible object store. Export these in the deploying shell;
@@ -21,6 +24,16 @@ services:
       # SigV2 at us-east-1), which is what staging runs on today.
       S3_ADDRESSING_STYLE: ${S3_ADDRESSING_STYLE:-}
       S3_SIGNATURE_VERSION: ${S3_SIGNATURE_VERSION:-}
+
+      # Redis mode. Leave both unset for a standalone Redis at REDIS_URL. For
+      # sentinel, export REDIS_SENTINEL_ENABLED=true and REDIS_SENTINEL_NODES
+      # (e.g. sentinel-0:26379,sentinel-1:26379); passwords can be supplied as
+      # the optional redis_password / redis_sentinel_password secrets.
+      REDIS_CLUSTER_ENABLED: ${REDIS_CLUSTER_ENABLED:-false}
+      REDIS_SENTINEL_ENABLED: ${REDIS_SENTINEL_ENABLED:-false}
+      REDIS_SENTINEL_NODES: ${REDIS_SENTINEL_NODES:-}
+      REDIS_SENTINEL_MASTER_NAME: ${REDIS_SENTINEL_MASTER_NAME:-mymaster}
+      REDIS_DB: ${REDIS_DB:-0}
 
     secrets:
       - postgres_user

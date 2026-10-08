@@ -18,6 +18,7 @@ TGDex-MonoRepo is a **FastAPI** application that provides all **TGDex** microser
   - [Kubernetes](#4-kubernetes)
 - [Project Structure](#project-structure)
 - [API Documentation](#api-documentation)
+  - [Running behind a reverse proxy subpath](#running-behind-a-reverse-proxy-subpath)
 - [Authors](#authors)
 
 ---
@@ -70,7 +71,8 @@ The app is configured via `pydantic-settings` from `.env` or environment. All of
 | Variable             | Required | Description                                                                 |
 |----------------------|----------|-----------------------------------------------------------------------------|
 | `INSTANCE`           | Yes      | Environment name (e.g. `development`, `staging`, `production`).             |
-| `BASE_URL`           | No       | Base URL of the API (default: `http://127.0.0.1:5000`).                     |
+| `BASE_URL`           | No       | Base URL of the API, used for the code samples in the docs (default: `http://127.0.0.1:5000`). Include the proxy subpath when there is one, e.g. `https://host/community`. |
+| `ROOT_PATH`          | No       | Proxy subpath the service is mounted under, e.g. `/community` (default: empty, i.e. served from the root). See [Running behind a reverse proxy subpath](#running-behind-a-reverse-proxy-subpath). |
 | `ALLOWED_ORIGINS`    | Yes      | JSON array of allowed CORS origins (e.g. `["http://localhost:3000"]`).      |
 | `ACTIVATED_SERVICES` | Yes      | JSON array of enabled services: `["DISCUSSION"]`, `["CHALLENGE"]`, or `["DISCUSSION", "CHALLENGE"]`. |
 
@@ -108,15 +110,27 @@ The app is configured via `pydantic-settings` from `.env` or environment. All of
 
 ### Redis
 
-| Variable    | Required | Description                                                |
-|-------------|----------|------------------------------------------------------------|
-| `REDIS_URL` | Yes      | Redis URL (e.g. `redis://user:password@host:6379/0`).      |
+Three modes are supported: standalone (default), cluster, and sentinel. Enable at most one of `REDIS_CLUSTER_ENABLED` / `REDIS_SENTINEL_ENABLED`.
+
+| Variable                     | Required | Description                                                |
+|------------------------------|----------|------------------------------------------------------------|
+| `REDIS_URL`                  | Cond.    | Redis URL (e.g. `redis://user:password@host:6379/0`). Required for standalone and cluster mode; ignored in sentinel mode. |
+| `REDIS_CLUSTER_ENABLED`      | No       | `true` to connect to a Redis Cluster at `REDIS_URL`. Default `false`. |
+| `REDIS_SENTINEL_ENABLED`     | No       | `true` to discover the master through Redis Sentinel. Default `false`. |
+| `REDIS_SENTINEL_NODES`       | Cond.    | Sentinel mode: comma-separated sentinel addresses, e.g. `sentinel-0:26379,sentinel-1:26379,sentinel-2:26379`. Port defaults to `26379`. |
+| `REDIS_SENTINEL_MASTER_NAME` | No       | Sentinel mode: name of the monitored master. Default `mymaster`. |
+| `REDIS_SENTINEL_USERNAME`    | No       | Sentinel mode: username for the sentinels themselves, if they require auth. |
+| `REDIS_SENTINEL_PASSWORD`    | No       | Sentinel mode: password for the sentinels themselves, if they require auth. |
+| `REDIS_USERNAME`             | No       | Sentinel mode: username for the master. |
+| `REDIS_PASSWORD`             | No       | Sentinel mode: password for the master. |
+| `REDIS_DB`                   | No       | Sentinel mode: database index. Default `0`. |
 
 ### Example `.env` (minimal for local)
 
 ```env
 INSTANCE=development
 BASE_URL=http://127.0.0.1:5000
+ROOT_PATH= # Optional: proxy subpath, e.g. /community; leave empty when served from the root
 ALLOWED_ORIGINS=["http://localhost:3000", "http://127.0.0.1:3000"]
 ACTIVATED_SERVICES=["DISCUSSION", "CHALLENGE"]
 
@@ -141,6 +155,11 @@ S3_PUBLIC_BASE_URL=https://s3.amazonaws.com # Required unless S3_ENDPOINT_URL is
 S3_SIGNATURE_VERSION= # Optional: e.g. s3v4, once verified against the provider
 
 REDIS_URL=redis://localhost:6379/0
+# Or, for Redis Sentinel (REDIS_URL is then not needed):
+# REDIS_SENTINEL_ENABLED=true
+# REDIS_SENTINEL_NODES=sentinel-0:26379,sentinel-1:26379,sentinel-2:26379
+# REDIS_SENTINEL_MASTER_NAME=mymaster
+# REDIS_PASSWORD=<master password>
 ```
 
 ---
@@ -319,7 +338,7 @@ docker compose up -d
    docker stack deploy -c stack.yml tgdex-app
    ```
 
-The app is exposed on **5000** and uses `/healthz` for healthchecks. `INSTANCE`, `BASE_URL`, and `ACTIVATED_SERVICES` are set in `stack.yml`; DB URLs are built by `entrypoint.sh` from the secrets above.
+The app is exposed on **5000** and uses `/healthz` for healthchecks. `INSTANCE`, `BASE_URL`, `ROOT_PATH`, and `ACTIVATED_SERVICES` are set in `stack.yml`; DB URLs are built by `entrypoint.sh` from the secrets above.
 
 ---
 
@@ -398,6 +417,31 @@ tgdex-monorepo/
 - **Swagger UI:** `http://<host>:5000/docs`
 - **ReDoc:** `http://<host>:5000/redoc`
 - **Health:** `GET /healthz` (used by Docker/Kubernetes healthchecks)
+
+### Running behind a reverse proxy subpath
+
+Deployments sit behind a proxy that mounts the service under a subpath and **strips**
+it before forwarding (e.g. `https://<host>/community/docs` reaches the app as `/docs`).
+The app has to be told about that prefix, otherwise the docs page asks the browser for
+`/openapi.json` at the root of the host instead of `/community/openapi.json`, and
+Swagger UI fails to load the schema.
+
+Set `ROOT_PATH` to the prefix (leading slash, no trailing slash — other spellings are
+normalised):
+
+```env
+ROOT_PATH=/community
+BASE_URL=https://<host>/community
+```
+
+`ROOT_PATH` fixes the docs page and adds the prefix to `servers` in the OpenAPI
+schema, so **Try it out** calls the right URL. `BASE_URL` is separate: it is what the
+copy-pasteable curl/Python/JavaScript samples print, so it needs the prefix too.
+
+Leave `ROOT_PATH` empty when the service is served from the root, including locally.
+
+Full write-up of the failure this prevents, and why `root_path` rather than a relative URL:
+[`docs/openapi-docs-behind-subpath.md`](docs/openapi-docs-behind-subpath.md).
 
 ---
 
