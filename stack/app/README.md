@@ -53,6 +53,7 @@ docker stack deploy -c stack.yml tgdex-app
 
 - `INSTANCE` - Deployment instance (default: production)
 - `BASE_URL` - Base URL for the application (default: http://localhost:5000)
+- `ROOT_PATH` - Proxy subpath the service is mounted under, e.g. `/community` (default: empty, i.e. served from the root)
 
 ### Secrets
 

@@ -55,12 +55,26 @@ echo "DISCUSSION_DATABASE_URL constructed"
 echo "CHALLENGE_DATABASE_URL constructed"
 
 # Redis
+# In sentinel mode (REDIS_SENTINEL_ENABLED=true) the master is discovered via
+# REDIS_SENTINEL_NODES, so redis_url is not needed. The master/sentinel
+# passwords may be supplied as the optional redis_password and
+# redis_sentinel_password secrets.
 if [ -f /run/secrets/redis_url ]; then
   export REDIS_URL=$(cat /run/secrets/redis_url)
   echo "REDIS_URL loaded"
-else
+elif [ "${REDIS_SENTINEL_ENABLED}" != "true" ]; then
   echo "ERROR: redis_url secret not found"
   exit 1
+fi
+
+if [ -f /run/secrets/redis_password ]; then
+  export REDIS_PASSWORD=$(cat /run/secrets/redis_password)
+  echo "REDIS_PASSWORD loaded"
+fi
+
+if [ -f /run/secrets/redis_sentinel_password ]; then
+  export REDIS_SENTINEL_PASSWORD=$(cat /run/secrets/redis_sentinel_password)
+  echo "REDIS_SENTINEL_PASSWORD loaded"
 fi
 
 # DB Schemas
@@ -160,6 +174,7 @@ echo ""
 echo "Configuration:"
 echo "   - Instance: ${INSTANCE}"
 echo "   - Base URL: ${BASE_URL}"
+echo "   - Root Path: ${ROOT_PATH:-/}"
 echo "   - Discussion DB: ${DISCUSSION_DB_NAME}"
 echo "   - Challenge DB: ${CHALLENGE_DB_NAME}"
 echo "   - Discussion Schema: ${DISCUSSION_DB_SCHEMA}"
@@ -174,14 +189,30 @@ until nc -z "${POSTGRES_HOST}" 5432 2>/dev/null; do
 done
 echo "PostgreSQL is ready!"
 
-echo "Waiting for Redis to be ready..."
-# Extract Redis host from REDIS_URL (format: redis://user:pass@host:port)
-REDIS_HOST=$(echo "$REDIS_URL" | sed -e 's|redis://||' -e 's|.*@||' -e 's|:.*||')
-until nc -z "${REDIS_HOST}" 6379 2>/dev/null; do
-  echo "   Redis unavailable - sleeping"
-  sleep 2
-done
-echo "Redis is ready!"
+if [ "${REDIS_SENTINEL_ENABLED}" = "true" ]; then
+  echo "Waiting for a Redis sentinel to be ready..."
+  # REDIS_SENTINEL_NODES format: host:port,host:port,...
+  until for node in $(echo "$REDIS_SENTINEL_NODES" | tr ',' ' '); do
+    host=${node%:*}
+    port=${node##*:}
+    [ "$host" = "$node" ] && port=26379
+    nc -z "$host" "$port" 2>/dev/null && break
+    false
+  done; do
+    echo "   No Redis sentinel reachable - sleeping"
+    sleep 2
+  done
+  echo "Redis sentinel is ready!"
+else
+  echo "Waiting for Redis to be ready..."
+  # Extract Redis host from REDIS_URL (format: redis://user:pass@host:port)
+  REDIS_HOST=$(echo "$REDIS_URL" | sed -e 's|redis://||' -e 's|.*@||' -e 's|:.*||')
+  until nc -z "${REDIS_HOST}" 6379 2>/dev/null; do
+    echo "   Redis unavailable - sleeping"
+    sleep 2
+  done
+  echo "Redis is ready!"
+fi
 
 echo ""
 echo "Starting FastAPI server..."
