@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "Starting TGDex application..."
+echo "Starting DX-Community application..."
 
 echo "Reading secrets from /run/secrets/..."
 

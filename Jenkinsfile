@@ -1,6 +1,6 @@
 pipeline {
   environment {
-    devRegistry = 'ghcr.io/datakaveri/tgdex-monorepo'
+    devRegistry = 'ghcr.io/datakaveri/dx-community-layer'
     registryUri = 'https://ghcr.io'
     registryCredential = 'datakaveri-ghcr'
     GIT_HASH = GIT_COMMIT.take(7)

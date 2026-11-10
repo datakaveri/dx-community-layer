@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: tgdex-monolith-cronjob
+  name: dx-community-cronjob
 spec:
   # Run every 5 minutes to publish scheduled competitions
   schedule: "* * * * *"
@@ -14,7 +14,7 @@ spec:
       template:
         metadata:
           labels:
-            app.kubernetes.io/name: tgdex-monolith-cronjob
+            app.kubernetes.io/name: dx-community-cronjob
         spec:
           securityContext:
             fsGroup: 1000
@@ -24,7 +24,7 @@ spec:
             - name: <placeholder>
           restartPolicy: OnFailure
           containers:
-            - name: tgdex-monolith-cronjob
+            - name: dx-community-cronjob
               image: <placeholder>
               command: ["cron"]
               envFrom:

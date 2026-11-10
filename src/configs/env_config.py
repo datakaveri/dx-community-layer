@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Get the current version of the project from the package metadata
 try:
-    current_version = importlib.metadata.version("TGDex-Monorepo")
+    current_version = importlib.metadata.version("DX-Community")
 except Exception:
     current_version = "0.0.0"
 
@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 class EnvConfig(BaseSettings):
-    PROJECT_NAME: str = "TGDex-Monorepo"
+    PROJECT_NAME: str = "DX-Community"
     API_VERSION: str = current_version
     INSTANCE: str
     BASE_URL: str = "http://127.0.0.1:5000"

@@ -1,11 +1,9 @@
 [project]
-name = "tgdex-monorepo"
+name = "DX-Community"
 version = "0.1.0"
-description = "TGDex-MonoRepo is a FastAPI App which contains all the TGDex services."
-authors = [
-    {name = "muzaffar-sirpi",email = "129746616+muzaffar-sirpi@users.noreply.github.com"}
-]
+description = "DX-Community layer is a FastAPI App which contains all the community services."
 readme = "README.md"
+license = "AGPL-3.0-only"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard] (>=0.119.0,<0.120.0)",

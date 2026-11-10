@@ -95,10 +95,10 @@ services:
           memory: 512M
 
     networks:
-      - tgdex-network
+      - dx-community-network
 
 networks:
-  tgdex-network:
+  dx-community-network:
     external: true
 
 # SECRETS (must already exist via docker secret create ...)

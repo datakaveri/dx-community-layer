@@ -168,7 +168,7 @@ async def retrieve_competitions_handler(
     db_session: AsyncSession,
 ) -> CustomJSONResponse:
     """
-    Retrieves all challenges accross the TGDex platform.
+    Retrieves all challenges across the DX platform.
 
     Args:
         req_params (RetrieveCompetitonsParams): The request body containing the sorting parameters.

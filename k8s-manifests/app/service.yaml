@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: tgdex-monolith-svc
+  name: dx-community-svc
 spec:
   selector:
-    app.kubernetes.io/name: tgdex-monolith
+    app.kubernetes.io/name: dx-community
   ports:
     - name: http
       port: 80

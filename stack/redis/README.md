@@ -1,4 +1,4 @@
-This directory contains the Docker Compose configuration for deploying Redis cache server for the TGDex Discussion application.
+This directory contains the Docker Compose configuration for deploying Redis cache server for the DX-Community application.
 
 ## Overview
 

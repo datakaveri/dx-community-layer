@@ -143,7 +143,7 @@ async def retrieve_challenge_by_id(
     path="/{choice}",
     description=public_desc(
         (
-            "Retrieves all challenges accross the TGDex platform based on the choice provided."
+            "Retrieves all challenges across the DX platform based on the choice provided."
             "Supports pagination, sorting and filtering (by query). <br>"
             "`Note: Authentication required for joined challenges.`"
         )
@@ -157,7 +157,7 @@ async def retrieve_competitions(
     db_session: AsyncSession = Depends(get_challenge_db_session),
 ) -> CustomJSONResponse:
     """
-    Retrieves all challenges accross the TGDex platform.
+    Retrieves all challenges across the DX platform.
 
     Args:
         req_params (RetrieveCompetitonsParams): The request body containing the sorting parameters.
