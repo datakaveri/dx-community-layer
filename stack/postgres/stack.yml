@@ -50,14 +50,14 @@ services:
           memory: 1G
 
     networks:
-      - tgdex-network
+      - dx-community-network
 
 volumes:
   postgres_data:
     driver: local
 
 networks:
-  tgdex-network:
+  dx-community-network:
     external: true
 
 secrets:

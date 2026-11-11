@@ -1,6 +1,6 @@
-# TGDex Discussion Application Stack
+# DX-Community Application Stack
 
-This directory contains the Docker Swarm stack configuration for deploying the TGDex Discussion application.
+This directory contains the Docker Swarm stack configuration for deploying the DX-Community application.
 
 ## Files
 
@@ -12,7 +12,7 @@ This directory contains the Docker Swarm stack configuration for deploying the T
 ## Prerequisites
 
 1. Docker Swarm must be initialized
-2. External network `tgdex-network` must exist
+2. External network `dx-community-network` must exist
 3. Docker secrets can be created using the create-secrets.sh (PostgreSQL, Redis, Keycloak, AWS credentials)
 
 ## Setup
@@ -44,7 +44,7 @@ This will create Docker secrets from your `secrets.env` file.
 ### 3. Deploy the Stack
 
 ```bash
-docker stack deploy -c stack.yml tgdex-app
+docker stack deploy -c stack.yml dx-community-app
 ```
 
 ## Configuration
@@ -95,29 +95,29 @@ The application is exposed on port `5000`.
 
 ```bash
 docker service ls
-docker service ps tgdex-app_app
+docker service ps dx-community-app_app
 ```
 
 ### View Logs
 
 ```bash
-docker service logs -f tgdex-app_app
+docker service logs -f dx-community-app_app
 ```
 
 ### Scale the Service
 
 ```bash
-docker service scale tgdex-app_app=3
+docker service scale dx-community-app_app=3
 ```
 
 ### Update the Service
 
 ```bash
-docker service update --image tgdex-discussion:new-tag tgdex-app_app
+docker service update --image dx-community-layer:new-tag dx-community-app_app
 ```
 
 ### Remove the Stack
 
 ```bash
-docker stack rm tgdex-app
+docker stack rm dx-community-app
 ```

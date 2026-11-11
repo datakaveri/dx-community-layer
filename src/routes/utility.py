@@ -21,7 +21,7 @@ router = APIRouter(tags=["Utility APIs"])
 )
 async def default(request: Request) -> CustomJSONResponse:
     """
-    Default entry point for the TGDex-Discussion APIs.
+    Default entry point for the DX-Community APIs.
 
     This is a public health check or informational endpoint to confirm that the
     Project microservice is running and accessible.

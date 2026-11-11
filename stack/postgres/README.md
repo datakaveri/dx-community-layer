@@ -1,4 +1,4 @@
-This directory contains the Docker Swarm stack configuration for deploying PostgreSQL database for the TGDex Discussion application.
+This directory contains the Docker Swarm stack configuration for deploying PostgreSQL database for the DX-Community application.
 
 ## Files
 
@@ -9,7 +9,7 @@ This directory contains the Docker Swarm stack configuration for deploying Postg
 ## Prerequisites
 
 1. Docker Swarm must be initialized
-2. External network `tgdex-network` must exist
+2. External network `dx-community-network` must exist
 
 ## Setup
 
@@ -48,7 +48,7 @@ This will create the following Docker secrets:
 ### 4. Deploy the Stack
 
 ```bash
-docker stack deploy -c stack.yml tgdex-postgres
+docker stack deploy -c stack.yml dx-community-postgres
 ```
 
 ## Configuration
@@ -66,13 +66,13 @@ docker stack deploy -c stack.yml tgdex-postgres
 
 ```bash
 docker service ls
-docker service ps tgdex-postgres_postgres
+docker service ps dx-community-postgres_postgres
 ```
 
 ### View Logs
 
 ```bash
-docker service logs -f tgdex-postgres_postgres
+docker service logs -f dx-community-postgres_postgres
 ```
 
 ### Connect to Database
@@ -80,7 +80,7 @@ docker service logs -f tgdex-postgres_postgres
 From within the Docker network:
 
 ```bash
-docker exec -it $(docker ps -q -f name=tgdex-postgres_postgres) psql -U <username> -d <database>
+docker exec -it $(docker ps -q -f name=dx-community-postgres_postgres) psql -U <username> -d <database>
 ```
 
 From host machine:
@@ -92,7 +92,7 @@ psql -h localhost -p 5432 -U <username> -d <database>
 ### Remove the Stack
 
 ```bash
-docker stack rm tgdex-postgres
+docker stack rm dx-community-postgres
 ```
 
 ## Initialization Scripts

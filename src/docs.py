@@ -9,7 +9,7 @@ def public_desc(desc: str) -> str:
     return f"**🔓 Public Endpoint**\n\n{desc}"
 
 
-docs_summary = "The TGDex-Discussion service is a dedicated microservice built with FastAPI to handle all discussion-related functionalities within the TGDex ecosystem."
+docs_summary = "The DX-Community service is a FastAPI microservice that provides the community features (discussions and challenges) of the DX ecosystem."
 docs_description = (
     "`Apart from the response codes specified in each API, the API server may respond with other common "
     "responses based on standard API behavior.`"

@@ -1,6 +1,6 @@
-# TGDex-MonoRepo
+# DX-Community Layer
 
-TGDex-MonoRepo is a **FastAPI** application that provides all **TGDex** microservices: **Discussion** and **Challenge** APIs. You can enable one or both via configuration.
+DX-Community layer is a **FastAPI** application that provides all **community** microservices: **Discussion** and **Challenge** APIs. You can enable one or both via configuration.
 
 ---
 
@@ -13,13 +13,13 @@ TGDex-MonoRepo is a **FastAPI** application that provides all **TGDex** microser
 - [Cron](#cron)
 - [Deployments](#deployments)
   - [Docker (standalone)](#1-docker-standalone)
-  - [GitHub Actions (CI/CD)](#2-github-actions-cicd)
+  - [Jenkins (CI/CD)](#2-jenkins-cicd)
   - [Docker Swarm (stack)](#3-docker-swarm-stack)
   - [Kubernetes](#4-kubernetes)
 - [Project Structure](#project-structure)
 - [API Documentation](#api-documentation)
   - [Running behind a reverse proxy subpath](#running-behind-a-reverse-proxy-subpath)
-- [Authors](#authors)
+- [License](#license)
 
 ---
 
@@ -40,16 +40,18 @@ TGDex-MonoRepo is a **FastAPI** application that provides all **TGDex** microser
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/sirpi-in/tgdex-monorepo.git
-cd tgdex-monorepo
+git clone https://github.com/datakaveri/dx-community-layer.git
+cd dx-community-layer
 ```
 
-### 2. Install Poetry
+### 2. Install Python and Poetry
+
+Use Python **3.13** or newer (`.python-version` pins **3.13.3**; with pyenv, `pyenv install` inside the repo picks it up).
 
 If Poetry is not installed:
 
 ```bash
-pip install poetry==2.1.4
+pipx install poetry==2.1.4   # or: pip install --user poetry==2.1.4
 ```
 
 Other options: [Poetry installation](https://python-poetry.org/docs/#installation).
@@ -59,6 +61,26 @@ Other options: [Poetry installation](https://python-poetry.org/docs/#installatio
 ```bash
 poetry install
 ```
+
+This creates a virtualenv, installs the dependencies from `poetry.lock`, and installs the project itself so the `local`, `server` and `cron` commands exist.
+
+### 4. Create the `.env` file
+
+The app reads its settings from `.env` in the directory it is started from (the project root). Start from the template:
+
+```bash
+cp example-config/.community-server.env .env
+```
+
+Fill in the values; see [Environment Variables](#environment-variables) for what each one means.
+
+### 5. Start the server
+
+```bash
+poetry run local
+```
+
+The API is now at `http://127.0.0.1:5000` and the docs at `http://127.0.0.1:5000/docs`. PostgreSQL, Redis, Keycloak and S3 must be reachable for the routes to work.
 
 ---
 
@@ -195,7 +217,7 @@ poetry run cron
 **Schedule (e.g. every 5 minutes via cron):**
 
 ```bash
-*/5 * * * * cd /path/to/tgdex-monorepo && poetry run cron
+*/5 * * * * cd /path/to/dx-community-layer && poetry run cron
 ```
 
 Requires the same [environment variables](#environment-variables) as the main app (notably `CHALLENGE_DATABASE_URL`, `CHALLENGE_DB_SCHEMA`). Uses the Challenge database only.
@@ -209,58 +231,45 @@ Requires the same [environment variables](#environment-variables) as the main ap
 **Build:**
 
 ```bash
-docker build -t tgdex-monorepo:latest .
+docker build -t dx-community-layer:latest .
 ```
 
 **Run:**
 
 ```bash
 docker run -d \
-  --name tgdex-monorepo \
+  --name dx-community-layer \
   -p 5000:5000 \
   --env-file .env \
   --restart unless-stopped \
-  tgdex-monorepo:latest
+  dx-community-layer:latest
 ```
 
 Use a `.env` with all [environment variables](#environment-variables) (including `DISCUSSION_DATABASE_URL`, `CHALLENGE_DATABASE_URL`, etc.).
 
 ---
 
-### 2. GitHub Actions (CI/CD)
+### 2. Jenkins (CI/CD)
 
-The workflow **Deploy TGDex-monorepo-microservices** (`.github/workflows/deploy.yml`) runs on:
+The `Jenkinsfile` pipeline runs on the `dev` branch and on pull requests (`PR-*`), and only when one of these changed (or the build was started by hand):
 
-- Push to `dev`
-- Manual `workflow_dispatch`
+- `src/**`, `Dockerfile`, `pyproject.toml`
+- `example-config/.community-server.env`
+- `stack/postgres/init-scripts/**`
 
 **Steps it performs:**
 
-1. Checkout, install Vault CLI.
-2. **Fetch secrets** from HashiCorp Vault:  
-   `vault kv get -field=monorepo-microservices-dev kv/projects/tgdex` → `.env.production`
-3. **Build and push** Docker image to Docker Hub (e.g. `sirpi/tgdex-monorepo-microservices:dev`).
-4. **Copy** `.env.production` to the server (e.g. `/tmp/tgdex-monorepo-microservices/`).
-5. **Deploy on server:**
-   - Move env to `/root/tgdex-monorepo-microservices/.env`
-   - Docker login, pull image, stop/rm old container.
-   - Start new container with `--env-file` and `-p 8091:5000`, `--restart always`.
+1. **Build** the Docker image `ghcr.io/datakaveri/dx-community-layer` from the `Dockerfile` (every matching build, including PRs).
+2. **Detect config / migration changes** since the last successful build (not on PRs).
+3. **Push** the image to GHCR (`dev` only), tagged `1.0.0-<short-commit-hash>` plus:
+   - `-C` if `example-config/.community-server.env` changed (new config is needed),
+   - `-M` if anything under `stack/postgres/init-scripts/` changed (a DB migration is needed).
+4. **Deploy to EKS** (`dev` only) by running `helm upgrade community-server` with the new image tag, using the community-layer chart from the `iudx-installer` repository.
+5. **Health check:** `GET https://v2.dev.community-layer.iudx.io/docs` must return `200`, or the build fails.
 
-**Required GitHub Secrets:**
+Build failures on `dev` send an email to the build user, the developers and `$COMMUNITY_LAYER_RECIPIENTS`.
 
-| Secret            | Description                                |
-|-------------------|--------------------------------------------|
-| `VAULT_URL`       | Vault address.                             |
-| `VAULT_TOKEN`     | Token to read `kv/projects/tgdex`.         |
-| `DOCKER_USERNAME` | Docker Hub username.                       |
-| `DOCKER_PASSWORD` | Docker Hub password/token.                 |
-| `DOCKER_IMAGE_NAME` | Image name (e.g. `sirpi/tgdex-monorepo-microservices`). |
-| `CONTAINER_NAME`  | Container name on the server.              |
-| `SERVER_HOST`     | Deploy target host.                        |
-| `SERVER_USER`     | SSH user.                                  |
-| `SSH_PRIVATE_KEY` | SSH private key for deployment.            |
-
-The Vault key `monorepo-microservices-dev` must contain the same variables as the [environment variables](#environment-variables) section (as a blob or key-value that can be written into `.env.production`).
+When `example-config/.community-server.env` changes on `dev` or `stable/**`, the separate GitHub Actions workflow `.github/workflows/sync-config.yml` bumps its `CONFIG_VERSION` and syncs the file to `datakaveri/iudx-installer`.
 
 ---
 
@@ -271,7 +280,7 @@ The **app** stack (`stack/app/`) expects Docker **secrets** and uses `entrypoint
 #### Prerequisites
 
 - Docker Swarm initialized.
-- External network: `tgdex-network`.
+- External network: `dx-community-network` (`docker network create -d overlay --attachable dx-community-network`).
 - PostgreSQL and Redis running and reachable (e.g. via `stack/postgres` and `stack/redis` or your own).
 
 #### 3.1 PostgreSQL stack (if using `stack/postgres`)
@@ -281,7 +290,7 @@ cd stack/postgres
 cp secrets.env.example secrets.env
 # Edit secrets.env: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 ./create-secrets.sh
-docker stack deploy -c stack.yml tgdex-postgres
+docker stack deploy -c stack.yml dx-community-postgres
 # Optional: host-mode port 5432: add -c custom-expose.yaml to the deploy command
 ```
 
@@ -330,12 +339,12 @@ docker compose up -d
 
 3. **Set image in `stack.yml`:**
 
-   Replace `<place-holder>` under `services.app.image` with your image (e.g. `tgdex-monorepo:latest` or your registry path).
+   Replace `<place-holder>` under `services.app.image` with your image (e.g. `ghcr.io/datakaveri/dx-community-layer:<tag>` or `dx-community-layer:latest`).
 
 4. **Deploy:**
 
    ```bash
-   docker stack deploy -c stack.yml tgdex-app
+   docker stack deploy -c stack.yml dx-community-app
    ```
 
 The app is exposed on **5000** and uses `/healthz` for healthchecks. `INSTANCE`, `BASE_URL`, `ROOT_PATH`, and `ACTIVATED_SERVICES` are set in `stack.yml`; DB URLs are built by `entrypoint.sh` from the secrets above.
@@ -344,49 +353,57 @@ The app is exposed on **5000** and uses `/healthz` for healthchecks. `INSTANCE`,
 
 ### 4. Kubernetes
 
-Manifests are under `k8s-manifests/app/`.
+Example manifests are under `k8s-manifests/app/` (`deploy.yaml`, `service.yaml`, `cronjob.yaml`). The dev environment itself is deployed with the Helm chart in `datakaveri/iudx-installer` (see [Jenkins](#2-jenkins-cicd)).
 
 #### deploy.yaml
 
 - Replace `<placeholder>` for `imagePullSecrets.name` if you use a private registry.
-- Replace `<placeholder>` for `containers[0].image` with your image (e.g. `sirpi/tgdex-monorepo-microservices:dev`).
+- Replace `<placeholder>` for `containers[0].image` with your image (e.g. `ghcr.io/datakaveri/dx-community-layer:<tag>`).
 - Replace `<placeholder>` for `envFrom.secretRef.name` with the name of a **Secret** that contains the same [environment variables](#environment-variables) as key-value pairs.
 
 **Kubernetes Secret example (literal values; prefer sealed-secrets or external secret operators in production):**
 
 ```bash
-kubectl create secret generic tgdex-monorepo-secrets --from-literal=INSTANCE=production \
+kubectl create secret generic dx-community-secrets --from-literal=INSTANCE=production \
   --from-literal=BASE_URL=https://api.example.com \
   --from-literal=ACTIVATED_SERVICES='["DISCUSSION","CHALLENGE"]' \
   --from-literal=DISCUSSION_DATABASE_URL='postgresql://...' \
   --from-literal=DISCUSSION_DB_SCHEMA=discussion \
   --from-literal=CHALLENGE_DATABASE_URL='postgresql://...' \
   --from-literal=CHALLENGE_DB_SCHEMA=challenge \
-  # ... add KEYCLOAK_*, AWS_*, REDIS_URL, etc.
+  # ... add KEYCLOAK_*, S3_*, REDIS_URL, etc.
 ```
 
-Then set `envFrom.secretRef.name` to `tgdex-monorepo-secrets`.
+Then set `envFrom.secretRef.name` to `dx-community-secrets`.
 
 #### service.yaml
 
-- `tgdex-monolith-svc` exposes the app on port **80** (targeting container port **5000**). Adjust if your Ingress or network policy expects a different port.
+- `dx-community-svc` exposes the app on port **80** (targeting container port **5000**). Adjust if your Ingress or network policy expects a different port.
 
 **Apply:**
 
 ```bash
 kubectl apply -f k8s-manifests/app/deploy.yaml
 kubectl apply -f k8s-manifests/app/service.yaml
+kubectl apply -f k8s-manifests/app/cronjob.yaml   # scheduled publishing, see Cron
 ```
+
+#### cronjob.yaml
+
+- `dx-community-cronjob` runs the `cron` command (see [Cron](#cron)) with the same image and Secret. Replace its `<placeholder>` values the same way as in `deploy.yaml`.
 
 ---
 
 ## Project Structure
 
 ```
-tgdex-monorepo/
+dx-community-layer/
 ├── .github/workflows/
-│   └── deploy.yml          # CI/CD for dev branch
-├── k8s-manifests/app/      # Kubernetes Deployment and Service
+│   └── sync-config.yml     # Syncs example-config to iudx-installer
+├── example-config/
+│   └── .community-server.env  # Template for .env
+├── k8s-manifests/app/      # Kubernetes Deployment, Service and CronJob
+├── postman/                # Postman collection
 ├── stack/
 │   ├── app/                # Docker Swarm app stack, entrypoint, create-secrets
 │   ├── postgres/           # PostgreSQL stack and init scripts
@@ -404,6 +421,8 @@ tgdex-monorepo/
 │   ├── run.py              # `server` and `local` entrypoints
 │   └── docs.py
 ├── Dockerfile
+├── Jenkinsfile             # CI/CD: build, push to GHCR, deploy to EKS
+├── LICENSE
 ├── pyproject.toml
 ├── poetry.lock
 ├── .python-version
@@ -445,6 +464,6 @@ Full write-up of the failure this prevents, and why `root_path` rather than a re
 
 ---
 
-## Authors
+## License
 
-- **Muzaffar Shaikh** — [muzaffar@sirpi.io](mailto:muzaffar@sirpi.io)
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`).
