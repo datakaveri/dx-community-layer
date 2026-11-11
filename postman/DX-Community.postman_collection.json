@@ -1,7 +1,7 @@
 {
 	"info": {
 		"_postman_id": "660f9b6d-cb05-4395-b5c2-a831972d6ab0",
-		"name": "TGDex-Monorepo",
+		"name": "DX-Community",
 		"description": "`Apart from the response codes specified in each API, the API server may respond with other common responses based on standard API behavior.`",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "50314297",
@@ -23198,7 +23198,7 @@
 										}
 									]
 								},
-								"description": "**🔓 Public Endpoint**\n\nRetrieves all challenges accross the TGDex platform based on the choice provided.Supports pagination, sorting and filtering (by query). <br>`Note: Authentication required for joined challenges.`"
+								"description": "**🔓 Public Endpoint**\n\nRetrieves all challenges across the DX platform based on the choice provided.Supports pagination, sorting and filtering (by query). <br>`Note: Authentication required for joined challenges.`"
 							},
 							"response": [
 								{
